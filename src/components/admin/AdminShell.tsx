@@ -6,7 +6,8 @@ import {
   Palette, MessageCircle, CreditCard, Settings, Menu, X, Bell,
 } from "lucide-react";
 
-const nav = [
+type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
+const nav: NavItem[] = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/admin/agenda", label: "Agenda", icon: Calendar },
   { to: "/admin/clientes", label: "Clientes", icon: Users },
@@ -17,7 +18,7 @@ const nav = [
   { to: "/admin/whatsapp", label: "WhatsApp Oficial", icon: MessageCircle },
   { to: "/admin/plano", label: "Plano e assinatura", icon: CreditCard },
   { to: "/admin/configuracoes", label: "Configurações", icon: Settings },
-] as const;
+];
 
 export function AdminShell() {
   const [open, setOpen] = useState(false);
