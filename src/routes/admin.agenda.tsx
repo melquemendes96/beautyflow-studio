@@ -86,17 +86,7 @@ function Agenda() {
               <div key={d} className="border-b border-l border-border p-3 text-center font-medium">{d}</div>
             ))}
             {["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"].map((h) => (
-              <>
-                <div key={h} className="border-b border-border p-3 text-muted-foreground">{h}</div>
-                {Array.from({ length: 7 }).map((_, c) => {
-                  const filled = (h.length + c) % 3 === 0;
-                  return (
-                    <div key={c} className="border-b border-l border-border p-2">
-                      {filled && <div className="rounded-md bg-foreground/90 px-2 py-1 text-[10px] text-background">Cliente</div>}
-                    </div>
-                  );
-                })}
-              </>
+              <FragmentRow key={h} h={h} />
             ))}
           </div>
         </div>
