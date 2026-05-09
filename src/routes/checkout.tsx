@@ -4,7 +4,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 export const Route = createFileRoute("/checkout")({
   validateSearch: (s: Record<string, unknown>) => ({
     planId: typeof s.planId === "string" ? s.planId : undefined,
-    trial: s.trial === "true" || s.trial === true,
+    trial: s.trial === "true" || s.trial === true || s.trial === "1",
   }),
   beforeLoad: ({ search }) => {
     if (!search.planId) {
