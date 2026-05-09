@@ -1,22 +1,8 @@
--- Fase 10 — Regras do checkout
--- - Trial grátis: 7 dias
--- - Trial: 1 por empresa
--- - Troca de plano: a cada 30 dias
+-- Corrige typo: tipo correto é support_ticket_priority (não support_priority).
+-- Sem isso, INSERT em support_tickets falha ao finalizar checkout (ex.: transferência manual).
 
 BEGIN;
 
--- Guardrails na subscription
-ALTER TABLE public.subscriptions
-  ADD COLUMN IF NOT EXISTS trial_used BOOLEAN NOT NULL DEFAULT false;
-
-ALTER TABLE public.subscriptions
-  ADD COLUMN IF NOT EXISTS last_plan_change_at TIMESTAMPTZ;
-
-UPDATE public.subscriptions
-SET last_plan_change_at = COALESCE(last_plan_change_at, created_at)
-WHERE last_plan_change_at IS NULL;
-
--- Atualiza a RPC do checkout para aplicar as regras
 CREATE OR REPLACE FUNCTION public.company_start_checkout(
   p_company_id uuid,
   p_plan_id uuid,
@@ -39,7 +25,7 @@ SET search_path = public
 AS $$
 DECLARE
   plan_row public.plans%ROWTYPE;
-  sub_row public.subscriptions%ROWTYPE;
+  sub_row public.tenant_subscriptions%ROWTYPE;
   pay_id uuid;
   can_change_plan boolean;
 BEGIN
@@ -47,7 +33,7 @@ BEGIN
     RETURN json_build_object('ok', false, 'error', 'dados_incompletos');
   END IF;
 
-  IF NOT (p_company_id IN (SELECT public.current_user_owner_admin_company_ids())) THEN
+  IF NOT (p_company_id IN (SELECT public.current_user_company_ids())) THEN
     RETURN json_build_object('ok', false, 'error', 'sem_permissao');
   END IF;
 
@@ -56,7 +42,6 @@ BEGIN
     RETURN json_build_object('ok', false, 'error', 'plano_invalido');
   END IF;
 
-  -- upsert perfil de cobrança
   INSERT INTO public.billing_profiles (
     company_id, legal_name, document, email, phone, address_line1, address_line2, city, state, postal_code
   ) VALUES (
@@ -73,11 +58,12 @@ BEGIN
     state = EXCLUDED.state,
     postal_code = EXCLUDED.postal_code;
 
-  SELECT * INTO sub_row FROM public.subscriptions WHERE company_id = p_company_id;
+  SELECT * INTO sub_row FROM public.tenant_subscriptions WHERE company_id = p_company_id;
 
   IF NOT FOUND THEN
-    -- primeira assinatura da empresa
-    INSERT INTO public.subscriptions (company_id, plan_id, status, current_period_start, current_period_end, trial_used, last_plan_change_at)
+    INSERT INTO public.tenant_subscriptions (
+      company_id, plan_id, status, current_period_start, current_period_end, trial_used, last_plan_change_at
+    )
     VALUES (
       p_company_id,
       p_plan_id,
@@ -89,12 +75,10 @@ BEGIN
     )
     RETURNING * INTO sub_row;
   ELSE
-    -- regra: trial só 1x
     IF p_trial AND sub_row.trial_used THEN
       RETURN json_build_object('ok', false, 'error', 'trial_ja_usado');
     END IF;
 
-    -- regra: troca de plano a cada 30 dias (exceto se for o mesmo plano)
     can_change_plan := (sub_row.plan_id = p_plan_id)
       OR (sub_row.last_plan_change_at IS NULL)
       OR (sub_row.last_plan_change_at <= now() - interval '30 days');
@@ -103,7 +87,7 @@ BEGIN
       RETURN json_build_object('ok', false, 'error', 'troca_plano_bloqueada');
     END IF;
 
-    UPDATE public.subscriptions
+    UPDATE public.tenant_subscriptions
     SET
       plan_id = p_plan_id,
       last_plan_change_at = CASE WHEN sub_row.plan_id <> p_plan_id THEN now() ELSE sub_row.last_plan_change_at END,
@@ -127,16 +111,18 @@ BEGIN
     RETURNING * INTO sub_row;
   END IF;
 
-  -- cria cobrança pendente se não for trial
   IF NOT p_trial THEN
-    INSERT INTO public.payments (company_id, subscription_id, amount, status, payment_method, due_date)
+    INSERT INTO public.payment_transactions (
+      company_id, tenant_subscription_id, amount, status, payment_method, due_date, gateway_provider
+    )
     VALUES (
       p_company_id,
       sub_row.id,
       plan_row.price,
       'pending'::public.payment_status,
       p_payment_method::text,
-      (now()::date + 3)
+      (now()::date + 3),
+      'manual'
     )
     RETURNING id INTO pay_id;
   END IF;
@@ -164,7 +150,6 @@ GRANT EXECUTE ON FUNCTION public.company_start_checkout(
   text, text, text, text, text, text, text, text, text
 ) TO authenticated;
 
-COMMENT ON FUNCTION public.company_start_checkout IS 'Fase 10: aplica trial 7d (1x) e troca de plano a cada 30d.';
+COMMENT ON FUNCTION public.company_start_checkout IS 'Checkout: billing_profiles + tenant_subscriptions + payment_transactions + ticket.';
 
 COMMIT;
-

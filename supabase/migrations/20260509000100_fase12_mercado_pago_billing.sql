@@ -371,7 +371,7 @@ BEGIN
       'PaymentId: ', COALESCE(pay_id::text, '-')
     ),
     'open'::public.support_ticket_status,
-    'normal'::public.support_priority
+    'normal'::public.support_ticket_priority
   );
 
   RETURN json_build_object('ok', true, 'subscription_id', sub_row.id, 'payment_id', pay_id);
