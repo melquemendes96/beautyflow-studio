@@ -1,5 +1,5 @@
 import type { Session, User } from "@supabase/supabase-js";
-import { getSupabase, isSupabaseConfigured } from "@/lib/supabaseClient";
+import { getSupabase } from "@/lib/supabaseClient";
 
 export type CompanyMembership = {
   company_id: string;
@@ -14,15 +14,6 @@ export type AuthProfile = {
 };
 
 export async function loadAuthProfile(): Promise<AuthProfile> {
-  if (!isSupabaseConfigured()) {
-    return {
-      session: null,
-      user: null,
-      isPlatformAdmin: false,
-      companyMemberships: [],
-    };
-  }
-
   const supabase = getSupabase();
   const {
     data: { session },
