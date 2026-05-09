@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
 import { useEffect } from "react";
 import { PageTitle } from "@/components/admin/AdminShell";
 import { Check, CreditCard } from "lucide-react";
@@ -22,7 +22,6 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Link } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/admin/plano")({
   component: Plano,
@@ -34,6 +33,11 @@ export const Route = createFileRoute("/admin/plano")({
 });
 
 function Plano() {
+  const pathname = useRouterState({ select: (s) => s.location.pathname });
+  if (pathname === "/admin/plano/checkout" || pathname.startsWith("/admin/plano/checkout/")) {
+    return <Outlet />;
+  }
+
   const { companyId, hasCompany } = useCurrentCompany();
   const { checkout, billing, need } = Route.useSearch();
   const navigate = Route.useNavigate();
