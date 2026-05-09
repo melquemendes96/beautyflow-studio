@@ -1,10 +1,13 @@
-import { getSupabase } from "@/lib/supabaseClient";
+import { getSupabase, isSupabaseConfigured } from "@/lib/supabaseClient";
 
 /**
  * Planos e assinaturas (`plans`, `tenant_subscriptions`, `payment_transactions`).
  */
 export const subscriptionService = {
   listPlans() {
+    if (!isSupabaseConfigured()) {
+      return Promise.resolve({ data: [] as Record<string, unknown>[], error: null });
+    }
     return getSupabase().from("plans").select("*").eq("active", true).order("price");
   },
 
