@@ -28,7 +28,7 @@ export const Route = createFileRoute("/admin/plano/checkout")({
   validateSearch: (s: Record<string, unknown>) => {
     return {
       planId: typeof s.planId === "string" ? s.planId : "",
-      trial: s.trial === "true" || s.trial === true,
+      trial: s.trial === "true" || s.trial === true || s.trial === "1",
       checkout: undefined as string | undefined,
       billing: undefined as string | undefined,
     };
@@ -199,7 +199,13 @@ function Checkout() {
       toast.success("Solicitação enviada. Vamos validar e liberar o acesso.");
       navigate({ to: "/admin/plano", search: { checkout: undefined, billing: undefined } });
     },
-    onError: () => toast.error("Não foi possível iniciar a assinatura."),
+    onError: (err: unknown) => {
+      const msg =
+        err && typeof err === "object" && "message" in err && typeof (err as { message: unknown }).message === "string"
+          ? (err as { message: string }).message
+          : "Não foi possível iniciar a assinatura.";
+      toast.error(msg);
+    },
   });
 
   const goNextFromBilling = () => {

@@ -173,16 +173,26 @@ function Plano() {
   });
 
   const current = useMemo(() => {
-    const s: any = subscriptionQuery.data;
-    const p: any = s?.plans ?? null;
-    if (!s || !p) return null;
+    const s = subscriptionQuery.data as {
+      status?: string | null;
+      plan_id?: string | null;
+      current_period_end?: string | null;
+      plans?: { id?: string; name?: string | null; price?: number | null } | null | unknown[];
+    } | null;
+    if (!s) return null;
+    const rawPlan = s.plans;
+    const p = Array.isArray(rawPlan) ? rawPlan[0] : rawPlan;
+    const planId = String((p as { id?: string } | undefined)?.id ?? s.plan_id ?? "");
+    if (!planId) return null;
     const end = s.current_period_end ? new Date(s.current_period_end) : null;
     const days = end ? Math.max(0, Math.ceil((end.getTime() - Date.now()) / (1000 * 60 * 60 * 24))) : null;
     return {
-      planId: p.id as string,
-      name: p.name ?? "Plano",
-      price: Number(p.price ?? 0),
-      status: s.status ?? "active",
+      planId,
+      name: (p && typeof p === "object" && "name" in p && typeof (p as { name?: string }).name === "string"
+        ? (p as { name: string }).name
+        : null) ?? "Plano",
+      price: p && typeof p === "object" && "price" in p ? Number((p as { price?: number }).price ?? 0) : 0,
+      status: String(s.status ?? "active"),
       periodEnd: end,
       daysToRenew: days,
     };
@@ -408,6 +418,14 @@ function Plano() {
           </div>
         </div>
       </div>
+
+      {hasCompany && subscriptionQuery.data && !pendingPayment && String(subscriptionQuery.data.status ?? "") === "trialing" && (
+        <div className="mb-8 rounded-2xl border border-border bg-secondary/40 p-4 text-sm text-muted-foreground">
+          No período de teste não há cobrança pendente. Para testar a simulação de pagamento, finalize um checkout{" "}
+          <strong className="text-foreground">sem</strong> usar &quot;Iniciar teste&quot; (fluxo pago gera uma cobrança
+          pendente).
+        </div>
+      )}
 
       {hasCompany && pendingPayment && (
         <div className="mb-8 rounded-2xl border border-dashed border-gold/40 bg-gold-soft/10 p-6 shadow-soft">

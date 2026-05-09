@@ -14,6 +14,17 @@ function skipGuardOnServer(): boolean {
   return !isBrowser;
 }
 
+/**
+ * Rotas onde o tenant pode configurar o studio mesmo com cobrança pendente (past_due)
+ * ou assinatura cancelada — evita travar cadastro de serviços/marca antes do pagamento.
+ */
+function isBillingRenewExemptPath(pathname: string): boolean {
+  const p = pathname !== "/" && pathname.endsWith("/") ? pathname.replace(/\/+$/, "") : pathname;
+  if (p === "/admin") return true;
+  const prefixes = ["/admin/branding", "/admin/configuracoes", "/admin/servicos"];
+  return prefixes.some((pre) => p === pre || p.startsWith(`${pre}/`));
+}
+
 /** Painel empresa: precisa estar logado e ter vínculo em company_users. */
 export async function guardCompanyAdminRoute(): Promise<void> {
   if (skipGuardOnServer()) {
@@ -37,7 +48,7 @@ export async function guardCompanyAdminRoute(): Promise<void> {
 
 /**
  * Bloqueia rotas do painel empresa quando a empresa está suspensa ou a assinatura
- * não está em dia (exceto páginas de plano/checkout).
+ * não está em dia (exceto plano/checkout e páginas de configuração inicial durante cobrança pendente).
  */
 export async function guardCompanyTenantBillingAccess(pathname: string): Promise<void> {
   if (skipGuardOnServer()) {
@@ -77,6 +88,9 @@ export async function guardCompanyTenantBillingAccess(pathname: string): Promise
   const periodEnded = Boolean(end && end.getTime() < Date.now());
 
   if (st === "canceled" || st === "past_due") {
+    if (isBillingRenewExemptPath(pathname)) {
+      return;
+    }
     throw redirect({ to: "/admin/plano", search: { billing: "renew" } });
   }
   if ((st === "active" || st === "trialing") && periodEnded) {
