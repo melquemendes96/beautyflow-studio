@@ -1,5 +1,9 @@
-import { Link, Outlet, useLocation } from "@tanstack/react-router";
-import { useState } from "react";
+import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useQuery } from "@tanstack/react-query";
+import { useAuth } from "@/contexts/AuthProvider";
+import { useCurrentCompany } from "@/lib/current-company";
+import { subscriptionService } from "@/services/subscriptionService";
 import { Logo } from "@/components/brand/Logo";
 import {
   LayoutDashboard, Calendar, Users, Scissors, Clock, BarChart3,
@@ -23,16 +27,107 @@ const nav: NavItem[] = [
 export function AdminShell() {
   const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
+  const navigate = useNavigate();
+  const { user, session, isPlatformAdmin, companyMemberships, isLoading, signOut, refresh } = useAuth();
+  const { companyId, hasCompany } = useCurrentCompany();
+  const membershipSyncRef = useRef(false);
+
+  const subscriptionQuery = useQuery({
+    queryKey: ["admin", "subscription", companyId],
+    enabled: hasCompany && Boolean(companyId),
+    queryFn: async () => {
+      const res = await subscriptionService.getSubscriptionByCompany(companyId!);
+      if (res.error) throw res.error;
+      return res.data ?? null;
+    },
+  });
+
+  const planSummary = useMemo(() => {
+    const sub = subscriptionQuery.data;
+    const plan = sub?.plans as { name?: string | null } | null | undefined;
+    const name = plan?.name?.trim() || "Plano";
+    const endRaw = sub?.current_period_end as string | null | undefined;
+    const end = endRaw ? new Date(endRaw) : null;
+    const renewal =
+      end && !Number.isNaN(end.getTime())
+        ? end.toLocaleDateString("pt-BR", { day: "2-digit", month: "short", year: "numeric" })
+        : null;
+    const st = String(sub?.status ?? "");
+    if (st === "trialing") {
+      return { title: name, subtitle: renewal ? `Teste até ${renewal}` : "Período de testes ativo" };
+    }
+    if (!sub) {
+      return { title: "Seu plano", subtitle: "Ative para usar todos os recursos" };
+    }
+    return {
+      title: name,
+      subtitle: renewal ? `Renova em ${renewal}` : "Gerencie cobrança e upgrade",
+    };
+  }, [subscriptionQuery.data]);
+
+  // Trava de segurança: não renderiza painel antes de validar a sessão no client.
+  useEffect(() => {
+    if (isLoading) return;
+
+    if (!session) {
+      membershipSyncRef.current = false;
+      void navigate({ to: "/login", search: { planId: undefined } });
+      return;
+    }
+
+    if (companyMemberships.length > 0) {
+      membershipSyncRef.current = false;
+      return;
+    }
+    if (isPlatformAdmin) {
+      membershipSyncRef.current = false;
+      void navigate({ to: "/master" });
+      return;
+    }
+
+    // Sessão ok mas contexto ainda sem empresa (ex.: `user_bootstrap_company` acabou de rodar).
+    if (!membershipSyncRef.current) {
+      membershipSyncRef.current = true;
+      void refresh();
+      return;
+    }
+
+    membershipSyncRef.current = false;
+    void navigate({ to: "/login", search: { planId: undefined } });
+  }, [companyMemberships.length, isLoading, isPlatformAdmin, navigate, refresh, session]);
+
+  if (isLoading || !session) {
+    return (
+      <div className="min-h-screen bg-secondary/30">
+        <div className="mx-auto flex min-h-screen max-w-md items-center justify-center px-6 text-center">
+          <div className="rounded-3xl border border-border bg-card p-8 shadow-elegant">
+            <Logo className="mx-auto h-10" />
+            <div className="mt-4 font-display text-xl">Carregando seu painel…</div>
+            <p className="mt-2 text-sm text-muted-foreground">
+              Validando sua sessão com segurança.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-secondary/30">
       {/* Mobile topbar */}
       <div className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur lg:hidden">
-        <button onClick={() => setOpen(true)} className="rounded-lg p-2 hover:bg-accent">
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="rounded-lg p-2 hover:bg-accent"
+          aria-label="Abrir menu"
+        >
           <Menu className="size-5" />
         </button>
         <Logo className="h-8" />
-        <button className="rounded-lg p-2 hover:bg-accent"><Bell className="size-5" /></button>
+        <button type="button" className="rounded-lg p-2 hover:bg-accent" aria-label="Notificações">
+          <Bell className="size-5" />
+        </button>
       </div>
 
       <div className="flex">
@@ -44,7 +139,12 @@ export function AdminShell() {
         >
           <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-5">
             <Logo className="h-9" />
-            <button onClick={() => setOpen(false)} className="rounded-lg p-2 hover:bg-accent lg:hidden">
+            <button
+              type="button"
+              onClick={() => setOpen(false)}
+              className="rounded-lg p-2 hover:bg-accent lg:hidden"
+              aria-label="Fechar menu"
+            >
               <X className="size-5" />
             </button>
           </div>
@@ -70,8 +170,12 @@ export function AdminShell() {
             })}
           </nav>
           <div className="absolute inset-x-3 bottom-3 rounded-2xl bg-gradient-to-br from-foreground to-foreground/80 p-4 text-background">
-            <div className="text-xs uppercase tracking-wider text-gold">Plano Studio Pro</div>
-            <div className="mt-1 text-sm">Renova em 12 dias</div>
+            <div className="text-xs uppercase tracking-wider text-gold">
+              {subscriptionQuery.isLoading ? "…" : planSummary.title}
+            </div>
+            <div className="mt-1 text-sm text-background/90">
+              {subscriptionQuery.isLoading ? "Carregando…" : planSummary.subtitle}
+            </div>
             <Link to="/admin/plano" className="mt-3 inline-block text-xs text-gold hover:underline">
               Gerenciar plano →
             </Link>
@@ -84,14 +188,31 @@ export function AdminShell() {
 
         <main className="min-w-0 flex-1">
           <div className="hidden h-16 items-center justify-between border-b border-border bg-background/80 px-8 backdrop-blur lg:flex">
-            <div className="text-sm text-muted-foreground">
-              Olá, <span className="text-foreground font-medium">Joyce</span> ✨
+            <div className="flex flex-wrap items-center gap-3 text-sm text-muted-foreground">
+              <span>
+                Olá,{" "}
+                <span className="font-medium text-foreground">
+                  {user?.email?.split("@")[0] ?? "Equipe"}
+                </span>{" "}
+                ✨
+              </span>
+              {isPlatformAdmin && (
+                <Link to="/master" className="text-xs font-medium text-gold hover:underline">
+                  Painel Master
+                </Link>
+              )}
             </div>
             <div className="flex items-center gap-3">
-              <button className="rounded-full p-2 hover:bg-accent"><Bell className="size-5" /></button>
-              <div className="size-9 rounded-full bg-gradient-to-br from-gold to-gold-soft text-background grid place-items-center text-sm font-medium">
-                JM
-              </div>
+              <button type="button" className="rounded-full p-2 hover:bg-accent" aria-label="Notificações">
+                <Bell className="size-5" />
+              </button>
+              <button
+                type="button"
+                onClick={() => void signOut()}
+                className="rounded-full border border-border px-3 py-1.5 text-xs font-medium hover:bg-accent"
+              >
+                Sair
+              </button>
             </div>
           </div>
           <div className="p-5 md:p-8">

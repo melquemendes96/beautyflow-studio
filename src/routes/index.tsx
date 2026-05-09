@@ -1,8 +1,10 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useQuery } from "@tanstack/react-query";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SiteFooter } from "@/components/site/SiteFooter";
-import { planos } from "@/lib/mock";
 import { Logo } from "@/components/brand/Logo";
+import { subscriptionService } from "@/services/subscriptionService";
+import { Skeleton } from "@/components/ui/skeleton";
 import {
   Sparkles, Calendar, Smartphone, Heart, Star, Check,
   Palette, MessageCircle, BarChart3, ArrowRight,
@@ -18,7 +20,52 @@ export const Route = createFileRoute("/")({
   component: Landing,
 });
 
+type PublicPlan = {
+  id: string;
+  name: string;
+  price?: number | null;
+  features?: string[] | null;
+};
+
+function formatBrl(value: number) {
+  return value.toFixed(2).replace(".", ",");
+}
+
+function LandingPlanCardSkeleton() {
+  return (
+    <div className="rounded-3xl border border-border bg-card p-8 shadow-soft">
+      <Skeleton className="h-8 w-36" />
+      <div className="mt-6 flex items-baseline gap-2">
+        <Skeleton className="h-10 w-28" />
+        <Skeleton className="h-4 w-12" />
+      </div>
+      <ul className="mt-6 space-y-3">
+        {Array.from({ length: 4 }).map((_, i) => (
+          <li key={i} className="flex gap-2">
+            <Skeleton className="mt-0.5 size-4 shrink-0 rounded" />
+            <Skeleton className="h-4 flex-1" />
+          </li>
+        ))}
+      </ul>
+      <Skeleton className="mt-7 h-11 w-full rounded-full" />
+    </div>
+  );
+}
+
 function Landing() {
+  const plansQuery = useQuery({
+    queryKey: ["public", "plans"],
+    queryFn: async () => {
+      const res = await subscriptionService.listPlans();
+      if (res.error) throw res.error;
+      return res.data ?? [];
+    },
+  });
+
+  const plans = (plansQuery.data ?? []) as PublicPlan[];
+  const highlightIndex =
+    plans.length > 1 ? Math.min(plans.length - 1, Math.floor(plans.length / 2)) : -1;
+
   return (
     <div className="min-h-screen">
       <SiteHeader />
@@ -97,7 +144,10 @@ function Landing() {
                     </div>
                   ))}
                 </div>
-                <button className="mt-5 w-full rounded-full bg-foreground py-3 text-sm text-background">
+                <button
+                  type="button"
+                  className="mt-5 w-full rounded-full bg-foreground py-3 text-sm text-background"
+                >
                   Confirmar agendamento
                 </button>
               </div>
@@ -117,7 +167,7 @@ function Landing() {
             { icon: Calendar, t: "Agenda online 24h", d: "Suas clientes agendam quando quiserem, sem precisar te chamar." },
             { icon: Palette, t: "Sua marca, sua página", d: "Personalize cores, logo e textos. Tenha um link exclusivo." },
             { icon: Smartphone, t: "Mobile-first de verdade", d: "Experiência impecável em qualquer celular ou tablet." },
-            { icon: MessageCircle, t: "WhatsApp Oficial Meta", d: "Confirmações e lembretes automáticos pela API oficial." },
+            { icon: MessageCircle, t: "Lembretes e confirmações", d: "Reduza faltas com avisos por e-mail e SMS; integração WhatsApp em evolução." },
             { icon: BarChart3, t: "Relatórios elegantes", d: "Veja faturamento, clientes recorrentes e mais." },
             { icon: Heart, t: "Área da cliente", d: "Histórico, avaliações e reagendamento em segundos." },
           ].map((b) => (
@@ -177,45 +227,69 @@ function Landing() {
             <p className="mt-3 text-muted-foreground">Sem fidelidade. Cancele quando quiser.</p>
           </div>
           <div className="mt-14 grid gap-6 md:grid-cols-3">
-            {planos.map((p) => (
+            {plansQuery.isError && (
               <div
-                key={p.id}
-                className={`relative rounded-3xl p-8 shadow-soft transition hover:shadow-elegant ${
-                  p.destaque
-                    ? "bg-foreground text-background ring-2 ring-gold scale-[1.02]"
-                    : "bg-card"
-                }`}
+                role="alert"
+                className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive md:col-span-3"
               >
-                {p.destaque && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-gold px-4 py-1 text-xs font-medium text-foreground">
-                    Mais escolhido
-                  </div>
-                )}
-                <h3 className="font-display text-2xl">{p.nome}</h3>
-                <p className={`mt-1 text-sm ${p.destaque ? "text-background/70" : "text-muted-foreground"}`}>{p.descricao}</p>
-                <div className="mt-6 flex items-baseline gap-1">
-                  <span className="text-4xl font-display">R$ {p.preco}</span>
-                  <span className={`text-sm ${p.destaque ? "text-background/70" : "text-muted-foreground"}`}>/mês</span>
-                </div>
-                <ul className="mt-6 space-y-3 text-sm">
-                  {p.features.map((f) => (
-                    <li key={f} className="flex items-start gap-2">
-                      <Check className={`mt-0.5 size-4 shrink-0 ${p.destaque ? "text-gold" : "text-success"}`} />
-                      <span className={p.destaque ? "text-background/90" : ""}>{f}</span>
-                    </li>
-                  ))}
-                </ul>
-                <button
-                  className={`mt-7 w-full rounded-full py-3 text-sm font-medium transition ${
-                    p.destaque
-                      ? "bg-gold text-foreground hover:opacity-90"
-                      : "bg-foreground text-background hover:opacity-90"
-                  }`}
-                >
-                  Começar com {p.nome}
-                </button>
+                Não foi possível carregar os planos agora. Atualize a página ou tente de novo em instantes.
               </div>
-            ))}
+            )}
+            {plansQuery.isLoading &&
+              Array.from({ length: 3 }).map((_, i) => <LandingPlanCardSkeleton key={i} />)}
+            {!plansQuery.isLoading &&
+              !plansQuery.isError &&
+              plans.map((p, i) => {
+                const isHighlight = i === highlightIndex;
+                return (
+                  <div
+                    key={p.id}
+                    className={`relative rounded-3xl p-8 shadow-soft transition hover:shadow-elegant ${
+                      isHighlight ? "z-[1] scale-[1.02] bg-card ring-2 ring-gold/60" : "bg-card"
+                    }`}
+                  >
+                    {isHighlight && (
+                      <span className="absolute right-4 top-4 rounded-full bg-gold/20 px-2.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-gold">
+                        Popular
+                      </span>
+                    )}
+                    <h3 className="font-display text-2xl">{p.name}</h3>
+                    <div className="mt-6 flex items-baseline gap-1">
+                      <span className="text-4xl font-display">
+                        R$ {formatBrl(Number(p.price ?? 0))}
+                      </span>
+                      <span className="text-sm text-muted-foreground">/mês</span>
+                    </div>
+                    <ul className="mt-6 space-y-3 text-sm">
+                      {(Array.isArray(p.features) ? p.features : []).map((f: string) => (
+                        <li key={f} className="flex items-start gap-2">
+                          <Check className="mt-0.5 size-4 shrink-0 text-success" />
+                          <span>{f}</span>
+                        </li>
+                      ))}
+                    </ul>
+                    <Link
+                      to="/cadastro"
+                      search={{ planId: String(p.id) }}
+                      className="mt-7 inline-flex w-full items-center justify-center rounded-full bg-foreground py-3 text-sm font-medium text-background transition hover:opacity-90"
+                    >
+                      Começar com {p.name}
+                    </Link>
+                    <Link
+                      to="/login"
+                      search={{ planId: String(p.id) }}
+                      className="mt-3 block text-center text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                    >
+                      Já tenho conta
+                    </Link>
+                  </div>
+                );
+              })}
+            {!plansQuery.isLoading && !plansQuery.isError && plans.length === 0 && (
+              <div className="rounded-3xl border border-border bg-card p-8 text-sm text-muted-foreground md:col-span-3">
+                Nenhum plano ativo encontrado no Supabase. Crie os planos no painel Master.
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -256,7 +330,7 @@ function Landing() {
           <div className="relative max-w-2xl">
             <h2 className="text-3xl text-background md:text-5xl">Pronta para transformar sua agenda?</h2>
             <p className="mt-4 text-background/70">
-              Comece grátis por 14 dias. Sem cartão de crédito. Cancele quando quiser.
+              Teste grátis de 7 dias no plano escolhido. Cancele quando quiser.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <a href="#planos" className="inline-flex items-center gap-2 rounded-full bg-gold px-7 py-3.5 text-sm font-medium text-foreground hover:opacity-90 transition">

@@ -1,0 +1,65 @@
+import { getSupabase } from "@/lib/supabaseClient";
+
+/**
+ * Agendamentos (`appointments` + `company_id`).
+ */
+export const appointmentService = {
+  listByCompanyAndDate(companyId: string, date: string) {
+    return getSupabase()
+      .from("appointments")
+      .select("*, client:clients(name,email,whatsapp), service:services(name,duration_minutes,buffer_minutes)")
+      .eq("company_id", companyId)
+      .eq("appointment_date", date)
+      .order("appointment_time");
+  },
+
+  listByCompanyForRange(companyId: string, startDate: string, endDate: string) {
+    return getSupabase()
+      .from("appointments")
+      .select("*, client:clients(name,email,whatsapp), service:services(name,duration_minutes,buffer_minutes)")
+      .eq("company_id", companyId)
+      .gte("appointment_date", startDate)
+      .lte("appointment_date", endDate)
+      .order("appointment_date")
+      .order("appointment_time");
+  },
+
+  listByCompanyForRangeLite(companyId: string, startDate: string, endDate: string) {
+    return getSupabase()
+      .from("appointments")
+      .select("appointment_date,appointment_time,status,service_id")
+      .eq("company_id", companyId)
+      .gte("appointment_date", startDate)
+      .lte("appointment_date", endDate)
+      .order("appointment_date")
+      .order("appointment_time");
+  },
+
+  create(
+    companyId: string,
+    input: { client_id: string; service_id: string; appointment_date: string; appointment_time: string },
+  ) {
+    return getSupabase()
+      .from("appointments")
+      .insert({
+        company_id: companyId,
+        client_id: input.client_id,
+        service_id: input.service_id,
+        appointment_date: input.appointment_date,
+        appointment_time: input.appointment_time,
+        status: "scheduled",
+      })
+      .select("*, client:clients(name,email,whatsapp), service:services(name,duration_minutes,buffer_minutes)")
+      .single();
+  },
+
+  updateStatus(companyId: string, appointmentId: string, status: string) {
+    return getSupabase()
+      .from("appointments")
+      .update({ status })
+      .eq("company_id", companyId)
+      .eq("id", appointmentId)
+      .select("*, client:clients(name,email,whatsapp), service:services(name,duration_minutes,buffer_minutes)")
+      .single();
+  },
+};

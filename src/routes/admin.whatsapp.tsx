@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageTitle } from "@/components/admin/AdminShell";
-import { MessageCircle, Send, CheckCircle, AlertCircle } from "lucide-react";
+import { MessageCircle, BookOpen, Sparkles } from "lucide-react";
 
 export const Route = createFileRoute("/admin/whatsapp")({
   component: WhatsApp,
@@ -9,56 +9,68 @@ export const Route = createFileRoute("/admin/whatsapp")({
 function WhatsApp() {
   return (
     <div>
-      <PageTitle title="WhatsApp Oficial" subtitle="Conecte sua conta oficial do WhatsApp Business para enviar confirmações e lembretes automáticos." />
+      <PageTitle
+        title="WhatsApp Oficial"
+        subtitle="Confirmações e lembretes automáticos via WhatsApp Business (Meta Cloud API)."
+      />
 
-      <div className="mb-6 flex items-center gap-3 rounded-2xl border border-warning/30 bg-warning/5 p-4 text-sm">
-        <AlertCircle className="size-5 text-warning shrink-0" />
+      <div className="mb-6 flex items-start gap-3 rounded-2xl border border-border bg-secondary/20 p-5 text-sm">
+        <Sparkles className="mt-0.5 size-5 shrink-0 text-gold" aria-hidden />
         <div>
-          <div className="font-medium">Status: Não configurado</div>
-          <div className="text-xs text-muted-foreground">A integração será feita pela API oficial da Meta.</div>
+          <div className="font-medium text-foreground">Integração em desenvolvimento</div>
+          <p className="mt-1 text-muted-foreground">
+            Esta tela está preparada para credenciais da Meta (Business ID, Phone Number ID, token e webhook). Nenhum dado
+            sensível é armazenado no navegador até a funcionalidade ser liberada.
+          </p>
         </div>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-4 rounded-2xl border border-border bg-card p-6 shadow-soft lg:col-span-2">
-          <h2 className="font-display text-xl">Credenciais Meta Cloud API</h2>
-          {[
-            { l: "Meta Business ID", p: "1234567890" },
-            { l: "Phone Number ID", p: "987654321" },
-            { l: "Access Token", p: "EAAG••••••••••••" },
-            { l: "Número exibido", p: "+55 11 91234-5678" },
-            { l: "Webhook Verify Token", p: "minha_chave_secreta" },
-          ].map((f) => (
-            <label key={f.l} className="block">
-              <span className="mb-1.5 block text-xs font-medium text-muted-foreground">{f.l}</span>
-              <input placeholder={f.p} className="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-foreground" />
-            </label>
-          ))}
-
-          <div className="flex flex-wrap gap-2 pt-2">
-            <button className="inline-flex items-center gap-1.5 rounded-full bg-foreground px-5 py-2.5 text-sm text-background">Salvar conexão</button>
-            <button className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-5 py-2.5 text-sm hover:bg-accent">
-              <Send className="size-4" /> Testar envio
-            </button>
-            <button className="inline-flex items-center gap-1.5 rounded-full bg-success px-5 py-2.5 text-sm text-background">
-              <CheckCircle className="size-4" /> Ativar WhatsApp
-            </button>
+        <div className="space-y-4 rounded-2xl border border-dashed border-border bg-card p-6 shadow-soft lg:col-span-2">
+          <h2 className="font-display text-xl">O que virá nesta área</h2>
+          <ul className="list-inside list-disc space-y-2 text-sm text-muted-foreground">
+            <li>Cadastro seguro das credenciais da Meta Cloud API (lado servidor).</li>
+            <li>Webhook de mensagens com verificação e assinatura.</li>
+            <li>Envio de confirmação de agendamento e lembretes (conforme políticas da Meta).</li>
+            <li>Métricas de entregas e falhas por empresa (multi-tenant).</li>
+          </ul>
+          <div className="flex flex-wrap gap-2 pt-4">
+            <a
+              href="https://developers.facebook.com/docs/whatsapp/cloud-api/get-started"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-5 py-2.5 text-sm font-medium hover:bg-accent"
+            >
+              <BookOpen className="size-4" aria-hidden />
+              Documentação Meta
+            </a>
+            <Link
+              to="/admin/configuracoes"
+              className="inline-flex items-center gap-2 rounded-full bg-foreground px-5 py-2.5 text-sm text-background hover:opacity-90"
+            >
+              Regras de agendamento
+            </Link>
           </div>
+          <p className="text-xs text-muted-foreground">
+            Enquanto isso, use o WhatsApp manualmente ou integre automações externas; a agenda e os clientes já podem ser
+            gerenciados no painel.
+          </p>
         </div>
 
         <div className="space-y-4">
           {[
-            { l: "Mensagens enviadas", v: "0", c: "text-info" },
-            { l: "Confirmações de agendamento", v: "0", c: "text-success" },
-            { l: "Lembretes 24h antes", v: "0", c: "text-purple-soft" },
-            { l: "Falhas de envio", v: "0", c: "text-destructive" },
+            { l: "Mensagens enviadas", v: "—", hint: "Em breve" },
+            { l: "Confirmações de agendamento", v: "—", hint: "Em breve" },
+            { l: "Lembretes automáticos", v: "—", hint: "Em breve" },
+            { l: "Falhas de envio", v: "—", hint: "Em breve" },
           ].map((s) => (
-            <div key={s.l} className="rounded-2xl border border-border bg-card p-5 shadow-soft">
-              <div className="flex items-center justify-between">
+            <div key={s.l} className="rounded-2xl border border-border bg-card p-5 shadow-soft opacity-90">
+              <div className="flex items-center justify-between gap-2">
                 <span className="text-xs text-muted-foreground">{s.l}</span>
-                <MessageCircle className={`size-4 ${s.c}`} />
+                <MessageCircle className="size-4 text-muted-foreground" aria-hidden />
               </div>
-              <div className="mt-2 font-display text-3xl">{s.v}</div>
+              <div className="mt-2 font-display text-3xl text-muted-foreground">{s.v}</div>
+              <div className="mt-1 text-[11px] text-muted-foreground">{s.hint}</div>
             </div>
           ))}
         </div>

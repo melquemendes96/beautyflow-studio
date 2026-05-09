@@ -1,0 +1,4 @@
+# Configuração local/CLI do Supabase. Use `supabase link` para preencher o projeto remoto.
+
+[functions.mercado-pago-webhook]
+verify_jwt = false

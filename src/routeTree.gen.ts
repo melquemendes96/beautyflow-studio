@@ -9,11 +9,28 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as PlanosRouteImport } from './routes/planos'
+import { Route as PagamentoRouteImport } from './routes/pagamento'
+import { Route as OnboardingRouteImport } from './routes/onboarding'
+import { Route as MasterRouteImport } from './routes/master'
+import { Route as LoginRouteImport } from './routes/login'
 import { Route as EntrarRouteImport } from './routes/entrar'
 import { Route as ClienteRouteImport } from './routes/cliente'
+import { Route as CheckoutRouteImport } from './routes/checkout'
+import { Route as CadastroRouteImport } from './routes/cadastro'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as MasterIndexRouteImport } from './routes/master.index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as MasterSuporteRouteImport } from './routes/master.suporte'
+import { Route as MasterRenovacoesRouteImport } from './routes/master.renovacoes'
+import { Route as MasterPlanosRouteImport } from './routes/master.planos'
+import { Route as MasterPagamentosRouteImport } from './routes/master.pagamentos'
+import { Route as MasterInadimplentesRouteImport } from './routes/master.inadimplentes'
+import { Route as MasterEmpresasRouteImport } from './routes/master.empresas'
+import { Route as MasterCuponsRouteImport } from './routes/master.cupons'
+import { Route as MasterConfiguracoesRouteImport } from './routes/master.configuracoes'
+import { Route as MasterAssinaturasRouteImport } from './routes/master.assinaturas'
 import { Route as AgendarSlugRouteImport } from './routes/agendar.$slug'
 import { Route as AdminWhatsappRouteImport } from './routes/admin.whatsapp'
 import { Route as AdminServicosRouteImport } from './routes/admin.servicos'
@@ -24,7 +41,33 @@ import { Route as AdminConfiguracoesRouteImport } from './routes/admin.configura
 import { Route as AdminClientesRouteImport } from './routes/admin.clientes'
 import { Route as AdminBrandingRouteImport } from './routes/admin.branding'
 import { Route as AdminAgendaRouteImport } from './routes/admin.agenda'
+import { Route as AdminPlanoCheckoutRouteImport } from './routes/admin.plano.checkout'
 
+const PlanosRoute = PlanosRouteImport.update({
+  id: '/planos',
+  path: '/planos',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PagamentoRoute = PagamentoRouteImport.update({
+  id: '/pagamento',
+  path: '/pagamento',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const OnboardingRoute = OnboardingRouteImport.update({
+  id: '/onboarding',
+  path: '/onboarding',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MasterRoute = MasterRouteImport.update({
+  id: '/master',
+  path: '/master',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LoginRoute = LoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const EntrarRoute = EntrarRouteImport.update({
   id: '/entrar',
   path: '/entrar',
@@ -33,6 +76,16 @@ const EntrarRoute = EntrarRouteImport.update({
 const ClienteRoute = ClienteRouteImport.update({
   id: '/cliente',
   path: '/cliente',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CheckoutRoute = CheckoutRouteImport.update({
+  id: '/checkout',
+  path: '/checkout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CadastroRoute = CadastroRouteImport.update({
+  id: '/cadastro',
+  path: '/cadastro',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -45,10 +98,60 @@ const IndexRoute = IndexRouteImport.update({
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const MasterIndexRoute = MasterIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => MasterRoute,
+} as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AdminRoute,
+} as any)
+const MasterSuporteRoute = MasterSuporteRouteImport.update({
+  id: '/suporte',
+  path: '/suporte',
+  getParentRoute: () => MasterRoute,
+} as any)
+const MasterRenovacoesRoute = MasterRenovacoesRouteImport.update({
+  id: '/renovacoes',
+  path: '/renovacoes',
+  getParentRoute: () => MasterRoute,
+} as any)
+const MasterPlanosRoute = MasterPlanosRouteImport.update({
+  id: '/planos',
+  path: '/planos',
+  getParentRoute: () => MasterRoute,
+} as any)
+const MasterPagamentosRoute = MasterPagamentosRouteImport.update({
+  id: '/pagamentos',
+  path: '/pagamentos',
+  getParentRoute: () => MasterRoute,
+} as any)
+const MasterInadimplentesRoute = MasterInadimplentesRouteImport.update({
+  id: '/inadimplentes',
+  path: '/inadimplentes',
+  getParentRoute: () => MasterRoute,
+} as any)
+const MasterEmpresasRoute = MasterEmpresasRouteImport.update({
+  id: '/empresas',
+  path: '/empresas',
+  getParentRoute: () => MasterRoute,
+} as any)
+const MasterCuponsRoute = MasterCuponsRouteImport.update({
+  id: '/cupons',
+  path: '/cupons',
+  getParentRoute: () => MasterRoute,
+} as any)
+const MasterConfiguracoesRoute = MasterConfiguracoesRouteImport.update({
+  id: '/configuracoes',
+  path: '/configuracoes',
+  getParentRoute: () => MasterRoute,
+} as any)
+const MasterAssinaturasRoute = MasterAssinaturasRouteImport.update({
+  id: '/assinaturas',
+  path: '/assinaturas',
+  getParentRoute: () => MasterRoute,
 } as any)
 const AgendarSlugRoute = AgendarSlugRouteImport.update({
   id: '/agendar/$slug',
@@ -100,65 +203,130 @@ const AdminAgendaRoute = AdminAgendaRouteImport.update({
   path: '/agenda',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminPlanoCheckoutRoute = AdminPlanoCheckoutRouteImport.update({
+  id: '/checkout',
+  path: '/checkout',
+  getParentRoute: () => AdminPlanoRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/cadastro': typeof CadastroRoute
+  '/checkout': typeof CheckoutRoute
   '/cliente': typeof ClienteRoute
   '/entrar': typeof EntrarRoute
+  '/login': typeof LoginRoute
+  '/master': typeof MasterRouteWithChildren
+  '/onboarding': typeof OnboardingRoute
+  '/pagamento': typeof PagamentoRoute
+  '/planos': typeof PlanosRoute
   '/admin/agenda': typeof AdminAgendaRoute
   '/admin/branding': typeof AdminBrandingRoute
   '/admin/clientes': typeof AdminClientesRoute
   '/admin/configuracoes': typeof AdminConfiguracoesRoute
   '/admin/lista-espera': typeof AdminListaEsperaRoute
-  '/admin/plano': typeof AdminPlanoRoute
+  '/admin/plano': typeof AdminPlanoRouteWithChildren
   '/admin/relatorios': typeof AdminRelatoriosRoute
   '/admin/servicos': typeof AdminServicosRoute
   '/admin/whatsapp': typeof AdminWhatsappRoute
   '/agendar/$slug': typeof AgendarSlugRoute
+  '/master/assinaturas': typeof MasterAssinaturasRoute
+  '/master/configuracoes': typeof MasterConfiguracoesRoute
+  '/master/cupons': typeof MasterCuponsRoute
+  '/master/empresas': typeof MasterEmpresasRoute
+  '/master/inadimplentes': typeof MasterInadimplentesRoute
+  '/master/pagamentos': typeof MasterPagamentosRoute
+  '/master/planos': typeof MasterPlanosRoute
+  '/master/renovacoes': typeof MasterRenovacoesRoute
+  '/master/suporte': typeof MasterSuporteRoute
   '/admin/': typeof AdminIndexRoute
+  '/master/': typeof MasterIndexRoute
+  '/admin/plano/checkout': typeof AdminPlanoCheckoutRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/cadastro': typeof CadastroRoute
+  '/checkout': typeof CheckoutRoute
   '/cliente': typeof ClienteRoute
   '/entrar': typeof EntrarRoute
+  '/login': typeof LoginRoute
+  '/onboarding': typeof OnboardingRoute
+  '/pagamento': typeof PagamentoRoute
+  '/planos': typeof PlanosRoute
   '/admin/agenda': typeof AdminAgendaRoute
   '/admin/branding': typeof AdminBrandingRoute
   '/admin/clientes': typeof AdminClientesRoute
   '/admin/configuracoes': typeof AdminConfiguracoesRoute
   '/admin/lista-espera': typeof AdminListaEsperaRoute
-  '/admin/plano': typeof AdminPlanoRoute
+  '/admin/plano': typeof AdminPlanoRouteWithChildren
   '/admin/relatorios': typeof AdminRelatoriosRoute
   '/admin/servicos': typeof AdminServicosRoute
   '/admin/whatsapp': typeof AdminWhatsappRoute
   '/agendar/$slug': typeof AgendarSlugRoute
+  '/master/assinaturas': typeof MasterAssinaturasRoute
+  '/master/configuracoes': typeof MasterConfiguracoesRoute
+  '/master/cupons': typeof MasterCuponsRoute
+  '/master/empresas': typeof MasterEmpresasRoute
+  '/master/inadimplentes': typeof MasterInadimplentesRoute
+  '/master/pagamentos': typeof MasterPagamentosRoute
+  '/master/planos': typeof MasterPlanosRoute
+  '/master/renovacoes': typeof MasterRenovacoesRoute
+  '/master/suporte': typeof MasterSuporteRoute
   '/admin': typeof AdminIndexRoute
+  '/master': typeof MasterIndexRoute
+  '/admin/plano/checkout': typeof AdminPlanoCheckoutRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRouteWithChildren
+  '/cadastro': typeof CadastroRoute
+  '/checkout': typeof CheckoutRoute
   '/cliente': typeof ClienteRoute
   '/entrar': typeof EntrarRoute
+  '/login': typeof LoginRoute
+  '/master': typeof MasterRouteWithChildren
+  '/onboarding': typeof OnboardingRoute
+  '/pagamento': typeof PagamentoRoute
+  '/planos': typeof PlanosRoute
   '/admin/agenda': typeof AdminAgendaRoute
   '/admin/branding': typeof AdminBrandingRoute
   '/admin/clientes': typeof AdminClientesRoute
   '/admin/configuracoes': typeof AdminConfiguracoesRoute
   '/admin/lista-espera': typeof AdminListaEsperaRoute
-  '/admin/plano': typeof AdminPlanoRoute
+  '/admin/plano': typeof AdminPlanoRouteWithChildren
   '/admin/relatorios': typeof AdminRelatoriosRoute
   '/admin/servicos': typeof AdminServicosRoute
   '/admin/whatsapp': typeof AdminWhatsappRoute
   '/agendar/$slug': typeof AgendarSlugRoute
+  '/master/assinaturas': typeof MasterAssinaturasRoute
+  '/master/configuracoes': typeof MasterConfiguracoesRoute
+  '/master/cupons': typeof MasterCuponsRoute
+  '/master/empresas': typeof MasterEmpresasRoute
+  '/master/inadimplentes': typeof MasterInadimplentesRoute
+  '/master/pagamentos': typeof MasterPagamentosRoute
+  '/master/planos': typeof MasterPlanosRoute
+  '/master/renovacoes': typeof MasterRenovacoesRoute
+  '/master/suporte': typeof MasterSuporteRoute
   '/admin/': typeof AdminIndexRoute
+  '/master/': typeof MasterIndexRoute
+  '/admin/plano/checkout': typeof AdminPlanoCheckoutRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/admin'
+    | '/cadastro'
+    | '/checkout'
     | '/cliente'
     | '/entrar'
+    | '/login'
+    | '/master'
+    | '/onboarding'
+    | '/pagamento'
+    | '/planos'
     | '/admin/agenda'
     | '/admin/branding'
     | '/admin/clientes'
@@ -169,12 +337,29 @@ export interface FileRouteTypes {
     | '/admin/servicos'
     | '/admin/whatsapp'
     | '/agendar/$slug'
+    | '/master/assinaturas'
+    | '/master/configuracoes'
+    | '/master/cupons'
+    | '/master/empresas'
+    | '/master/inadimplentes'
+    | '/master/pagamentos'
+    | '/master/planos'
+    | '/master/renovacoes'
+    | '/master/suporte'
     | '/admin/'
+    | '/master/'
+    | '/admin/plano/checkout'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/cadastro'
+    | '/checkout'
     | '/cliente'
     | '/entrar'
+    | '/login'
+    | '/onboarding'
+    | '/pagamento'
+    | '/planos'
     | '/admin/agenda'
     | '/admin/branding'
     | '/admin/clientes'
@@ -185,13 +370,31 @@ export interface FileRouteTypes {
     | '/admin/servicos'
     | '/admin/whatsapp'
     | '/agendar/$slug'
+    | '/master/assinaturas'
+    | '/master/configuracoes'
+    | '/master/cupons'
+    | '/master/empresas'
+    | '/master/inadimplentes'
+    | '/master/pagamentos'
+    | '/master/planos'
+    | '/master/renovacoes'
+    | '/master/suporte'
     | '/admin'
+    | '/master'
+    | '/admin/plano/checkout'
   id:
     | '__root__'
     | '/'
     | '/admin'
+    | '/cadastro'
+    | '/checkout'
     | '/cliente'
     | '/entrar'
+    | '/login'
+    | '/master'
+    | '/onboarding'
+    | '/pagamento'
+    | '/planos'
     | '/admin/agenda'
     | '/admin/branding'
     | '/admin/clientes'
@@ -202,19 +405,72 @@ export interface FileRouteTypes {
     | '/admin/servicos'
     | '/admin/whatsapp'
     | '/agendar/$slug'
+    | '/master/assinaturas'
+    | '/master/configuracoes'
+    | '/master/cupons'
+    | '/master/empresas'
+    | '/master/inadimplentes'
+    | '/master/pagamentos'
+    | '/master/planos'
+    | '/master/renovacoes'
+    | '/master/suporte'
     | '/admin/'
+    | '/master/'
+    | '/admin/plano/checkout'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRouteWithChildren
+  CadastroRoute: typeof CadastroRoute
+  CheckoutRoute: typeof CheckoutRoute
   ClienteRoute: typeof ClienteRoute
   EntrarRoute: typeof EntrarRoute
+  LoginRoute: typeof LoginRoute
+  MasterRoute: typeof MasterRouteWithChildren
+  OnboardingRoute: typeof OnboardingRoute
+  PagamentoRoute: typeof PagamentoRoute
+  PlanosRoute: typeof PlanosRoute
   AgendarSlugRoute: typeof AgendarSlugRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/planos': {
+      id: '/planos'
+      path: '/planos'
+      fullPath: '/planos'
+      preLoaderRoute: typeof PlanosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/pagamento': {
+      id: '/pagamento'
+      path: '/pagamento'
+      fullPath: '/pagamento'
+      preLoaderRoute: typeof PagamentoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/onboarding': {
+      id: '/onboarding'
+      path: '/onboarding'
+      fullPath: '/onboarding'
+      preLoaderRoute: typeof OnboardingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/master': {
+      id: '/master'
+      path: '/master'
+      fullPath: '/master'
+      preLoaderRoute: typeof MasterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/login': {
+      id: '/login'
+      path: '/login'
+      fullPath: '/login'
+      preLoaderRoute: typeof LoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/entrar': {
       id: '/entrar'
       path: '/entrar'
@@ -227,6 +483,20 @@ declare module '@tanstack/react-router' {
       path: '/cliente'
       fullPath: '/cliente'
       preLoaderRoute: typeof ClienteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/checkout': {
+      id: '/checkout'
+      path: '/checkout'
+      fullPath: '/checkout'
+      preLoaderRoute: typeof CheckoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cadastro': {
+      id: '/cadastro'
+      path: '/cadastro'
+      fullPath: '/cadastro'
+      preLoaderRoute: typeof CadastroRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -243,12 +513,82 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/master/': {
+      id: '/master/'
+      path: '/'
+      fullPath: '/master/'
+      preLoaderRoute: typeof MasterIndexRouteImport
+      parentRoute: typeof MasterRoute
+    }
     '/admin/': {
       id: '/admin/'
       path: '/'
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/master/suporte': {
+      id: '/master/suporte'
+      path: '/suporte'
+      fullPath: '/master/suporte'
+      preLoaderRoute: typeof MasterSuporteRouteImport
+      parentRoute: typeof MasterRoute
+    }
+    '/master/renovacoes': {
+      id: '/master/renovacoes'
+      path: '/renovacoes'
+      fullPath: '/master/renovacoes'
+      preLoaderRoute: typeof MasterRenovacoesRouteImport
+      parentRoute: typeof MasterRoute
+    }
+    '/master/planos': {
+      id: '/master/planos'
+      path: '/planos'
+      fullPath: '/master/planos'
+      preLoaderRoute: typeof MasterPlanosRouteImport
+      parentRoute: typeof MasterRoute
+    }
+    '/master/pagamentos': {
+      id: '/master/pagamentos'
+      path: '/pagamentos'
+      fullPath: '/master/pagamentos'
+      preLoaderRoute: typeof MasterPagamentosRouteImport
+      parentRoute: typeof MasterRoute
+    }
+    '/master/inadimplentes': {
+      id: '/master/inadimplentes'
+      path: '/inadimplentes'
+      fullPath: '/master/inadimplentes'
+      preLoaderRoute: typeof MasterInadimplentesRouteImport
+      parentRoute: typeof MasterRoute
+    }
+    '/master/empresas': {
+      id: '/master/empresas'
+      path: '/empresas'
+      fullPath: '/master/empresas'
+      preLoaderRoute: typeof MasterEmpresasRouteImport
+      parentRoute: typeof MasterRoute
+    }
+    '/master/cupons': {
+      id: '/master/cupons'
+      path: '/cupons'
+      fullPath: '/master/cupons'
+      preLoaderRoute: typeof MasterCuponsRouteImport
+      parentRoute: typeof MasterRoute
+    }
+    '/master/configuracoes': {
+      id: '/master/configuracoes'
+      path: '/configuracoes'
+      fullPath: '/master/configuracoes'
+      preLoaderRoute: typeof MasterConfiguracoesRouteImport
+      parentRoute: typeof MasterRoute
+    }
+    '/master/assinaturas': {
+      id: '/master/assinaturas'
+      path: '/assinaturas'
+      fullPath: '/master/assinaturas'
+      preLoaderRoute: typeof MasterAssinaturasRouteImport
+      parentRoute: typeof MasterRoute
     }
     '/agendar/$slug': {
       id: '/agendar/$slug'
@@ -320,8 +660,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAgendaRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/plano/checkout': {
+      id: '/admin/plano/checkout'
+      path: '/checkout'
+      fullPath: '/admin/plano/checkout'
+      preLoaderRoute: typeof AdminPlanoCheckoutRouteImport
+      parentRoute: typeof AdminPlanoRoute
+    }
   }
 }
+
+interface AdminPlanoRouteChildren {
+  AdminPlanoCheckoutRoute: typeof AdminPlanoCheckoutRoute
+}
+
+const AdminPlanoRouteChildren: AdminPlanoRouteChildren = {
+  AdminPlanoCheckoutRoute: AdminPlanoCheckoutRoute,
+}
+
+const AdminPlanoRouteWithChildren = AdminPlanoRoute._addFileChildren(
+  AdminPlanoRouteChildren,
+)
 
 interface AdminRouteChildren {
   AdminAgendaRoute: typeof AdminAgendaRoute
@@ -329,7 +688,7 @@ interface AdminRouteChildren {
   AdminClientesRoute: typeof AdminClientesRoute
   AdminConfiguracoesRoute: typeof AdminConfiguracoesRoute
   AdminListaEsperaRoute: typeof AdminListaEsperaRoute
-  AdminPlanoRoute: typeof AdminPlanoRoute
+  AdminPlanoRoute: typeof AdminPlanoRouteWithChildren
   AdminRelatoriosRoute: typeof AdminRelatoriosRoute
   AdminServicosRoute: typeof AdminServicosRoute
   AdminWhatsappRoute: typeof AdminWhatsappRoute
@@ -342,7 +701,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminClientesRoute: AdminClientesRoute,
   AdminConfiguracoesRoute: AdminConfiguracoesRoute,
   AdminListaEsperaRoute: AdminListaEsperaRoute,
-  AdminPlanoRoute: AdminPlanoRoute,
+  AdminPlanoRoute: AdminPlanoRouteWithChildren,
   AdminRelatoriosRoute: AdminRelatoriosRoute,
   AdminServicosRoute: AdminServicosRoute,
   AdminWhatsappRoute: AdminWhatsappRoute,
@@ -351,13 +710,59 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
+interface MasterRouteChildren {
+  MasterAssinaturasRoute: typeof MasterAssinaturasRoute
+  MasterConfiguracoesRoute: typeof MasterConfiguracoesRoute
+  MasterCuponsRoute: typeof MasterCuponsRoute
+  MasterEmpresasRoute: typeof MasterEmpresasRoute
+  MasterInadimplentesRoute: typeof MasterInadimplentesRoute
+  MasterPagamentosRoute: typeof MasterPagamentosRoute
+  MasterPlanosRoute: typeof MasterPlanosRoute
+  MasterRenovacoesRoute: typeof MasterRenovacoesRoute
+  MasterSuporteRoute: typeof MasterSuporteRoute
+  MasterIndexRoute: typeof MasterIndexRoute
+}
+
+const MasterRouteChildren: MasterRouteChildren = {
+  MasterAssinaturasRoute: MasterAssinaturasRoute,
+  MasterConfiguracoesRoute: MasterConfiguracoesRoute,
+  MasterCuponsRoute: MasterCuponsRoute,
+  MasterEmpresasRoute: MasterEmpresasRoute,
+  MasterInadimplentesRoute: MasterInadimplentesRoute,
+  MasterPagamentosRoute: MasterPagamentosRoute,
+  MasterPlanosRoute: MasterPlanosRoute,
+  MasterRenovacoesRoute: MasterRenovacoesRoute,
+  MasterSuporteRoute: MasterSuporteRoute,
+  MasterIndexRoute: MasterIndexRoute,
+}
+
+const MasterRouteWithChildren =
+  MasterRoute._addFileChildren(MasterRouteChildren)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
+  CadastroRoute: CadastroRoute,
+  CheckoutRoute: CheckoutRoute,
   ClienteRoute: ClienteRoute,
   EntrarRoute: EntrarRoute,
+  LoginRoute: LoginRoute,
+  MasterRoute: MasterRouteWithChildren,
+  OnboardingRoute: OnboardingRoute,
+  PagamentoRoute: PagamentoRoute,
+  PlanosRoute: PlanosRoute,
   AgendarSlugRoute: AgendarSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
+
+import type { getRouter } from './router.tsx'
+import type { startInstance } from './start.ts'
+declare module '@tanstack/react-start' {
+  interface Register {
+    ssr: true
+    router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+  }
+}

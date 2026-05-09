@@ -14,9 +14,18 @@ export function SiteHeader() {
           <a href="#planos" className="hover:text-foreground transition-colors">Planos</a>
           <a href="#depoimentos" className="hover:text-foreground transition-colors">Depoimentos</a>
         </nav>
-        <div className="flex items-center gap-2">
-          <Link to="/entrar" className="hidden text-sm text-muted-foreground hover:text-foreground sm:inline-flex">
+        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+          <Link
+            to="/login"
+            className="inline-flex px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground sm:px-0 sm:py-0 sm:text-sm"
+          >
             Entrar
+          </Link>
+          <Link
+            to="/cadastro"
+            className="inline-flex rounded-full border border-foreground/15 bg-background/60 px-3 py-2 text-xs font-medium hover:bg-background sm:px-5 sm:py-2.5 sm:text-sm"
+          >
+            Criar conta
           </Link>
           <Link
             to="/agendar/$slug"
