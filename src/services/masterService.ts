@@ -90,6 +90,30 @@ export const masterService = {
     return getSupabase().from("plans").update(patch).eq("id", planId).select("*").single();
   },
 
+  deletePlan(planId: string) {
+    return getSupabase().from("plans").delete().eq("id", planId);
+  },
+
+  /** Pagamentos confirmados recentes (painel master — feed de notificações). */
+  listRecentPaidPayments(limit = 40) {
+    return getSupabase()
+      .from("payment_transactions")
+      .select("id, amount, paid_at, created_at, status, companies(name, slug)")
+      .eq("status", "paid")
+      .not("paid_at", "is", null)
+      .order("paid_at", { ascending: false })
+      .limit(limit);
+  },
+
+  /** Chamados recentes com nome da empresa (feed de notificações). */
+  listRecentSupportTicketsWithCompany(limit = 40) {
+    return getSupabase()
+      .from("support_tickets")
+      .select("id, subject, status, created_at, companies(name, slug)")
+      .order("created_at", { ascending: false })
+      .limit(limit);
+  },
+
   createCoupon(input: {
     code: string;
     discount_type: "percent" | "fixed";

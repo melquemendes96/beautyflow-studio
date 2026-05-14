@@ -19,5 +19,15 @@ export const supportTicketService = {
       .select("*")
       .single();
   },
+
+  /** Chamados da empresa (painel admin — notificações). */
+  listRecentForCompany(companyId: string, limit = 40) {
+    return getSupabase()
+      .from("support_tickets")
+      .select("id, subject, status, created_at")
+      .eq("company_id", companyId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+  },
 };
 

@@ -17,11 +17,12 @@ import {
   X,
   LogOut,
 } from "lucide-react";
+import { MasterNotificationsBell } from "@/components/master/MasterNotificationsBell";
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
 
 const nav: NavItem[] = [
-  { to: "/master", label: "Dashboard Master", icon: LayoutDashboard, exact: true },
+  { to: "/master", label: "Visão geral", icon: LayoutDashboard, exact: true },
   { to: "/master/empresas", label: "Empresas", icon: Building2 },
   { to: "/master/planos", label: "Planos", icon: CreditCard },
   { to: "/master/assinaturas", label: "Assinaturas", icon: Repeat },
@@ -30,7 +31,7 @@ const nav: NavItem[] = [
   { to: "/master/inadimplentes", label: "Inadimplentes", icon: AlertTriangle },
   { to: "/master/suporte", label: "Suporte", icon: LifeBuoy },
   { to: "/master/cupons", label: "Cupons", icon: Ticket },
-  { to: "/master/configuracoes", label: "Configurações da plataforma", icon: Settings },
+  { to: "/master/configuracoes", label: "Configurações", icon: Settings },
 ];
 
 export function MasterShell() {
@@ -69,18 +70,18 @@ export function MasterShell() {
 
   return (
     <div className="min-h-screen bg-secondary/30">
-      <div className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur lg:hidden">
-        <button
-          type="button"
-          onClick={() => setOpen(true)}
-          className="rounded-lg p-2 hover:bg-accent"
-          aria-label="Abrir menu"
-        >
-          <Menu className="size-5" />
-        </button>
-        <Logo className="h-8" />
-        <div className="w-9" />
-      </div>
+        <div className="flex h-14 items-center justify-between gap-2 border-b border-border bg-background/95 px-3 backdrop-blur lg:hidden">
+          <button
+            type="button"
+            onClick={() => setOpen(true)}
+            className="rounded-lg p-2 hover:bg-accent"
+            aria-label="Abrir menu"
+          >
+            <Menu className="size-5" />
+          </button>
+          <Logo className="h-8" />
+          <MasterNotificationsBell />
+        </div>
 
       <div className="flex">
         <aside
@@ -121,7 +122,7 @@ export function MasterShell() {
             })}
           </nav>
           <div className="absolute inset-x-3 bottom-3 rounded-2xl border border-border bg-card/80 p-4">
-            <div className="text-xs text-muted-foreground">Painel Master</div>
+            <div className="text-xs text-muted-foreground">Painel master</div>
             <button
               type="button"
               onClick={() => void signOut()}
@@ -142,17 +143,20 @@ export function MasterShell() {
         )}
 
         <main className="min-w-0 flex-1">
-          <div className="hidden h-16 items-center justify-between border-b border-border bg-background/80 px-8 backdrop-blur lg:flex">
+          <div className="hidden h-16 items-center justify-between gap-3 border-b border-border bg-background/80 px-8 backdrop-blur lg:flex">
             <div className="text-sm text-muted-foreground">
               Olá, <span className="font-medium text-foreground">{user?.email ?? "Master"}</span>
             </div>
-            <button
-              type="button"
-              onClick={() => void signOut()}
-              className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-medium hover:bg-accent"
-            >
-              <LogOut className="size-3.5" /> Sair
-            </button>
+            <div className="flex items-center gap-2">
+              <MasterNotificationsBell />
+              <button
+                type="button"
+                onClick={() => void signOut()}
+                className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-xs font-medium hover:bg-accent"
+              >
+                <LogOut className="size-3.5" /> Sair
+              </button>
+            </div>
           </div>
           <div className="p-5 md:p-8">
             <Outlet />

@@ -34,9 +34,8 @@ export const Route = createFileRoute("/admin/plano")({
 
 function Plano() {
   const pathname = useRouterState({ select: (s) => s.location.pathname });
-  if (pathname === "/admin/plano/checkout" || pathname.startsWith("/admin/plano/checkout/")) {
-    return <Outlet />;
-  }
+  const isCheckoutChild =
+    pathname === "/admin/plano/checkout" || pathname.startsWith("/admin/plano/checkout/");
 
   const { companyId, hasCompany } = useCurrentCompany();
   const { checkout, billing, need } = Route.useSearch();
@@ -44,11 +43,15 @@ function Plano() {
   const queryClient = useQueryClient();
 
   useEffect(() => {
+    if (isCheckoutChild) return;
     if (!checkout) return;
     if (checkout === "success") {
       toast.success("Pagamento confirmado. Sua assinatura foi atualizada.");
       void queryClient.invalidateQueries({ queryKey: ["admin", "subscription"] });
       void queryClient.invalidateQueries({ queryKey: ["admin", "payments"] });
+      if (companyId) {
+        void queryClient.invalidateQueries({ queryKey: ["admin", "notification_feed", companyId] });
+      }
     } else if (checkout === "failure") {
       toast.error("O pagamento não foi concluído no Mercado Pago. Tente novamente ou escolha outro método.");
     } else if (checkout === "pending") {
@@ -57,9 +60,10 @@ function Plano() {
       toast.message("Checkout encerrado sem pagamento. Você pode tentar de novo quando quiser.");
     }
     void navigate({ to: "/admin/plano", search: { checkout: undefined, billing: undefined, need: undefined }, replace: true });
-  }, [checkout, navigate, queryClient]);
+  }, [checkout, navigate, queryClient, isCheckoutChild, companyId]);
 
   useEffect(() => {
+    if (isCheckoutChild) return;
     if (!billing) return;
     if (billing === "suspended") {
       toast.error("Conta suspensa: regularize o pagamento para liberar o painel completo.");
@@ -77,7 +81,7 @@ function Plano() {
       );
     }
     void navigate({ to: "/admin/plano", search: { billing: undefined, checkout: undefined, need: undefined }, replace: true });
-  }, [billing, need, navigate]);
+  }, [billing, need, navigate, isCheckoutChild]);
 
   const [openTicket, setOpenTicket] = useState(false);
   const [ticket, setTicket] = useState({
@@ -140,6 +144,9 @@ function Plano() {
       }
       await queryClient.invalidateQueries({ queryKey: ["admin", "subscription"] });
       await queryClient.invalidateQueries({ queryKey: ["admin", "payments"] });
+      if (companyId) {
+        await queryClient.invalidateQueries({ queryKey: ["admin", "notification_feed", companyId] });
+      }
     },
     onError: (err: unknown) => {
       const msg =
@@ -170,6 +177,7 @@ function Plano() {
       setOpenTicket(false);
       setTicket({ subject: "Solicitação financeira", message: "", priority: "normal" });
       await queryClient.invalidateQueries({ queryKey: ["admin", "support_tickets", companyId] });
+      await queryClient.invalidateQueries({ queryKey: ["admin", "notification_feed", companyId] });
     },
     onError: () => {
       toast.error("Não foi possível enviar sua solicitação.");
@@ -218,6 +226,10 @@ function Plano() {
     if (st === "refunded") return "Estornado";
     return st;
   };
+
+  if (isCheckoutChild) {
+    return <Outlet />;
+  }
 
   return (
     <div>

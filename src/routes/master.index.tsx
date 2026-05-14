@@ -6,10 +6,18 @@ import { masterService } from "@/services/masterService";
 import { Building2, TrendingUp, Wallet, Ticket } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AdminKpiCardSkeleton } from "@/components/admin/AdminPageStates";
+import { useMemo } from "react";
 
 export const Route = createFileRoute("/master/")({
   component: MasterDashboard,
 });
+
+function couponDiscountLabel(type: string | null | undefined, value: unknown): string {
+  const num = typeof value === "number" ? value : Number(value);
+  if (Number.isNaN(num)) return "—";
+  if (type === "percent") return `${num}%`;
+  return num.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
 
 function MasterDashboard() {
   const { companyMemberships } = useAuth();
@@ -42,6 +50,24 @@ function MasterDashboard() {
     },
   });
 
+  const couponsQuery = useQuery({
+    queryKey: ["master", "coupons"],
+    queryFn: async () => {
+      const res = await masterService.listCoupons();
+      if (res.error) throw res.error;
+      return res.data ?? [];
+    },
+  });
+
+  const activeCoupons = useMemo(() => {
+    const now = Date.now();
+    return (couponsQuery.data ?? []).filter((c: any) => {
+      if (!c.active) return false;
+      if (!c.expires_at) return true;
+      return new Date(c.expires_at).getTime() > now;
+    });
+  }, [couponsQuery.data]);
+
   const companiesCount = companiesQuery.data?.length ?? 0;
   const activeSubsCount =
     subsQuery.data?.filter((s: any) => s.status === "active" || s.status === "trialing").length ?? 0;
@@ -69,12 +95,12 @@ function MasterDashboard() {
       }, {}) ?? {};
 
   const topCardsLoading =
-    companiesQuery.isLoading || subsQuery.isLoading || ticketsQuery.isLoading;
+    companiesQuery.isLoading || subsQuery.isLoading || ticketsQuery.isLoading || couponsQuery.isLoading;
 
   return (
     <div>
       <MasterPageTitle
-        title="Dashboard Master"
+        title="Painel master"
         subtitle="Visão geral da plataforma BeautyFlow."
       />
 
@@ -138,11 +164,60 @@ function MasterDashboard() {
                 Gerenciar empresas →
               </Link>
               <div className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
-                <Ticket className="size-4" /> {openTicketsCount} ticket(s) em aberto
+                <Ticket className="size-4" /> {openTicketsCount}{" "}
+                {openTicketsCount === 1 ? "chamado em aberto" : "chamados em aberto"}
               </div>
             </div>
           </>
         )}
+      </div>
+
+      <div className="mt-6 rounded-2xl border border-border bg-card p-6 shadow-soft">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <div className="text-sm font-medium text-foreground">Cupons de desconto ativos</div>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Códigos válidos agora (ativos e dentro da validade).
+            </p>
+          </div>
+          <Link to="/master/cupons" className="text-xs font-medium text-gold hover:underline">
+            Gerenciar cupons →
+          </Link>
+        </div>
+        <div className="mt-4">
+          {couponsQuery.isLoading ? (
+            <div className="space-y-2">
+              <Skeleton className="h-10 w-full max-w-md rounded-xl" />
+              <Skeleton className="h-10 w-full max-w-sm rounded-xl" />
+            </div>
+          ) : activeCoupons.length === 0 ? (
+            <p className="text-sm text-muted-foreground">Nenhum cupom ativo no momento.</p>
+          ) : (
+            <ul className="grid gap-2 sm:grid-cols-2">
+              {activeCoupons.slice(0, 8).map((c: any) => (
+                <li
+                  key={c.id}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-border bg-background px-3 py-2.5 text-sm"
+                >
+                  <span className="font-mono font-medium">{c.code}</span>
+                  <span className="shrink-0 text-muted-foreground">
+                    {couponDiscountLabel(c.discount_type, c.discount_value)}
+                    {c.expires_at ? (
+                      <span className="ml-2 text-[11px]">
+                        · até{" "}
+                        {new Date(c.expires_at).toLocaleDateString("pt-BR", {
+                          day: "2-digit",
+                          month: "short",
+                          year: "numeric",
+                        })}
+                      </span>
+                    ) : null}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       </div>
 
       <div className="mt-6 grid gap-4 lg:grid-cols-2">

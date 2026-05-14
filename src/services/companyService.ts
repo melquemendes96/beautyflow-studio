@@ -15,4 +15,9 @@ export const companyService = {
       .eq("id", companyId)
       .maybeSingle();
   },
+
+  /** Owner/admin da empresa (RLS `companies_update`). */
+  updateForAdmin(companyId: string, patch: Record<string, unknown>) {
+    return getSupabase().from("companies").update(patch).eq("id", companyId).select("id,name,slug").maybeSingle();
+  },
 };

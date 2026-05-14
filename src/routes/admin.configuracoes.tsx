@@ -4,8 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import { useCurrentCompany } from "@/lib/current-company";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { businessSettingsService } from "@/services/businessSettingsService";
+import { companyService } from "@/services/companyService";
 import { toast } from "sonner";
 import { AdminConfigSectionSkeleton } from "@/components/admin/AdminPageStates";
+import { Copy, ExternalLink } from "lucide-react";
+import { isValidPublicBookingSlug, normalizePublicBookingSlug } from "@/lib/public-booking-slug";
 
 export const Route = createFileRoute("/admin/configuracoes")({
   component: Config,
@@ -26,6 +29,28 @@ function Config() {
       return res.data ?? null;
     },
   });
+
+  const companyQuery = useQuery({
+    queryKey: ["admin", "company", companyId],
+    enabled: hasCompany && Boolean(companyId),
+    queryFn: async () => {
+      const res = await companyService.getByIdForAdmin(companyId!);
+      if (res.error) throw res.error;
+      return res.data ?? null;
+    },
+  });
+
+  const [slugInput, setSlugInput] = useState("");
+  const [origin, setOrigin] = useState("");
+
+  useEffect(() => {
+    setOrigin(typeof window !== "undefined" ? window.location.origin : "");
+  }, []);
+
+  useEffect(() => {
+    const s = companyQuery.data?.slug;
+    if (typeof s === "string" && s.length > 0) setSlugInput(s);
+  }, [companyQuery.data?.slug]);
 
   const [workingDays, setWorkingDays] = useState<boolean[]>([true, true, true, true, true, true, false]);
   const [openingTime, setOpeningTime] = useState("09:00");
@@ -49,6 +74,26 @@ function Config() {
     setAllowWaitlist(Boolean(d.allow_waitlist ?? true));
   }, [settingsQuery.data]);
 
+  const normalizedSlug = useMemo(() => normalizePublicBookingSlug(slugInput), [slugInput]);
+  const bookingPath = `/agendar/${encodeURIComponent(normalizedSlug || "exemplo")}`;
+  const bookingFullUrl = origin ? `${origin}${bookingPath}` : bookingPath;
+
+  const copyBookingLink = async () => {
+    if (!normalizedSlug || !isValidPublicBookingSlug(normalizedSlug)) {
+      toast.error("Defina um slug válido antes de copiar o link.");
+      return;
+    }
+    const toCopy = origin ? `${origin}/agendar/${encodeURIComponent(normalizedSlug)}` : bookingPath;
+    try {
+      await navigator.clipboard.writeText(toCopy);
+      toast.success("Link copiado para a área de transferência.");
+    } catch {
+      toast.error("Não foi possível copiar. Copie manualmente o texto acima.");
+    }
+  };
+
+  const pageLoading = settingsQuery.isLoading || companyQuery.isLoading;
+
   const resources = useMemo(
     () => [
       { label: "Permitir reagendamento pelo cliente", value: allowReschedule, set: setAllowReschedule },
@@ -60,6 +105,24 @@ function Config() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!companyId) throw new Error("Sem empresa");
+      const slugNorm = normalizePublicBookingSlug(slugInput);
+      if (!isValidPublicBookingSlug(slugNorm)) {
+        throw new Error(
+          "Informe um slug válido: letras minúsculas, números e hífens (ex.: studio-beleza ou joyce2024).",
+        );
+      }
+
+      if (slugNorm !== companyQuery.data?.slug) {
+        const companyRes = await companyService.updateForAdmin(companyId, { slug: slugNorm });
+        if (companyRes.error) {
+          const code = (companyRes.error as { code?: string })?.code;
+          if (code === "23505") {
+            throw new Error("Este slug já está em uso por outra empresa. Escolha outro.");
+          }
+          throw companyRes.error;
+        }
+      }
+
       const res = await businessSettingsService.upsert(companyId, {
         working_days: workingDays,
         opening_time: openingTime,
@@ -75,7 +138,15 @@ function Config() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["admin", "business_settings", companyId] });
+      await queryClient.invalidateQueries({ queryKey: ["admin", "company", companyId] });
       toast.success("Configurações salvas com sucesso");
+    },
+    onError: (err: unknown) => {
+      const msg =
+        err && typeof err === "object" && "message" in err && typeof (err as { message: unknown }).message === "string"
+          ? (err as { message: string }).message
+          : "Não foi possível salvar.";
+      toast.error(msg);
     },
   });
 
@@ -83,13 +154,13 @@ function Config() {
     <div>
       <PageTitle title="Configurações" subtitle="Ajustes da sua empresa e preferências de agendamento" />
 
-      {settingsQuery.isError && (
+      {(settingsQuery.isError || companyQuery.isError) && (
         <div className="mb-6 rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           Não foi possível carregar as configurações. Verifique sua conexão e tente novamente.
         </div>
       )}
 
-      {settingsQuery.isLoading ? (
+      {pageLoading ? (
         <div className="grid gap-6 lg:grid-cols-2">
           <AdminConfigSectionSkeleton rows={4} />
           <AdminConfigSectionSkeleton rows={5} />
@@ -99,11 +170,56 @@ function Config() {
       ) : (
         <>
       <div className="grid gap-6 lg:grid-cols-2">
-        <Section title="Dados da empresa">
-          <Field label="Nome fantasia" defaultValue="Joyce Mendes BeautyFlow" />
-          <Field label="CNPJ" defaultValue="12.345.678/0001-90" />
-          <Field label="E-mail de contato" defaultValue="contato@joycemendes.com" />
-          <Field label="Telefone" defaultValue="(11) 91234-5678" />
+        <Section title="Página pública de agendamento">
+          <p className="text-sm text-muted-foreground">
+            Este é o link que você pode enviar para suas clientes agendarem online. O slug é a parte final da URL —
+            você pode escolher outro (único na plataforma) e salvar junto com as demais configurações.
+          </p>
+          {companyQuery.data?.name ? (
+            <p className="text-xs text-muted-foreground">
+              Empresa: <span className="font-medium text-foreground">{companyQuery.data.name}</span>
+            </p>
+          ) : null}
+          <div className="rounded-xl border border-border bg-secondary/30 px-3 py-2.5 font-mono text-xs leading-relaxed break-all text-foreground">
+            {bookingFullUrl}
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => void copyBookingLink()}
+              className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-xs font-medium transition hover:bg-secondary"
+            >
+              <Copy className="size-3.5" />
+              Copiar link
+            </button>
+            {normalizedSlug && isValidPublicBookingSlug(normalizedSlug) ? (
+              <a
+                href={origin ? `${origin}/agendar/${encodeURIComponent(normalizedSlug)}` : bookingPath}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-2 rounded-full border border-border bg-background px-4 py-2 text-xs font-medium transition hover:bg-secondary"
+              >
+                <ExternalLink className="size-3.5" />
+                Abrir página
+              </a>
+            ) : null}
+          </div>
+          <Field
+            label="Slug do link (personalize como quiser)"
+            value={slugInput}
+            onChange={(v) => setSlugInput(v)}
+          />
+          <p className="text-[11px] text-muted-foreground">
+            Use apenas letras minúsculas, números e hífens (ex.:{" "}
+            <span className="font-mono text-foreground/90">joyce-studio</span> ou{" "}
+            <span className="font-mono text-foreground/90">beleza2024</span>). Alterar o slug muda o endereço do
+            agendamento — atualize links já divulgados.
+          </p>
+          {slugInput.trim().length > 0 && !isValidPublicBookingSlug(normalizedSlug) ? (
+            <p className="text-xs text-destructive">
+              Slug inválido após normalização. Remova caracteres especiais ou espaços soltos.
+            </p>
+          ) : null}
         </Section>
 
         <Section title="Horário de funcionamento">
@@ -182,7 +298,7 @@ function Config() {
         <button
           type="button"
           onClick={() => saveMutation.mutate()}
-          disabled={saveMutation.isPending || settingsQuery.isLoading}
+          disabled={saveMutation.isPending || pageLoading}
           className="rounded-full bg-foreground px-6 py-3 text-sm text-background disabled:opacity-60"
         >
           {saveMutation.isPending ? "Salvando…" : "Salvar configurações"}

@@ -10,6 +10,12 @@ export const Route = createFileRoute("/agendar/$slug")({
   component: Agendar,
 });
 
+function clampBookingPercent(value: unknown, fallback: number): number {
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return fallback;
+  return Math.min(100, Math.max(0, n));
+}
+
 type Step = "servico" | "data" | "horario" | "dados" | "confirmado";
 
 function Agendar() {
@@ -95,6 +101,11 @@ function Agendar() {
   const gradientPrimary = branding?.primary_color ?? "#1a1a1a";
   const gradientSecondary = branding?.secondary_color ?? "#c9a960";
 
+  const bannerPosX = clampBookingPercent(branding?.banner_image_pos_x, 50);
+  const bannerPosY = clampBookingPercent(branding?.banner_image_pos_y, 50);
+  const logoPosX = clampBookingPercent(branding?.logo_image_pos_x, 50);
+  const logoPosY = clampBookingPercent(branding?.logo_image_pos_y, 50);
+
   const dateLabel = useMemo(() => {
     if (!data) return "";
     const dt = new Date(`${data}T00:00:00`);
@@ -104,26 +115,44 @@ function Agendar() {
   return (
     <div className="min-h-screen bg-secondary/30">
       {/* Cover banner */}
-      <div className="relative h-48 md:h-64 overflow-hidden">
+      <div className="relative h-48 overflow-hidden md:h-64">
         <div
           className="absolute inset-0"
           style={{
             backgroundImage: `linear-gradient(135deg, ${gradientPrimary}, ${gradientSecondary})`,
           }}
         />
-        <img
-          src="https://images.unsplash.com/photo-1560066984-138dadb4c035?w=1600"
-          alt=""
-          className="size-full object-cover opacity-40"
-        />
+        {branding?.banner_url ? (
+          <img
+            src={branding.banner_url}
+            alt=""
+            className="absolute inset-0 size-full object-cover"
+            style={{ objectPosition: `${bannerPosX}% ${bannerPosY}%` }}
+          />
+        ) : (
+          <img
+            src="https://images.unsplash.com/photo-1560066984-138dadb4c035?w=1600"
+            alt=""
+            className="absolute inset-0 size-full object-cover opacity-40"
+          />
+        )}
       </div>
 
       <div className="container-page -mt-20 pb-16">
         {/* Studio card */}
         <div className="rounded-3xl border border-border bg-card p-6 shadow-elegant md:p-8">
           <div className="flex flex-col items-start gap-4 md:flex-row md:items-center">
-            <div className="-mt-16 grid size-24 place-items-center rounded-3xl border-4 border-background bg-background shadow-soft md:-mt-20 md:size-28">
-              <Logo className="h-14 md:h-16" />
+            <div className="-mt-16 grid size-24 place-items-center overflow-hidden rounded-3xl border-4 border-background bg-background shadow-soft md:-mt-20 md:size-28">
+              {branding?.logo_url ? (
+                <img
+                  src={branding.logo_url}
+                  alt=""
+                  className="size-full object-cover"
+                  style={{ objectPosition: `${logoPosX}% ${logoPosY}%` }}
+                />
+              ) : (
+                <Logo className="h-14 md:h-16" />
+              )}
             </div>
             <div className="flex-1">
               <h1 className="font-display text-2xl md:text-3xl">{company?.name ?? "Carregando…"}</h1>

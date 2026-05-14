@@ -9,6 +9,7 @@ import { serviceService } from "@/services/serviceService";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { uploadCompanyImage } from "@/lib/company-media-upload";
 import {
   Dialog,
   DialogContent,
@@ -28,6 +29,8 @@ function Servicos() {
   const { companyId, hasCompany } = useCurrentCompany();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreviewBlob, setImagePreviewBlob] = useState<string | null>(null);
   const [form, setForm] = useState({
     name: "",
     description: "",
@@ -54,6 +57,14 @@ function Servicos() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!companyId) throw new Error("Sem empresa");
+
+      let image_url: string | null = form.image_url.trim() || null;
+      if (imageFile) {
+        const { publicUrl, error } = await uploadCompanyImage(companyId, "service", imageFile);
+        if (error) throw error;
+        image_url = publicUrl ?? null;
+      }
+
       const payload = {
         name: form.name.trim(),
         description: form.description.trim() || null,
@@ -61,7 +72,7 @@ function Servicos() {
         price: Number(form.price),
         duration_minutes: Number(form.duration_minutes),
         buffer_minutes: Number(form.buffer_minutes),
-        image_url: form.image_url.trim() || null,
+        image_url,
         active: Boolean(form.active),
       };
       if (!payload.name) throw new Error("Nome obrigatório");
@@ -79,6 +90,11 @@ function Servicos() {
       return res.data;
     },
     onSuccess: async () => {
+      setImagePreviewBlob((prev) => {
+        if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+        return null;
+      });
+      setImageFile(null);
       setOpen(false);
       setEditing(null);
       setForm({
@@ -109,6 +125,11 @@ function Servicos() {
   });
 
   const beginCreate = () => {
+    setImagePreviewBlob((prev) => {
+      if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setImageFile(null);
     setEditing(null);
     setForm({
       name: "",
@@ -124,6 +145,11 @@ function Servicos() {
   };
 
   const beginEdit = (s: any) => {
+    setImagePreviewBlob((prev) => {
+      if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setImageFile(null);
     setEditing(s);
     setForm({
       name: s.name ?? "",
@@ -220,12 +246,52 @@ function Servicos() {
                     </select>
                   </label>
                 </div>
+                <div className="grid gap-2">
+                  <span className="text-xs font-medium text-muted-foreground">Imagem</span>
+                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                    <Input
+                      type="file"
+                      accept="image/jpeg,image/png,image/webp,image/gif"
+                      className="cursor-pointer"
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        e.target.value = "";
+                        if (!f) return;
+                        if (!f.type.startsWith("image/")) {
+                          toast.error("Selecione um arquivo de imagem.");
+                          return;
+                        }
+                        if (f.size > 5 * 1024 * 1024) {
+                          toast.error("Imagem muito grande (máx. 5 MB).");
+                          return;
+                        }
+                        setImagePreviewBlob((prev) => {
+                          if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+                          return URL.createObjectURL(f);
+                        });
+                        setImageFile(f);
+                      }}
+                    />
+                    <span className="text-xs text-muted-foreground sm:max-w-[12rem]">
+                      JPG, PNG, WebP ou GIF · até 5 MB. Deixe em branco para manter a imagem atual.
+                    </span>
+                  </div>
+                  {(imagePreviewBlob || form.image_url) && (
+                    <div className="overflow-hidden rounded-xl border border-border">
+                      <img
+                        src={imagePreviewBlob || form.image_url}
+                        alt=""
+                        className="h-32 w-full object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
                 <label className="grid gap-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">Imagem (URL)</span>
+                  <span className="text-xs font-medium text-muted-foreground">URL da imagem (opcional)</span>
                   <Input
                     value={form.image_url}
                     onChange={(e) => setForm((s) => ({ ...s, image_url: e.target.value }))}
-                    placeholder="Opcional"
+                    placeholder="https://… (se preferir link externo em vez de arquivo)"
                   />
                 </label>
               </div>

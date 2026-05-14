@@ -7,8 +7,9 @@ import { subscriptionService } from "@/services/subscriptionService";
 import { Logo } from "@/components/brand/Logo";
 import {
   LayoutDashboard, Calendar, Users, Scissors, Clock, BarChart3,
-  Palette, MessageCircle, CreditCard, Settings, Menu, X, Bell,
+  Palette, MessageCircle, CreditCard, Settings, Menu, X,
 } from "lucide-react";
+import { AdminNotificationsBell } from "@/components/admin/AdminNotificationsBell";
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
 const nav: NavItem[] = [
@@ -125,9 +126,7 @@ export function AdminShell() {
           <Menu className="size-5" />
         </button>
         <Logo className="h-8" />
-        <button type="button" className="rounded-lg p-2 hover:bg-accent" aria-label="Notificações">
-          <Bell className="size-5" />
-        </button>
+        <AdminNotificationsBell companyId={companyId} hasCompany={hasCompany} />
       </div>
 
       <div className="flex">
@@ -203,9 +202,7 @@ export function AdminShell() {
               )}
             </div>
             <div className="flex items-center gap-3">
-              <button type="button" className="rounded-full p-2 hover:bg-accent" aria-label="Notificações">
-                <Bell className="size-5" />
-              </button>
+              <AdminNotificationsBell companyId={companyId} hasCompany={hasCompany} />
               <button
                 type="button"
                 onClick={() => void signOut()}

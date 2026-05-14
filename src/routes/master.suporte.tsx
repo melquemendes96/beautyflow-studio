@@ -50,7 +50,7 @@ function MasterSuporte() {
 
   return (
     <div>
-      <MasterPageTitle title="Suporte" subtitle="Tickets e solicitações da plataforma." />
+      <MasterPageTitle title="Suporte" subtitle="Chamados e solicitações das empresas na plataforma." />
 
       <div className="rounded-2xl border border-border bg-card shadow-soft">
         <div className="border-b border-border px-5 py-4 text-sm text-muted-foreground">

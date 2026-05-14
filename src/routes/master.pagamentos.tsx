@@ -131,6 +131,7 @@ function MasterPagamentos() {
       });
       await queryClient.invalidateQueries({ queryKey: ["master", "payments"] });
       await queryClient.invalidateQueries({ queryKey: ["master", "subscriptions"] });
+      await queryClient.invalidateQueries({ queryKey: ["master", "notification_feed"] });
 
       const newEnd = payload?.new_period_end ? new Date(payload.new_period_end).toLocaleDateString("pt-BR") : null;
       toast.success("Pagamento registrado e renovação aplicada", {
@@ -148,6 +149,7 @@ function MasterPagamentos() {
     onSuccess: async (payload: any) => {
       await queryClient.invalidateQueries({ queryKey: ["master", "payments"] });
       await queryClient.invalidateQueries({ queryKey: ["master", "subscriptions"] });
+      await queryClient.invalidateQueries({ queryKey: ["master", "notification_feed"] });
       const newEnd = payload?.new_period_end ? new Date(payload.new_period_end).toLocaleDateString("pt-BR") : null;
       toast.success("Pagamento aplicado", {
         description: newEnd ? `Nova renovação: ${newEnd}` : "Renovação aplicada com sucesso.",

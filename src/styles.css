@@ -176,3 +176,31 @@ div[style*="Edit with Lovable"],
   z-index: -9999 !important;
 }
 
+/* Painel master — sino de notificações enquanto houver não lidas */
+@keyframes master-bell-shake {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  15% {
+    transform: rotate(11deg);
+  }
+  30% {
+    transform: rotate(-9deg);
+  }
+  45% {
+    transform: rotate(8deg);
+  }
+  60% {
+    transform: rotate(-6deg);
+  }
+  75% {
+    transform: rotate(3deg);
+  }
+}
+
+.animate-master-bell-shake {
+  animation: master-bell-shake 0.85s ease-in-out infinite;
+  transform-origin: top center;
+}
+

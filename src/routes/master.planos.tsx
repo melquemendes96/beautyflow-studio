@@ -16,7 +16,18 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
-import { CreditCard } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { CreditCard, X } from "lucide-react";
+import { toast } from "sonner";
 import { AdminEmptyState, AdminServiceCardSkeleton } from "@/components/admin/AdminPageStates";
 
 export const Route = createFileRoute("/master/planos")({
@@ -103,6 +114,36 @@ function MasterPlanos() {
     setOpen(true);
   };
 
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; name: string } | null>(null);
+
+  const deletePlanMutation = useMutation({
+    mutationFn: async (planId: string) => {
+      const res = await masterService.deletePlan(planId);
+      if (res.error) throw res.error;
+      return res;
+    },
+    onSuccess: async () => {
+      setDeleteTarget(null);
+      await queryClient.invalidateQueries({ queryKey: ["master", "plans"] });
+      await queryClient.invalidateQueries({ queryKey: ["master", "companies"] });
+      await queryClient.invalidateQueries({ queryKey: ["master", "subscriptions"] });
+      toast.success("Plano excluído.");
+    },
+    onError: (err: unknown) => {
+      const code =
+        err && typeof err === "object" && "code" in err ? String((err as { code?: string }).code) : "";
+      const msg =
+        err && typeof err === "object" && "message" in err ? String((err as { message?: string }).message) : "";
+      if (code === "23503" || msg.toLowerCase().includes("foreign key")) {
+        toast.error(
+          "Não é possível excluir: há assinaturas ou vínculos usando este plano. Desative o plano ou migre as empresas antes.",
+        );
+        return;
+      }
+      toast.error("Não foi possível excluir o plano.");
+    },
+  });
+
   const beginEdit = (p: any) => {
     setEditingId(p.id);
     setForm({
@@ -118,7 +159,7 @@ function MasterPlanos() {
     <div>
       <MasterPageTitle
         title="Planos"
-        subtitle="Catálogo de planos do SaaS."
+        subtitle="Catálogo de planos disponíveis para as empresas na plataforma."
         action={
           <Dialog open={open} onOpenChange={setOpen}>
             <DialogTrigger asChild>
@@ -205,13 +246,51 @@ function MasterPlanos() {
         }
       />
 
+      <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(o) => !o && setDeleteTarget(null)}>
+        <AlertDialogContent className="rounded-3xl">
+          <AlertDialogHeader>
+            <AlertDialogTitle>Excluir plano?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Esta ação não pode ser desfeita. Só é permitido se nenhuma assinatura estiver vinculada a este plano.
+              {deleteTarget ? (
+                <>
+                  {" "}
+                  Plano: <span className="font-medium text-foreground">{deleteTarget.name}</span>.
+                </>
+              ) : null}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deletePlanMutation.isPending}>Cancelar</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              disabled={deletePlanMutation.isPending || !deleteTarget}
+              onClick={(e) => {
+                e.preventDefault();
+                if (deleteTarget) deletePlanMutation.mutate(deleteTarget.id);
+              }}
+            >
+              {deletePlanMutation.isPending ? "Excluindo…" : "Excluir"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
       <div className="grid gap-4 lg:grid-cols-3">
         {isLoading &&
           Array.from({ length: 3 }).map((_, i) => <AdminServiceCardSkeleton key={`pl-sk-${i}`} />)}
         {!isLoading &&
           (data ?? []).map((p) => (
-          <div key={p.id} className="rounded-2xl border border-border bg-card p-6 shadow-soft">
-            <div className="flex items-start justify-between gap-3">
+          <div key={p.id} className="relative rounded-2xl border border-border bg-card p-6 shadow-soft">
+            <button
+              type="button"
+              className="absolute right-3 top-3 rounded-full p-1.5 text-muted-foreground transition hover:bg-destructive/15 hover:text-destructive"
+              aria-label={`Excluir plano ${p.name}`}
+              onClick={() => setDeleteTarget({ id: p.id, name: String(p.name ?? "") })}
+            >
+              <X className="size-4" />
+            </button>
+            <div className="flex items-start justify-between gap-3 pr-8">
               <div>
                 <div className="font-display text-xl">{p.name}</div>
                 <div className="mt-1 text-sm text-muted-foreground">R$ {Number(p.price).toFixed(2)}/mês</div>
