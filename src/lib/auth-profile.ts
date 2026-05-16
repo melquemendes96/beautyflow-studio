@@ -1,5 +1,5 @@
 import type { Session, User } from "@supabase/supabase-js";
-import { getSupabase } from "@/lib/supabaseClient";
+import { getSupabase, isSupabaseConfigured } from "@/lib/supabaseClient";
 
 export type CompanyMembership = {
   company_id: string;
@@ -13,37 +13,49 @@ export type AuthProfile = {
   companyMemberships: CompanyMembership[];
 };
 
-export async function loadAuthProfile(): Promise<AuthProfile> {
-  const supabase = getSupabase();
-  const {
-    data: { session },
-  } = await supabase.auth.getSession();
+const emptyAuthProfile = (): AuthProfile => ({
+  session: null,
+  user: null,
+  isPlatformAdmin: false,
+  companyMemberships: [],
+});
 
-  if (!session?.user) {
-    return {
-      session: null,
-      user: null,
-      isPlatformAdmin: false,
-      companyMemberships: [],
-    };
+/** Seguro para SSR (beforeLoad): não lança se VITE_* ausente ou falha de rede. */
+export async function loadAuthProfile(): Promise<AuthProfile> {
+  if (!isSupabaseConfigured()) {
+    return emptyAuthProfile();
   }
 
-  const userId = session.user.id;
+  try {
+    const supabase = getSupabase();
+    const {
+      data: { session },
+    } = await supabase.auth.getSession();
 
-  const [platformRes, companyRes] = await Promise.all([
-    supabase.from("platform_admins").select("id").eq("user_id", userId).maybeSingle(),
-    supabase.from("company_users").select("company_id, role").eq("user_id", userId),
-  ]);
+    if (!session?.user) {
+      return emptyAuthProfile();
+    }
 
-  const memberships: CompanyMembership[] = (companyRes.data ?? []).map((row) => ({
-    company_id: row.company_id,
-    role: row.role as CompanyMembership["role"],
-  }));
+    const userId = session.user.id;
 
-  return {
-    session,
-    user: session.user,
-    isPlatformAdmin: Boolean(platformRes.data),
-    companyMemberships: memberships,
-  };
+    const [platformRes, companyRes] = await Promise.all([
+      supabase.from("platform_admins").select("id").eq("user_id", userId).maybeSingle(),
+      supabase.from("company_users").select("company_id, role").eq("user_id", userId),
+    ]);
+
+    const memberships: CompanyMembership[] = (companyRes.data ?? []).map((row) => ({
+      company_id: row.company_id,
+      role: row.role as CompanyMembership["role"],
+    }));
+
+    return {
+      session,
+      user: session.user,
+      isPlatformAdmin: Boolean(platformRes.data),
+      companyMemberships: memberships,
+    };
+  } catch (error) {
+    console.error("[loadAuthProfile]", error);
+    return emptyAuthProfile();
+  }
 }

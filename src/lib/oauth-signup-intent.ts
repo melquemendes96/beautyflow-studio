@@ -6,7 +6,12 @@ export type OAuthFlowContext = {
   planId?: string;
 };
 
+function hasSessionStorage(): boolean {
+  return typeof window !== "undefined" && typeof window.sessionStorage !== "undefined";
+}
+
 export function saveOAuthFlowContext(ctx: OAuthFlowContext) {
+  if (!hasSessionStorage()) return;
   try {
     sessionStorage.setItem(STORAGE_KEY, JSON.stringify(ctx));
   } catch {
@@ -15,6 +20,7 @@ export function saveOAuthFlowContext(ctx: OAuthFlowContext) {
 }
 
 export function readOAuthFlowContext(): OAuthFlowContext | null {
+  if (!hasSessionStorage()) return null;
   try {
     const raw = sessionStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
@@ -31,6 +37,7 @@ export function readOAuthFlowContext(): OAuthFlowContext | null {
 }
 
 export function clearOAuthFlowContext() {
+  if (!hasSessionStorage()) return;
   try {
     sessionStorage.removeItem(STORAGE_KEY);
   } catch {
