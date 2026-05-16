@@ -127,7 +127,7 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
         className="hidden flex-col justify-between p-12 text-background lg:flex"
         style={{ background: "var(--charcoal)" }}
       >
-        <Logo className="h-14 max-w-[280px]" />
+        <Logo className="h-32 w-auto max-w-[min(100%,20rem)] sm:h-36 sm:max-w-[24rem] lg:h-40 lg:max-w-[28rem]" />
         <div>
           <div className="font-display text-4xl leading-tight">Sua agenda, sua marca, suas regras.</div>
           <p className="mt-3 max-w-md text-background/70">
@@ -154,7 +154,7 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
       <div className="flex items-center justify-center p-6">
         <div className="w-full max-w-md rounded-3xl border border-border bg-card p-8 shadow-elegant">
           <div className="mb-6 lg:hidden">
-            <Logo onLight className="h-11 max-w-[240px]" />
+            <Logo onLight className="h-14 max-w-[260px]" />
           </div>
           <h1 className="font-display text-2xl tracking-tight">Entrar no painel</h1>
           <p className="mt-1 text-sm text-muted-foreground">Bem-vinda de volta. Acesse seu studio.</p>

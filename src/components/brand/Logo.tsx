@@ -3,32 +3,32 @@ import { cn } from "@/lib/utils";
 
 type LogoProps = {
   className?: string;
-  /**
-   * Arte com fundo escuro: moldura charcoal em superfícies claras (ex.: card de login mobile).
-   */
+  /** Sombra mais suave em fundos claros (navbar, card mobile). */
   onLight?: boolean;
 };
 
+const floatShadowDark =
+  "drop-shadow-[0_6px_14px_rgba(0,0,0,0.35)] drop-shadow-[0_18px_36px_rgba(0,0,0,0.45)]";
+const floatShadowLight =
+  "drop-shadow-[0_4px_10px_rgba(0,0,0,0.12)] drop-shadow-[0_10px_24px_rgba(0,0,0,0.18)]";
+
 export function Logo({ className = "h-10", onLight = false }: LogoProps) {
-  const img = (
-    <img
-      src={logo}
-      alt="BeautyFlow"
-      decoding="async"
-      className={cn("block w-auto max-w-full shrink-0 object-contain", className)}
-      style={{ background: "transparent" }}
-    />
+  return (
+    <span
+      className={cn(
+        "inline-flex max-w-full items-center justify-center leading-none",
+        onLight ? floatShadowLight : floatShadowDark,
+      )}
+    >
+      <img
+        src={logo}
+        alt="JM BeautyFlow"
+        decoding="async"
+        className={cn("block w-auto max-w-full shrink-0 object-contain", className)}
+        style={{ background: "transparent" }}
+      />
+    </span>
   );
-
-  if (onLight) {
-    return (
-      <span className="inline-flex items-center justify-center rounded-xl bg-[var(--charcoal)] px-3 py-2">
-        {img}
-      </span>
-    );
-  }
-
-  return img;
 }
 
 export function WordMark({ className = "" }: { className?: string }) {
