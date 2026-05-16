@@ -1,11 +1,8 @@
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 /**
- * Cliente Supabase para o browser e para SSR (TanStack Start).
- * Usa apenas chave pública (anon JWT eyJ...); nunca service_role no front.
- *
- * IMPORTANTE: PostgREST (/rest/v1) exige a chave **anon legacy** (JWT eyJ...).
- * A chave nova `sb_publishable_*` sozinha costuma gerar 401 nas queries autenticadas.
+ * Cliente Supabase — apenas chave anon JWT (eyJ...). Nunca service_role no front.
+ * PostgREST rejeita sb_publishable_* com sessão do usuário (401).
  */
 
 const url = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.trim();
@@ -17,8 +14,7 @@ function resolveSupabaseAnonKey(): string {
 
   if (anon.startsWith("eyJ")) return anon;
   if (publishable.startsWith("eyJ")) return publishable;
-  if (publishable.startsWith("sb_publishable_")) return publishable;
-  return anon || publishable;
+  return "";
 }
 
 const supabaseAnonKey = resolveSupabaseAnonKey();
@@ -29,24 +25,18 @@ export const supabaseProjectId: string =
 let browserClient: SupabaseClient | undefined;
 
 export function isSupabaseConfigured(): boolean {
-  return Boolean(url && supabaseAnonKey);
+  return Boolean(url && supabaseAnonKey.startsWith("eyJ"));
 }
 
-/**
- * Erro de configuração visível no login quando só existe sb_publishable_ (401 em REST).
- */
 export function getSupabaseKeyConfigurationError(): string | null {
-  if (!url || !supabaseAnonKey) {
-    return "Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY (JWT eyJ...) no .env e rode npm run build.";
+  if (!url) {
+    return "Defina VITE_SUPABASE_URL no .env.";
   }
-  if (supabaseAnonKey.startsWith("sb_publishable_")) {
-    const anon = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined)?.trim() ?? "";
-    if (!anon.startsWith("eyJ")) {
-      return (
-        "Chave Supabase incorreta para o painel: use VITE_SUPABASE_ANON_KEY com o JWT anon (começa com eyJ...) " +
-        "em Supabase → Settings → API → Legacy API Keys → anon. A chave sb_publishable_ sozinha causa erro 401."
-      );
-    }
+  if (!supabaseAnonKey.startsWith("eyJ")) {
+    return (
+      "VITE_SUPABASE_ANON_KEY ausente ou inválida. Use o JWT anon (eyJ...) em Supabase → Settings → API → Legacy → anon. " +
+      "Não use sb_publishable_ no lugar do anon — isso causa erro 401 no login."
+    );
   }
   return null;
 }
@@ -59,13 +49,8 @@ export function getSupabaseProjectRef(): string | null {
 
 function createSupabaseClient(): SupabaseClient {
   const configError = getSupabaseKeyConfigurationError();
-  if (!url || !supabaseAnonKey) {
-    throw new Error(
-      "Supabase não configurado: defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY (JWT eyJ...) no .env. Reinicie o dev server após salvar.",
-    );
-  }
-  if (configError && import.meta.env.DEV) {
-    console.error("[supabase]", configError);
+  if (!url || !supabaseAnonKey.startsWith("eyJ")) {
+    throw new Error(configError ?? "Supabase não configurado.");
   }
 
   const isBrowser = typeof document !== "undefined";
@@ -77,11 +62,6 @@ function createSupabaseClient(): SupabaseClient {
       autoRefreshToken: isBrowser,
       detectSessionInUrl: isBrowser,
       storageKey: `bf-${projectRef}-auth`,
-    },
-    global: {
-      headers: {
-        "X-Client-Info": "beautyflow-studio",
-      },
     },
   });
 }

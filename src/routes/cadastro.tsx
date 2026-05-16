@@ -7,7 +7,6 @@ import { GoogleOAuthButton } from "@/components/auth/GoogleOAuthButton";
 import { authService } from "@/services/authService";
 import { subscriptionService } from "@/services/subscriptionService";
 import { isSupabaseConfigured } from "@/lib/supabaseClient";
-import { loadAuthProfile } from "@/lib/auth-profile";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,6 +19,7 @@ import {
   saveOAuthFlowContext,
 } from "@/lib/oauth-signup-intent";
 import { navigateAfterAuthenticatedSession } from "@/lib/complete-auth-onboarding";
+import { guardPublicAuthRoute } from "@/lib/route-guards";
 import { useAuthenticatedPanelRedirect } from "@/lib/use-authenticated-panel-redirect";
 
 export const Route = createFileRoute("/cadastro")({
@@ -36,17 +36,7 @@ export const Route = createFileRoute("/cadastro")({
     ],
   }),
   beforeLoad: async ({ search }) => {
-    const profile = await loadAuthProfile();
-    if (!profile.session) return;
-    if (profile.isPlatformAdmin) {
-      throw redirect({ to: "/master" });
-    }
-    if (profile.companyMemberships.length > 0) {
-      if (search.planId) {
-        throw redirect({ to: "/admin/plano/checkout", search: { planId: search.planId, trial: false } });
-      }
-      throw redirect({ to: "/admin" });
-    }
+    await guardPublicAuthRoute(search.planId);
   },
   component: Cadastro,
 });

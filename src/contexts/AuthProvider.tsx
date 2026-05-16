@@ -63,7 +63,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     const run = (async () => {
       setIsLoading(true);
       try {
-        const profile = await loadAuthProfile();
+        const profile = await loadAuthProfile({ waitForSession: true });
         setSession(profile.session);
         setUser(profile.user);
         setIsPlatformAdmin(profile.isPlatformAdmin);

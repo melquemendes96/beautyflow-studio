@@ -11,7 +11,7 @@ import {
   saveOAuthFlowContext,
 } from "@/lib/oauth-signup-intent";
 import { useAuth } from "@/contexts/AuthProvider";
-import { useAuthenticatedPanelRedirect } from "@/lib/use-authenticated-panel-redirect";
+import { isMasterAccount } from "@/lib/auth-profile";
 import { Lock, Mail } from "lucide-react";
 
 type LoginScreenProps = {
@@ -39,8 +39,6 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
   const [pending, setPending] = useState(false);
   const [googlePending, setGooglePending] = useState(false);
 
-  useAuthenticatedPanelRedirect(planId);
-
   useEffect(() => {
     const configErr = authConfigError ?? getSupabaseKeyConfigurationError();
     if (configErr) {
@@ -51,10 +49,15 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
   useEffect(() => {
     if (!isSupabaseConfigured() || authLoading || !session) return;
     if (authConfigError) return;
-    if (isPlatformAdmin || companyMemberships.length > 0) return;
 
     const ctx = readOAuthFlowContext();
-    if (!ctx || ctx.mode !== "login") return;
+    const shouldRunOAuth = ctx?.mode === "login";
+    const shouldRunSession =
+      isPlatformAdmin ||
+      isMasterAccount(session) ||
+      companyMemberships.length > 0;
+
+    if (!shouldRunOAuth && !shouldRunSession) return;
     if (oauthHandledRef.current) return;
     oauthHandledRef.current = true;
     setError(null);
@@ -62,7 +65,7 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
     void (async () => {
       const res = await navigateAfterAuthenticatedSession({
         navigate,
-        planId: ctx.planId ?? planId,
+        planId: ctx?.planId ?? planId,
         refreshAuth,
       });
       if (!res.ok) {
@@ -192,7 +195,8 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
               {(error.includes("Nenhum studio") ||
                 error.includes("nome do studio") ||
                 error.includes("nome do negócio") ||
-                error.includes("chave anon")) && (
+                error.includes("chave anon")) &&
+                !isMasterAccount(session) && (
                 <Link
                   to="/cadastro"
                   search={planId ? { planId } : {}}

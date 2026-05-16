@@ -125,7 +125,7 @@ export function AdminShell() {
     }
 
     membershipSyncRef.current = 0;
-    void navigate({ to: "/login", search: {}, replace: true });
+    void navigate({ to: "/onboarding/company", replace: true });
   }, [companyMemberships.length, isLoading, isPlatformAdmin, navigate, refresh, session]);
 
   if (isLoading || !session) {

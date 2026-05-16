@@ -1,23 +1,17 @@
-import { loadAuthProfile } from "@/lib/auth-profile";
+import { resolveAuthDestination } from "@/lib/auth-routing";
 
 export type PostLoginResult =
-  | { ok: true; href: "/admin" | "/master" }
-  | { ok: false; reason: "no_panel_access" };
+  | { ok: true; href: "/dashboard" | "/master" | "/billing/plans" | "/onboarding/company" }
+  | { ok: false; reason: "no_panel_access" | "auth_config" };
 
-/** Destino após login: painel da empresa ou master, conforme vínculos no banco. */
-export async function getPostLoginDestination(): Promise<PostLoginResult> {
-  const profile = await loadAuthProfile();
-  if (profile.authConfigError) {
+/** Destino após login — delega para auth-routing (fonte única). */
+export async function getPostLoginDestination(planId?: string): Promise<PostLoginResult> {
+  const dest = await resolveAuthDestination({ planId });
+  if (dest.kind === "stay") {
     return { ok: false, reason: "no_panel_access" };
   }
-  if (!profile.session) {
+  if (dest.kind === "login") {
     return { ok: false, reason: "no_panel_access" };
   }
-  if (profile.isPlatformAdmin) {
-    return { ok: true, href: "/master" };
-  }
-  if (profile.companyMemberships.length > 0) {
-    return { ok: true, href: "/admin" };
-  }
-  return { ok: false, reason: "no_panel_access" };
+  return { ok: true, href: dest.path };
 }

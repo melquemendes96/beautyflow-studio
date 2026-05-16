@@ -1,33 +1,29 @@
 import { useEffect } from "react";
 import { useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/contexts/AuthProvider";
+import { navigateToAuthDestination, resolveAuthDestinationFromProfile } from "@/lib/auth-routing";
 
 /**
- * Após OAuth ou sessão restaurada no browser, envia master → /master e tenant → /admin.
- * Necessário porque beforeLoad no SSR não vê sessão (localStorage + hash do Supabase).
+ * Após OAuth ou sessão restaurada no browser, aplica roteamento inteligente.
  */
 export function useAuthenticatedPanelRedirect(planId?: string) {
   const navigate = useNavigate();
-  const { session, isLoading, isPlatformAdmin, companyMemberships } = useAuth();
+  const { session, isLoading, isPlatformAdmin, companyMemberships, authConfigError } = useAuth();
 
   useEffect(() => {
-    if (isLoading || !session) return;
+    if (isLoading || !session || authConfigError) return;
 
-    if (isPlatformAdmin) {
-      void navigate({ to: "/master", replace: true });
-      return;
-    }
+    const dest = resolveAuthDestinationFromProfile(
+      {
+        session,
+        user: session.user,
+        isPlatformAdmin,
+        companyMemberships,
+        authConfigError: null,
+      },
+      { planId },
+    );
 
-    if (companyMemberships.length > 0) {
-      if (planId) {
-        void navigate({
-          to: "/admin/plano/checkout",
-          search: { planId, trial: false },
-          replace: true,
-        });
-      } else {
-        void navigate({ to: "/admin", replace: true });
-      }
-    }
-  }, [isLoading, session, isPlatformAdmin, companyMemberships.length, planId, navigate]);
+    void navigateToAuthDestination(navigate, dest);
+  }, [isLoading, session, isPlatformAdmin, companyMemberships.length, planId, navigate, authConfigError]);
 }

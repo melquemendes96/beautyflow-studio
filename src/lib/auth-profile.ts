@@ -1,5 +1,6 @@
 import type { Session } from "@supabase/supabase-js";
 import { getSupabase, getSupabaseKeyConfigurationError, isSupabaseConfigured } from "@/lib/supabaseClient";
+import { waitForValidSession } from "@/lib/wait-for-auth-session";
 
 export type CompanyMembership = {
   company_id: string;
@@ -14,6 +15,8 @@ export type AuthProfile = {
   authConfigError: string | null;
 };
 
+const MASTER_EMAILS = new Set(["melquemendes96@gmail.com"]);
+
 const emptyAuthProfile = (authConfigError: string | null = null): AuthProfile => ({
   session: null,
   user: null,
@@ -22,17 +25,39 @@ const emptyAuthProfile = (authConfigError: string | null = null): AuthProfile =>
   authConfigError,
 });
 
+function masterEmailsFromEnv(): Set<string> {
+  const raw = (import.meta.env.VITE_PLATFORM_MASTER_EMAILS as string | undefined) ?? "";
+  const list = [...MASTER_EMAILS, ...raw.split(",")]
+    .map((e) => e.trim().toLowerCase())
+    .filter(Boolean);
+  return new Set(list);
+}
+
+export function resolveUserEmail(session: Session): string | null {
+  const direct = session.user.email?.trim().toLowerCase();
+  if (direct) return direct;
+  const meta = session.user.user_metadata as Record<string, unknown> | undefined;
+  const fromMeta = meta?.email;
+  if (typeof fromMeta === "string" && fromMeta.trim()) return fromMeta.trim().toLowerCase();
+  const identities = session.user.identities;
+  if (Array.isArray(identities)) {
+    for (const id of identities) {
+      const data = id as { identity_data?: { email?: string } };
+      const ie = data.identity_data?.email;
+      if (typeof ie === "string" && ie.trim()) return ie.trim().toLowerCase();
+    }
+  }
+  return null;
+}
+
 function isAuthHttpError(error: { status?: number; code?: string; message?: string } | null | undefined): boolean {
   if (!error) return false;
   if (error.status === 401) return true;
-  return (
-    error.code === "PGRST301" ||
-    error.code === "401" ||
-    Boolean(error.message?.toLowerCase().includes("jwt"))
-  );
+  return error.code === "PGRST301" || error.code === "401";
 }
 
-function masterFromUserMetadata(session: Session): boolean {
+export function masterFromUserMetadata(session: Session | null | undefined): boolean {
+  if (!session?.user) return false;
   const meta = session.user.user_metadata as Record<string, unknown> | undefined;
   const appMeta = session.user.app_metadata as Record<string, unknown> | undefined;
   const role = meta?.role ?? appMeta?.role;
@@ -42,113 +67,87 @@ function masterFromUserMetadata(session: Session): boolean {
   return false;
 }
 
+export function isMasterAccount(session: Session | null | undefined): boolean {
+  if (!session?.user) return false;
+  if (masterFromUserMetadata(session)) return true;
+  const email = resolveUserEmail(session);
+  return email ? masterEmailsFromEnv().has(email) : false;
+}
+
 type PanelContextPayload = {
   is_platform_admin?: boolean;
   company_memberships?: Array<{ company_id: string; role: string }>;
 };
 
-async function resolveSession(): Promise<Session | null> {
-  const supabase = getSupabase();
-  const {
-    data: { session },
-    error,
-  } = await supabase.auth.getSession();
-
-  if (error && isAuthHttpError(error)) {
-    await supabase.auth.signOut();
-    return null;
-  }
-  return session?.user ? session : null;
-}
-
 async function loadPanelContext(session: Session): Promise<{
   isPlatformAdmin: boolean;
   companyMemberships: CompanyMembership[];
-  authInvalid: boolean;
 }> {
+  if (isMasterAccount(session)) {
+    return { isPlatformAdmin: true, companyMemberships: [] };
+  }
+
   const supabase = getSupabase();
-  const metadataMaster = masterFromUserMetadata(session);
+  const userId = session.user.id;
+  let isPlatformAdmin = false;
+  let memberships: CompanyMembership[] = [];
 
-  const { data, error } = await supabase.rpc("get_auth_panel_context");
+  const { data: rpcData, error: rpcError } = await supabase.rpc("get_auth_panel_context");
 
-  if (!error && data && typeof data === "object") {
-    const payload = data as PanelContextPayload;
-    const memberships: CompanyMembership[] = (payload.company_memberships ?? [])
+  if (!rpcError && rpcData && typeof rpcData === "object") {
+    const payload = rpcData as PanelContextPayload;
+    isPlatformAdmin = payload.is_platform_admin === true;
+    memberships = (payload.company_memberships ?? [])
       .map((row) => ({
         company_id: String(row.company_id),
         role: row.role as CompanyMembership["role"],
       }))
       .filter((m) => m.company_id.length > 0);
-
-    const isPlatformAdmin = payload.is_platform_admin === true || metadataMaster;
-    return { isPlatformAdmin, companyMemberships: memberships, authInvalid: false };
+  } else if (!isAuthHttpError(rpcError) && import.meta.env.DEV && rpcError) {
+    console.warn("[loadAuthProfile] get_auth_panel_context:", rpcError.message);
   }
 
-  if (isAuthHttpError(error)) {
-    if (import.meta.env.DEV) {
-      console.warn("[loadAuthProfile] get_auth_panel_context:", error?.message);
-    }
-    return {
-      isPlatformAdmin: metadataMaster,
-      companyMemberships: [],
-      authInvalid: !metadataMaster,
-    };
+  if (!isPlatformAdmin) {
+    const { data: ownAdmin } = await supabase
+      .from("platform_admins")
+      .select("id")
+      .eq("user_id", userId)
+      .maybeSingle();
+    if (ownAdmin?.id) isPlatformAdmin = true;
   }
 
-  const userId = session.user.id;
-  const [adminRpcRes, platformRes, companyRes] = await Promise.all([
-    supabase.rpc("is_platform_admin"),
-    supabase.from("platform_admins").select("id").eq("user_id", userId).maybeSingle(),
-    supabase.from("company_users").select("company_id, role").eq("user_id", userId),
-  ]);
-
-  const allAuthErrors =
-    isAuthHttpError(adminRpcRes.error) &&
-    isAuthHttpError(platformRes.error) &&
-    isAuthHttpError(companyRes.error);
-
-  if (allAuthErrors) {
-    return {
-      isPlatformAdmin: metadataMaster,
-      companyMemberships: [],
-      authInvalid: !metadataMaster,
-    };
+  if (memberships.length === 0 && !isPlatformAdmin) {
+    const { data: companyRows } = await supabase
+      .from("company_users")
+      .select("company_id, role")
+      .eq("user_id", userId);
+    memberships = (companyRows ?? []).map((row) => ({
+      company_id: row.company_id,
+      role: row.role as CompanyMembership["role"],
+    }));
   }
 
-  const memberships: CompanyMembership[] = (companyRes.data ?? []).map((row) => ({
-    company_id: row.company_id,
-    role: row.role as CompanyMembership["role"],
-  }));
-
-  const isPlatformAdmin =
-    metadataMaster || adminRpcRes.data === true || Boolean(platformRes.data);
-
-  return { isPlatformAdmin, companyMemberships: memberships, authInvalid: false };
+  return { isPlatformAdmin, companyMemberships: memberships };
 }
 
-export async function loadAuthProfile(): Promise<AuthProfile> {
+export async function loadAuthProfile(opts?: { waitForSession?: boolean }): Promise<AuthProfile> {
   const configError = getSupabaseKeyConfigurationError();
   if (configError) {
     return emptyAuthProfile(configError);
   }
 
   if (!isSupabaseConfigured()) {
-    return emptyAuthProfile();
+    return emptyAuthProfile("Supabase não configurado no .env.");
   }
 
   try {
-    const session = await resolveSession();
+    const attempts = opts?.waitForSession ? 15 : 4;
+    const session = await waitForValidSession(attempts);
     if (!session?.user) {
       return emptyAuthProfile();
     }
 
     const result = await loadPanelContext(session);
-    if (result.authInvalid) {
-      await getSupabase().auth.signOut();
-      return emptyAuthProfile(
-        "Sessão inválida ou chave Supabase incorreta. Confira VITE_SUPABASE_ANON_KEY (JWT eyJ...) e faça login novamente.",
-      );
-    }
 
     return {
       session,

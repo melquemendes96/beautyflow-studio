@@ -1,21 +1,18 @@
 import { authService } from "@/services/authService";
-import { getPostLoginDestination } from "@/lib/post-login-redirect";
-import { resolveCompanyNameForBootstrap } from "@/lib/resolve-company-name";
-import { readStudioNameFromUrl } from "@/lib/oauth-signup-intent";
-import { onboardingService } from "@/services/onboardingService";
-
-type NavigateFn = (opts: {
-  to: string;
-  search?: Record<string, unknown>;
-  replace?: boolean;
-}) => Promise<void>;
+import { isMasterAccount, loadAuthProfile } from "@/lib/auth-profile";
+import {
+  navigateToAuthDestination,
+  resolveAuthDestination,
+  type NavigateFn,
+} from "@/lib/auth-routing";
+import { profileService } from "@/services/profileService";
 
 export type AuthOnboardingResult =
   | { ok: true }
   | {
       ok: false;
       error: string;
-      code?: "needs_company_name" | "bootstrap_failed" | "no_panel_access";
+      code?: "needs_company_name" | "bootstrap_failed" | "no_panel_access" | "auth_config";
     };
 
 export async function navigateAfterAuthenticatedSession(opts: {
@@ -23,75 +20,71 @@ export async function navigateAfterAuthenticatedSession(opts: {
   planId?: string;
   companyName?: string | null;
   refreshAuth?: () => Promise<void>;
+  preferTrial?: boolean;
 }): Promise<AuthOnboardingResult> {
-  const dest = await getPostLoginDestination();
-  if (dest.ok && dest.href === "/master") {
-    await opts.navigate({ to: "/master", replace: true });
-    return { ok: true };
+  const profile = await loadAuthProfile({ waitForSession: true });
+
+  if (profile.authConfigError) {
+    return { ok: false, code: "auth_config", error: profile.authConfigError };
   }
-  if (!dest.ok) {
-    const companyName =
-      (await resolveCompanyNameForBootstrap(opts.companyName)) ??
-      readStudioNameFromUrl();
 
-    if (!companyName) {
-      return {
-        ok: false,
-        code: "no_panel_access",
-        error:
-          "Nenhum studio está vinculado a esta conta. Se é sua primeira vez, crie uma conta e informe o nome do seu negócio. Se já se cadastrou, use o mesmo e-mail ou entre com senha.",
-      };
-    }
+  if (!profile.session) {
+    return {
+      ok: false,
+      code: "bootstrap_failed",
+      error: "Sessão não encontrada. Faça login novamente.",
+    };
+  }
 
-    const boot = await onboardingService.bootstrapCompany({ companyName });
-    const data = boot.data as { ok?: boolean; error?: string; slug?: string; detail?: string } | null;
+  await profileService.ensureProfile().catch(() => undefined);
+
+  const dest = await resolveAuthDestination({
+    planId: opts.planId,
+    preferTrial: opts.preferTrial,
+  });
+
+  if (dest.kind === "onboarding_company" && opts.companyName?.trim()) {
+    const { onboardingService } = await import("@/services/onboardingService");
+    const boot = await onboardingService.bootstrapCompany({ companyName: opts.companyName.trim() });
+    const data = boot.data as { ok?: boolean; error?: string } | null;
     if (boot.error || data?.ok === false) {
-      const rpcError = data?.error;
-      if (import.meta.env.DEV && (boot.error || data?.detail)) {
-        console.error("[bootstrap]", boot.error ?? data?.detail);
-      }
-      if (rpcError === "company_name_required" || rpcError === "invalid_company_name") {
+      if (data?.error === "company_name_required" || data?.error === "invalid_company_name") {
         return {
           ok: false,
           code: "needs_company_name",
-          error:
-            "Não encontramos o nome do studio na sua conta. Volte ao cadastro e informe o nome do negócio.",
-        };
-      }
-      if (rpcError === "unauthorized") {
-        return {
-          ok: false,
-          code: "bootstrap_failed",
-          error: "Sessão expirada. Faça login novamente.",
+          error: "Informe o nome do seu negócio para continuar.",
         };
       }
       return {
         ok: false,
         code: "bootstrap_failed",
-        error:
-          "Não foi possível criar seu studio. Verifique se as migrations do Supabase foram aplicadas e tente de novo.",
+        error: "Não foi possível criar seu studio. Tente novamente.",
       };
     }
-
-    await authService.updateCompanyNameMetadata(companyName);
+    await authService.updateCompanyNameMetadata(opts.companyName.trim());
     await opts.refreshAuth?.();
-    if (opts.planId) {
-      await opts.navigate({
-        to: "/admin/plano/checkout",
-        search: { planId: opts.planId, trial: false },
-      });
+    const dest2 = await resolveAuthDestination({ planId: opts.planId, preferTrial: opts.preferTrial });
+    await navigateToAuthDestination(opts.navigate, dest2);
+    return { ok: true };
+  }
+
+  if (dest.kind === "stay") {
+    if (isMasterAccount(profile.session) || profile.isPlatformAdmin) {
+      await opts.refreshAuth?.();
+      await navigateToAuthDestination(opts.navigate, { kind: "master", path: "/master" });
       return { ok: true };
     }
-    await opts.navigate({ to: "/admin/plano" });
-    return { ok: true };
+    if (profile.companyMemberships.length === 0) {
+      return {
+        ok: false,
+        code: "no_panel_access",
+        error:
+          "Configure sua empresa para continuar. Se é sua primeira vez, use Criar conta e informe o nome do negócio.",
+      };
+    }
   }
-  if (dest.href === "/admin" && opts.planId) {
-    await opts.navigate({
-      to: "/admin/plano/checkout",
-      search: { planId: opts.planId, trial: false },
-    });
-    return { ok: true };
-  }
-  await opts.navigate({ to: dest.href });
+
+  await opts.refreshAuth?.();
+  await navigateToAuthDestination(opts.navigate, dest);
   return { ok: true };
 }

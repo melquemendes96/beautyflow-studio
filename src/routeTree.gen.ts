@@ -9,6 +9,8 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as RegisterRouteImport } from './routes/register'
+import { Route as PlansRouteImport } from './routes/plans'
 import { Route as PlanosRouteImport } from './routes/planos'
 import { Route as PagamentoRouteImport } from './routes/pagamento'
 import { Route as OnboardingRouteImport } from './routes/onboarding'
@@ -16,6 +18,7 @@ import { Route as MasterRouteImport } from './routes/master'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as EntrarRouteImport } from './routes/entrar'
 import { Route as DemoRouteImport } from './routes/demo'
+import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ClienteRouteImport } from './routes/cliente'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as CadastroRouteImport } from './routes/cadastro'
@@ -23,6 +26,7 @@ import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as MasterIndexRouteImport } from './routes/master.index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as OnboardingCompanyRouteImport } from './routes/onboarding.company'
 import { Route as MasterSuporteRouteImport } from './routes/master.suporte'
 import { Route as MasterRenovacoesRouteImport } from './routes/master.renovacoes'
 import { Route as MasterPlanosRouteImport } from './routes/master.planos'
@@ -32,6 +36,10 @@ import { Route as MasterEmpresasRouteImport } from './routes/master.empresas'
 import { Route as MasterCuponsRouteImport } from './routes/master.cupons'
 import { Route as MasterConfiguracoesRouteImport } from './routes/master.configuracoes'
 import { Route as MasterAssinaturasRouteImport } from './routes/master.assinaturas'
+import { Route as BillingSuccessRouteImport } from './routes/billing.success'
+import { Route as BillingPlansRouteImport } from './routes/billing.plans'
+import { Route as BillingCheckoutRouteImport } from './routes/billing.checkout'
+import { Route as BillingCancelRouteImport } from './routes/billing.cancel'
 import { Route as AgendarSlugRouteImport } from './routes/agendar.$slug'
 import { Route as AdminWhatsappRouteImport } from './routes/admin.whatsapp'
 import { Route as AdminServicosRouteImport } from './routes/admin.servicos'
@@ -44,6 +52,16 @@ import { Route as AdminBrandingRouteImport } from './routes/admin.branding'
 import { Route as AdminAgendaRouteImport } from './routes/admin.agenda'
 import { Route as AdminPlanoCheckoutRouteImport } from './routes/admin.plano.checkout'
 
+const RegisterRoute = RegisterRouteImport.update({
+  id: '/register',
+  path: '/register',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PlansRoute = PlansRouteImport.update({
+  id: '/plans',
+  path: '/plans',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const PlanosRoute = PlanosRouteImport.update({
   id: '/planos',
   path: '/planos',
@@ -77,6 +95,11 @@ const EntrarRoute = EntrarRouteImport.update({
 const DemoRoute = DemoRouteImport.update({
   id: '/demo',
   path: '/demo',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ClienteRoute = ClienteRouteImport.update({
@@ -113,6 +136,11 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => AdminRoute,
+} as any)
+const OnboardingCompanyRoute = OnboardingCompanyRouteImport.update({
+  id: '/company',
+  path: '/company',
+  getParentRoute: () => OnboardingRoute,
 } as any)
 const MasterSuporteRoute = MasterSuporteRouteImport.update({
   id: '/suporte',
@@ -158,6 +186,26 @@ const MasterAssinaturasRoute = MasterAssinaturasRouteImport.update({
   id: '/assinaturas',
   path: '/assinaturas',
   getParentRoute: () => MasterRoute,
+} as any)
+const BillingSuccessRoute = BillingSuccessRouteImport.update({
+  id: '/billing/success',
+  path: '/billing/success',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BillingPlansRoute = BillingPlansRouteImport.update({
+  id: '/billing/plans',
+  path: '/billing/plans',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BillingCheckoutRoute = BillingCheckoutRouteImport.update({
+  id: '/billing/checkout',
+  path: '/billing/checkout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BillingCancelRoute = BillingCancelRouteImport.update({
+  id: '/billing/cancel',
+  path: '/billing/cancel',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const AgendarSlugRoute = AgendarSlugRouteImport.update({
   id: '/agendar/$slug',
@@ -221,13 +269,16 @@ export interface FileRoutesByFullPath {
   '/cadastro': typeof CadastroRoute
   '/checkout': typeof CheckoutRoute
   '/cliente': typeof ClienteRoute
+  '/dashboard': typeof DashboardRoute
   '/demo': typeof DemoRoute
   '/entrar': typeof EntrarRoute
   '/login': typeof LoginRoute
   '/master': typeof MasterRouteWithChildren
-  '/onboarding': typeof OnboardingRoute
+  '/onboarding': typeof OnboardingRouteWithChildren
   '/pagamento': typeof PagamentoRoute
   '/planos': typeof PlanosRoute
+  '/plans': typeof PlansRoute
+  '/register': typeof RegisterRoute
   '/admin/agenda': typeof AdminAgendaRoute
   '/admin/branding': typeof AdminBrandingRoute
   '/admin/clientes': typeof AdminClientesRoute
@@ -238,6 +289,10 @@ export interface FileRoutesByFullPath {
   '/admin/servicos': typeof AdminServicosRoute
   '/admin/whatsapp': typeof AdminWhatsappRoute
   '/agendar/$slug': typeof AgendarSlugRoute
+  '/billing/cancel': typeof BillingCancelRoute
+  '/billing/checkout': typeof BillingCheckoutRoute
+  '/billing/plans': typeof BillingPlansRoute
+  '/billing/success': typeof BillingSuccessRoute
   '/master/assinaturas': typeof MasterAssinaturasRoute
   '/master/configuracoes': typeof MasterConfiguracoesRoute
   '/master/cupons': typeof MasterCuponsRoute
@@ -247,6 +302,7 @@ export interface FileRoutesByFullPath {
   '/master/planos': typeof MasterPlanosRoute
   '/master/renovacoes': typeof MasterRenovacoesRoute
   '/master/suporte': typeof MasterSuporteRoute
+  '/onboarding/company': typeof OnboardingCompanyRoute
   '/admin/': typeof AdminIndexRoute
   '/master/': typeof MasterIndexRoute
   '/admin/plano/checkout': typeof AdminPlanoCheckoutRoute
@@ -256,12 +312,15 @@ export interface FileRoutesByTo {
   '/cadastro': typeof CadastroRoute
   '/checkout': typeof CheckoutRoute
   '/cliente': typeof ClienteRoute
+  '/dashboard': typeof DashboardRoute
   '/demo': typeof DemoRoute
   '/entrar': typeof EntrarRoute
   '/login': typeof LoginRoute
-  '/onboarding': typeof OnboardingRoute
+  '/onboarding': typeof OnboardingRouteWithChildren
   '/pagamento': typeof PagamentoRoute
   '/planos': typeof PlanosRoute
+  '/plans': typeof PlansRoute
+  '/register': typeof RegisterRoute
   '/admin/agenda': typeof AdminAgendaRoute
   '/admin/branding': typeof AdminBrandingRoute
   '/admin/clientes': typeof AdminClientesRoute
@@ -272,6 +331,10 @@ export interface FileRoutesByTo {
   '/admin/servicos': typeof AdminServicosRoute
   '/admin/whatsapp': typeof AdminWhatsappRoute
   '/agendar/$slug': typeof AgendarSlugRoute
+  '/billing/cancel': typeof BillingCancelRoute
+  '/billing/checkout': typeof BillingCheckoutRoute
+  '/billing/plans': typeof BillingPlansRoute
+  '/billing/success': typeof BillingSuccessRoute
   '/master/assinaturas': typeof MasterAssinaturasRoute
   '/master/configuracoes': typeof MasterConfiguracoesRoute
   '/master/cupons': typeof MasterCuponsRoute
@@ -281,6 +344,7 @@ export interface FileRoutesByTo {
   '/master/planos': typeof MasterPlanosRoute
   '/master/renovacoes': typeof MasterRenovacoesRoute
   '/master/suporte': typeof MasterSuporteRoute
+  '/onboarding/company': typeof OnboardingCompanyRoute
   '/admin': typeof AdminIndexRoute
   '/master': typeof MasterIndexRoute
   '/admin/plano/checkout': typeof AdminPlanoCheckoutRoute
@@ -292,13 +356,16 @@ export interface FileRoutesById {
   '/cadastro': typeof CadastroRoute
   '/checkout': typeof CheckoutRoute
   '/cliente': typeof ClienteRoute
+  '/dashboard': typeof DashboardRoute
   '/demo': typeof DemoRoute
   '/entrar': typeof EntrarRoute
   '/login': typeof LoginRoute
   '/master': typeof MasterRouteWithChildren
-  '/onboarding': typeof OnboardingRoute
+  '/onboarding': typeof OnboardingRouteWithChildren
   '/pagamento': typeof PagamentoRoute
   '/planos': typeof PlanosRoute
+  '/plans': typeof PlansRoute
+  '/register': typeof RegisterRoute
   '/admin/agenda': typeof AdminAgendaRoute
   '/admin/branding': typeof AdminBrandingRoute
   '/admin/clientes': typeof AdminClientesRoute
@@ -309,6 +376,10 @@ export interface FileRoutesById {
   '/admin/servicos': typeof AdminServicosRoute
   '/admin/whatsapp': typeof AdminWhatsappRoute
   '/agendar/$slug': typeof AgendarSlugRoute
+  '/billing/cancel': typeof BillingCancelRoute
+  '/billing/checkout': typeof BillingCheckoutRoute
+  '/billing/plans': typeof BillingPlansRoute
+  '/billing/success': typeof BillingSuccessRoute
   '/master/assinaturas': typeof MasterAssinaturasRoute
   '/master/configuracoes': typeof MasterConfiguracoesRoute
   '/master/cupons': typeof MasterCuponsRoute
@@ -318,6 +389,7 @@ export interface FileRoutesById {
   '/master/planos': typeof MasterPlanosRoute
   '/master/renovacoes': typeof MasterRenovacoesRoute
   '/master/suporte': typeof MasterSuporteRoute
+  '/onboarding/company': typeof OnboardingCompanyRoute
   '/admin/': typeof AdminIndexRoute
   '/master/': typeof MasterIndexRoute
   '/admin/plano/checkout': typeof AdminPlanoCheckoutRoute
@@ -330,6 +402,7 @@ export interface FileRouteTypes {
     | '/cadastro'
     | '/checkout'
     | '/cliente'
+    | '/dashboard'
     | '/demo'
     | '/entrar'
     | '/login'
@@ -337,6 +410,8 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/pagamento'
     | '/planos'
+    | '/plans'
+    | '/register'
     | '/admin/agenda'
     | '/admin/branding'
     | '/admin/clientes'
@@ -347,6 +422,10 @@ export interface FileRouteTypes {
     | '/admin/servicos'
     | '/admin/whatsapp'
     | '/agendar/$slug'
+    | '/billing/cancel'
+    | '/billing/checkout'
+    | '/billing/plans'
+    | '/billing/success'
     | '/master/assinaturas'
     | '/master/configuracoes'
     | '/master/cupons'
@@ -356,6 +435,7 @@ export interface FileRouteTypes {
     | '/master/planos'
     | '/master/renovacoes'
     | '/master/suporte'
+    | '/onboarding/company'
     | '/admin/'
     | '/master/'
     | '/admin/plano/checkout'
@@ -365,12 +445,15 @@ export interface FileRouteTypes {
     | '/cadastro'
     | '/checkout'
     | '/cliente'
+    | '/dashboard'
     | '/demo'
     | '/entrar'
     | '/login'
     | '/onboarding'
     | '/pagamento'
     | '/planos'
+    | '/plans'
+    | '/register'
     | '/admin/agenda'
     | '/admin/branding'
     | '/admin/clientes'
@@ -381,6 +464,10 @@ export interface FileRouteTypes {
     | '/admin/servicos'
     | '/admin/whatsapp'
     | '/agendar/$slug'
+    | '/billing/cancel'
+    | '/billing/checkout'
+    | '/billing/plans'
+    | '/billing/success'
     | '/master/assinaturas'
     | '/master/configuracoes'
     | '/master/cupons'
@@ -390,6 +477,7 @@ export interface FileRouteTypes {
     | '/master/planos'
     | '/master/renovacoes'
     | '/master/suporte'
+    | '/onboarding/company'
     | '/admin'
     | '/master'
     | '/admin/plano/checkout'
@@ -400,6 +488,7 @@ export interface FileRouteTypes {
     | '/cadastro'
     | '/checkout'
     | '/cliente'
+    | '/dashboard'
     | '/demo'
     | '/entrar'
     | '/login'
@@ -407,6 +496,8 @@ export interface FileRouteTypes {
     | '/onboarding'
     | '/pagamento'
     | '/planos'
+    | '/plans'
+    | '/register'
     | '/admin/agenda'
     | '/admin/branding'
     | '/admin/clientes'
@@ -417,6 +508,10 @@ export interface FileRouteTypes {
     | '/admin/servicos'
     | '/admin/whatsapp'
     | '/agendar/$slug'
+    | '/billing/cancel'
+    | '/billing/checkout'
+    | '/billing/plans'
+    | '/billing/success'
     | '/master/assinaturas'
     | '/master/configuracoes'
     | '/master/cupons'
@@ -426,6 +521,7 @@ export interface FileRouteTypes {
     | '/master/planos'
     | '/master/renovacoes'
     | '/master/suporte'
+    | '/onboarding/company'
     | '/admin/'
     | '/master/'
     | '/admin/plano/checkout'
@@ -437,18 +533,39 @@ export interface RootRouteChildren {
   CadastroRoute: typeof CadastroRoute
   CheckoutRoute: typeof CheckoutRoute
   ClienteRoute: typeof ClienteRoute
+  DashboardRoute: typeof DashboardRoute
   DemoRoute: typeof DemoRoute
   EntrarRoute: typeof EntrarRoute
   LoginRoute: typeof LoginRoute
   MasterRoute: typeof MasterRouteWithChildren
-  OnboardingRoute: typeof OnboardingRoute
+  OnboardingRoute: typeof OnboardingRouteWithChildren
   PagamentoRoute: typeof PagamentoRoute
   PlanosRoute: typeof PlanosRoute
+  PlansRoute: typeof PlansRoute
+  RegisterRoute: typeof RegisterRoute
   AgendarSlugRoute: typeof AgendarSlugRoute
+  BillingCancelRoute: typeof BillingCancelRoute
+  BillingCheckoutRoute: typeof BillingCheckoutRoute
+  BillingPlansRoute: typeof BillingPlansRoute
+  BillingSuccessRoute: typeof BillingSuccessRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/register': {
+      id: '/register'
+      path: '/register'
+      fullPath: '/register'
+      preLoaderRoute: typeof RegisterRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/plans': {
+      id: '/plans'
+      path: '/plans'
+      fullPath: '/plans'
+      preLoaderRoute: typeof PlansRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/planos': {
       id: '/planos'
       path: '/planos'
@@ -496,6 +613,13 @@ declare module '@tanstack/react-router' {
       path: '/demo'
       fullPath: '/demo'
       preLoaderRoute: typeof DemoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/dashboard': {
+      id: '/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cliente': {
@@ -546,6 +670,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
+    }
+    '/onboarding/company': {
+      id: '/onboarding/company'
+      path: '/company'
+      fullPath: '/onboarding/company'
+      preLoaderRoute: typeof OnboardingCompanyRouteImport
+      parentRoute: typeof OnboardingRoute
     }
     '/master/suporte': {
       id: '/master/suporte'
@@ -609,6 +740,34 @@ declare module '@tanstack/react-router' {
       fullPath: '/master/assinaturas'
       preLoaderRoute: typeof MasterAssinaturasRouteImport
       parentRoute: typeof MasterRoute
+    }
+    '/billing/success': {
+      id: '/billing/success'
+      path: '/billing/success'
+      fullPath: '/billing/success'
+      preLoaderRoute: typeof BillingSuccessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/billing/plans': {
+      id: '/billing/plans'
+      path: '/billing/plans'
+      fullPath: '/billing/plans'
+      preLoaderRoute: typeof BillingPlansRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/billing/checkout': {
+      id: '/billing/checkout'
+      path: '/billing/checkout'
+      fullPath: '/billing/checkout'
+      preLoaderRoute: typeof BillingCheckoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/billing/cancel': {
+      id: '/billing/cancel'
+      path: '/billing/cancel'
+      fullPath: '/billing/cancel'
+      preLoaderRoute: typeof BillingCancelRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/agendar/$slug': {
       id: '/agendar/$slug'
@@ -759,20 +918,39 @@ const MasterRouteChildren: MasterRouteChildren = {
 const MasterRouteWithChildren =
   MasterRoute._addFileChildren(MasterRouteChildren)
 
+interface OnboardingRouteChildren {
+  OnboardingCompanyRoute: typeof OnboardingCompanyRoute
+}
+
+const OnboardingRouteChildren: OnboardingRouteChildren = {
+  OnboardingCompanyRoute: OnboardingCompanyRoute,
+}
+
+const OnboardingRouteWithChildren = OnboardingRoute._addFileChildren(
+  OnboardingRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRouteWithChildren,
   CadastroRoute: CadastroRoute,
   CheckoutRoute: CheckoutRoute,
   ClienteRoute: ClienteRoute,
+  DashboardRoute: DashboardRoute,
   DemoRoute: DemoRoute,
   EntrarRoute: EntrarRoute,
   LoginRoute: LoginRoute,
   MasterRoute: MasterRouteWithChildren,
-  OnboardingRoute: OnboardingRoute,
+  OnboardingRoute: OnboardingRouteWithChildren,
   PagamentoRoute: PagamentoRoute,
   PlanosRoute: PlanosRoute,
+  PlansRoute: PlansRoute,
+  RegisterRoute: RegisterRoute,
   AgendarSlugRoute: AgendarSlugRoute,
+  BillingCancelRoute: BillingCancelRoute,
+  BillingCheckoutRoute: BillingCheckoutRoute,
+  BillingPlansRoute: BillingPlansRoute,
+  BillingSuccessRoute: BillingSuccessRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
