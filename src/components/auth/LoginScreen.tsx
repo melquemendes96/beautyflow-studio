@@ -32,11 +32,6 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
   const [googlePending, setGooglePending] = useState(false);
 
   useEffect(() => {
-    const c = readOAuthFlowContext();
-    if (c?.mode === "signup") clearOAuthFlowContext();
-  }, []);
-
-  useEffect(() => {
     if (!isSupabaseConfigured() || authLoading || !session) return;
     const ctx = readOAuthFlowContext();
     if (!ctx || ctx.mode !== "login") return;
@@ -52,12 +47,16 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
       });
       if (!res.ok) {
         oauthHandledRef.current = false;
+        if (res.code === "needs_company_name") {
+          void navigate({ to: "/cadastro", search: planId ? { planId } : {} });
+          return;
+        }
         setError(res.error);
         return;
       }
       clearOAuthFlowContext();
     })();
-  }, [session, authLoading, planId, navigate]);
+  }, [session, authLoading, planId, navigate, refreshAuth]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,7 +80,13 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
         planId,
         refreshAuth,
       });
-      if (!res.ok) setError(res.error);
+      if (!res.ok) {
+        if (res.code === "needs_company_name") {
+          void navigate({ to: "/cadastro", search: planId ? { planId } : {} });
+          return;
+        }
+        setError(res.error);
+      }
     } finally {
       setPending(false);
     }

@@ -6,6 +6,8 @@ import { Instagram, MapPin, Upload, X } from "lucide-react";
 import { useCurrentCompany } from "@/lib/current-company";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { brandingService } from "@/services/brandingService";
+import { companyService } from "@/services/companyService";
+import { PublicBookingLinkCard } from "@/components/admin/PublicBookingLinkCard";
 import { toast } from "sonner";
 import { AdminBrandingFormSkeleton, AdminBrandingPreviewSkeleton } from "@/components/admin/AdminPageStates";
 import { uploadCompanyImage } from "@/lib/company-media-upload";
@@ -44,6 +46,16 @@ function Branding() {
     enabled: hasCompany,
     queryFn: async () => {
       const res = await brandingService.getByCompany(companyId!);
+      if (res.error) throw res.error;
+      return res.data ?? null;
+    },
+  });
+
+  const companyQuery = useQuery({
+    queryKey: ["admin", "company", companyId],
+    enabled: hasCompany && Boolean(companyId),
+    queryFn: async () => {
+      const res = await companyService.getByIdForAdmin(companyId!);
       if (res.error) throw res.error;
       return res.data ?? null;
     },
@@ -120,10 +132,15 @@ function Branding() {
         logo_image_pos_y: b.logo_image_pos_y,
       });
       if (res.error) throw res.error;
+      const tradeName = b.nome.trim();
+      if (tradeName.length >= 2) {
+        await companyService.updateForAdmin(companyId, { name: tradeName });
+      }
       return res.data;
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["admin", "branding", companyId] });
+      await queryClient.invalidateQueries({ queryKey: ["admin", "company", companyId] });
       await queryClient.invalidateQueries({ queryKey: ["public", "booking_page"] });
       toast.success("Marca salva com sucesso");
     },
@@ -157,6 +174,10 @@ function Branding() {
         <div className="grid gap-6 lg:grid-cols-2">
           {/* Form */}
           <div className="space-y-4 rounded-2xl border border-border bg-card p-6 shadow-soft">
+            <PublicBookingLinkCard
+              slug={companyQuery.data?.slug}
+              companyName={companyQuery.data?.name}
+            />
             <Field label="Nome comercial" value={b.nome} onChange={(v) => setB({ ...b, nome: v })} />
             <Field label="Slogan" value={b.slogan} onChange={(v) => setB({ ...b, slogan: v })} />
 

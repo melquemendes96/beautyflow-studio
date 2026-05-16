@@ -1,6 +1,7 @@
 import { authService } from "@/services/authService";
 import { getPostLoginDestination } from "@/lib/post-login-redirect";
 import { resolveCompanyNameForBootstrap } from "@/lib/resolve-company-name";
+import { readStudioNameFromUrl } from "@/lib/oauth-signup-intent";
 import { onboardingService } from "@/services/onboardingService";
 
 type NavigateFn = (opts: {
@@ -9,42 +10,50 @@ type NavigateFn = (opts: {
   replace?: boolean;
 }) => Promise<void>;
 
+export type AuthOnboardingResult =
+  | { ok: true }
+  | { ok: false; error: string; code?: "needs_company_name" | "bootstrap_failed" };
+
 export async function navigateAfterAuthenticatedSession(opts: {
   navigate: NavigateFn;
   planId?: string;
   companyName?: string | null;
-  /** Obrigatório no fluxo de login/cadastro: após RPC `user_bootstrap_company` o contexto React ainda pode estar sem vínculos. */
   refreshAuth?: () => Promise<void>;
-}): Promise<{ ok: true } | { ok: false; error: string }> {
+}): Promise<AuthOnboardingResult> {
   const dest = await getPostLoginDestination();
   if (!dest.ok) {
-    const companyName = await resolveCompanyNameForBootstrap(opts.companyName);
+    const companyName =
+      (await resolveCompanyNameForBootstrap(opts.companyName)) ??
+      readStudioNameFromUrl();
+
     if (!companyName) {
-      await authService.signOut();
       return {
         ok: false,
+        code: "needs_company_name",
         error:
           "Informe o nome do seu studio no cadastro (mínimo 2 caracteres) antes de entrar no painel.",
       };
     }
 
     const boot = await onboardingService.bootstrapCompany({ companyName });
-    const data = boot.data as { ok?: boolean; error?: string } | null;
+    const data = boot.data as { ok?: boolean; error?: string; slug?: string } | null;
     if (boot.error || data?.ok === false) {
-      await authService.signOut();
       const rpcError = data?.error;
       if (rpcError === "company_name_required" || rpcError === "invalid_company_name") {
         return {
           ok: false,
+          code: "needs_company_name",
           error:
-            "Não encontramos o nome do studio na sua conta. Refaça o cadastro informando o nome do negócio.",
+            "Não encontramos o nome do studio na sua conta. Volte ao cadastro e informe o nome do negócio.",
         };
       }
       return {
         ok: false,
+        code: "bootstrap_failed",
         error: "Não foi possível preparar seu studio. Tente novamente ou fale com o suporte.",
       };
     }
+
     await opts.refreshAuth?.();
     if (opts.planId) {
       await opts.navigate({

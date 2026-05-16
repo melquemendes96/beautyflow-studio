@@ -15,6 +15,7 @@ import { Route as OnboardingRouteImport } from './routes/onboarding'
 import { Route as MasterRouteImport } from './routes/master'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as EntrarRouteImport } from './routes/entrar'
+import { Route as DemoRouteImport } from './routes/demo'
 import { Route as ClienteRouteImport } from './routes/cliente'
 import { Route as CheckoutRouteImport } from './routes/checkout'
 import { Route as CadastroRouteImport } from './routes/cadastro'
@@ -71,6 +72,11 @@ const LoginRoute = LoginRouteImport.update({
 const EntrarRoute = EntrarRouteImport.update({
   id: '/entrar',
   path: '/entrar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DemoRoute = DemoRouteImport.update({
+  id: '/demo',
+  path: '/demo',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ClienteRoute = ClienteRouteImport.update({
@@ -215,6 +221,7 @@ export interface FileRoutesByFullPath {
   '/cadastro': typeof CadastroRoute
   '/checkout': typeof CheckoutRoute
   '/cliente': typeof ClienteRoute
+  '/demo': typeof DemoRoute
   '/entrar': typeof EntrarRoute
   '/login': typeof LoginRoute
   '/master': typeof MasterRouteWithChildren
@@ -249,6 +256,7 @@ export interface FileRoutesByTo {
   '/cadastro': typeof CadastroRoute
   '/checkout': typeof CheckoutRoute
   '/cliente': typeof ClienteRoute
+  '/demo': typeof DemoRoute
   '/entrar': typeof EntrarRoute
   '/login': typeof LoginRoute
   '/onboarding': typeof OnboardingRoute
@@ -284,6 +292,7 @@ export interface FileRoutesById {
   '/cadastro': typeof CadastroRoute
   '/checkout': typeof CheckoutRoute
   '/cliente': typeof ClienteRoute
+  '/demo': typeof DemoRoute
   '/entrar': typeof EntrarRoute
   '/login': typeof LoginRoute
   '/master': typeof MasterRouteWithChildren
@@ -321,6 +330,7 @@ export interface FileRouteTypes {
     | '/cadastro'
     | '/checkout'
     | '/cliente'
+    | '/demo'
     | '/entrar'
     | '/login'
     | '/master'
@@ -355,6 +365,7 @@ export interface FileRouteTypes {
     | '/cadastro'
     | '/checkout'
     | '/cliente'
+    | '/demo'
     | '/entrar'
     | '/login'
     | '/onboarding'
@@ -389,6 +400,7 @@ export interface FileRouteTypes {
     | '/cadastro'
     | '/checkout'
     | '/cliente'
+    | '/demo'
     | '/entrar'
     | '/login'
     | '/master'
@@ -425,6 +437,7 @@ export interface RootRouteChildren {
   CadastroRoute: typeof CadastroRoute
   CheckoutRoute: typeof CheckoutRoute
   ClienteRoute: typeof ClienteRoute
+  DemoRoute: typeof DemoRoute
   EntrarRoute: typeof EntrarRoute
   LoginRoute: typeof LoginRoute
   MasterRoute: typeof MasterRouteWithChildren
@@ -476,6 +489,13 @@ declare module '@tanstack/react-router' {
       path: '/entrar'
       fullPath: '/entrar'
       preLoaderRoute: typeof EntrarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/demo': {
+      id: '/demo'
+      path: '/demo'
+      fullPath: '/demo'
+      preLoaderRoute: typeof DemoRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/cliente': {
@@ -745,6 +765,7 @@ const rootRouteChildren: RootRouteChildren = {
   CadastroRoute: CadastroRoute,
   CheckoutRoute: CheckoutRoute,
   ClienteRoute: ClienteRoute,
+  DemoRoute: DemoRoute,
   EntrarRoute: EntrarRoute,
   LoginRoute: LoginRoute,
   MasterRoute: MasterRouteWithChildren,

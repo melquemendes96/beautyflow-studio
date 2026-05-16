@@ -11,7 +11,7 @@ export const companyService = {
   getByIdForAdmin(companyId: string) {
     return getSupabase()
       .from("companies")
-      .select("id,name,slug,status,plan_id,onboarding_completed,email,phone")
+      .select("id,name,slug,status,plan_id,onboarding_completed,email,phone,slug_change_count")
       .eq("id", companyId)
       .maybeSingle();
   },

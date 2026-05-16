@@ -1,41 +1,105 @@
 import { Link } from "@tanstack/react-router";
+import { useState } from "react";
+import { Menu, X } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
+import { DEMO_BOOKING_PATH } from "@/lib/app-constants";
 
 export function SiteHeader() {
+  const [menuOpen, setMenuOpen] = useState(false);
+
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-xl">
-      <div className="container-page flex h-16 items-center justify-between">
-        <Link to="/" className="flex items-center gap-2">
-          <Logo onLight className="h-11 max-w-[220px]" />
+      <div className="container-page flex min-h-14 items-center justify-between gap-2 py-2 sm:min-h-16 sm:gap-3">
+        <Link to="/" className="min-w-0 shrink">
+          <Logo onLight className="h-9 max-w-[140px] sm:h-11 sm:max-w-[200px]" />
         </Link>
-        <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
-          <a href="#beneficios" className="hover:text-foreground transition-colors">Benefícios</a>
-          <a href="#como-funciona" className="hover:text-foreground transition-colors">Como funciona</a>
-          <a href="#planos" className="hover:text-foreground transition-colors">Planos</a>
-          <a href="#depoimentos" className="hover:text-foreground transition-colors">Depoimentos</a>
+
+        <nav className="hidden items-center gap-6 text-sm text-muted-foreground md:flex">
+          <a href="#beneficios" className="transition-colors hover:text-foreground">
+            Benefícios
+          </a>
+          <a href="#como-funciona" className="transition-colors hover:text-foreground">
+            Como funciona
+          </a>
+          <a href="#planos" className="transition-colors hover:text-foreground">
+            Planos
+          </a>
+          <a href="#depoimentos" className="transition-colors hover:text-foreground">
+            Depoimentos
+          </a>
         </nav>
-        <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+
+        <div className="flex shrink-0 items-center gap-1 sm:gap-2">
           <Link
             to="/login"
-            className="inline-flex px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground sm:px-0 sm:py-0 sm:text-sm"
+            className="hidden px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground sm:inline sm:text-sm"
           >
             Entrar
           </Link>
           <Link
             to="/cadastro"
-            className="inline-flex rounded-full border border-foreground/15 bg-background/60 px-3 py-2 text-xs font-medium hover:bg-background sm:px-5 sm:py-2.5 sm:text-sm"
+            className="hidden rounded-full border border-foreground/15 bg-background/60 px-3 py-2 text-xs font-medium hover:bg-background sm:inline-flex sm:px-4 sm:text-sm"
           >
             Criar conta
           </Link>
           <Link
-            to="/agendar/$slug"
-            params={{ slug: "joyce-mendes" }}
-            className="rounded-full bg-foreground px-5 py-2.5 text-sm font-medium text-background shadow-soft hover:opacity-90 transition"
+            to={DEMO_BOOKING_PATH}
+            className="hidden rounded-full bg-foreground px-3 py-2 text-xs font-medium text-background shadow-soft transition hover:opacity-90 sm:inline-flex sm:px-4 sm:text-sm"
           >
-            Ver demonstração
+            Demo
           </Link>
+          <button
+            type="button"
+            aria-label={menuOpen ? "Fechar menu" : "Abrir menu"}
+            className="inline-flex size-10 items-center justify-center rounded-full border border-border bg-background md:hidden"
+            onClick={() => setMenuOpen((o) => !o)}
+          >
+            {menuOpen ? <X className="size-5" /> : <Menu className="size-5" />}
+          </button>
         </div>
       </div>
+
+      {menuOpen ? (
+        <div className="border-t border-border/60 bg-background px-4 py-4 md:hidden">
+          <nav className="flex flex-col gap-3 text-sm">
+            <a href="#beneficios" onClick={() => setMenuOpen(false)} className="text-muted-foreground">
+              Benefícios
+            </a>
+            <a href="#como-funciona" onClick={() => setMenuOpen(false)} className="text-muted-foreground">
+              Como funciona
+            </a>
+            <a href="#planos" onClick={() => setMenuOpen(false)} className="text-muted-foreground">
+              Planos
+            </a>
+            <a href="#depoimentos" onClick={() => setMenuOpen(false)} className="text-muted-foreground">
+              Depoimentos
+            </a>
+          </nav>
+          <div className="mt-4 flex flex-col gap-2">
+            <Link
+              to="/login"
+              onClick={() => setMenuOpen(false)}
+              className="rounded-xl border border-border px-4 py-3 text-center text-sm"
+            >
+              Entrar
+            </Link>
+            <Link
+              to="/cadastro"
+              onClick={() => setMenuOpen(false)}
+              className="rounded-xl border border-border px-4 py-3 text-center text-sm font-medium"
+            >
+              Criar conta
+            </Link>
+            <Link
+              to={DEMO_BOOKING_PATH}
+              onClick={() => setMenuOpen(false)}
+              className="rounded-xl bg-foreground px-4 py-3 text-center text-sm font-medium text-background"
+            >
+              Ver demonstração
+            </Link>
+          </div>
+        </div>
+      ) : null}
     </header>
   );
 }

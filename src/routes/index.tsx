@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { SiteHeader } from "@/components/site/SiteHeader";
+import { DEMO_BOOKING_PATH } from "@/lib/app-constants";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { Logo } from "@/components/brand/Logo";
 import { subscriptionService } from "@/services/subscriptionService";
@@ -67,7 +68,7 @@ function Landing() {
     plans.length > 1 ? Math.min(plans.length - 1, Math.floor(plans.length / 2)) : -1;
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen overflow-x-hidden">
       <SiteHeader />
 
       {/* HERO */}
@@ -89,14 +90,13 @@ function Landing() {
             <div className="mt-8 flex flex-wrap gap-3">
               <a
                 href="#planos"
-                className="inline-flex items-center gap-2 rounded-full bg-foreground px-7 py-3.5 text-sm font-medium text-background shadow-elegant hover:opacity-90 transition"
+                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full bg-foreground px-6 py-3 text-sm font-medium text-background shadow-elegant transition hover:opacity-90 sm:w-auto sm:px-7 sm:py-3.5"
               >
                 Começar agora <ArrowRight className="size-4" />
               </a>
               <Link
-                to="/agendar/$slug"
-                params={{ slug: "joyce-mendes" }}
-                className="inline-flex items-center gap-2 rounded-full border border-foreground/15 bg-background/60 px-7 py-3.5 text-sm font-medium hover:bg-background transition"
+                to={DEMO_BOOKING_PATH}
+                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-foreground/15 bg-background/60 px-6 py-3 text-sm font-medium transition hover:bg-background sm:w-auto sm:px-7 sm:py-3.5"
               >
                 Ver demonstração
               </Link>
@@ -117,8 +117,8 @@ function Landing() {
           </div>
 
           {/* Mock device preview */}
-          <div className="relative mx-auto w-full max-w-md">
-            <div className="absolute -inset-4 rounded-[2.5rem] bg-gradient-to-br from-gold/40 to-rose/30 blur-2xl" />
+          <div className="relative mx-auto w-full max-w-md min-w-0">
+            <div className="pointer-events-none absolute -inset-2 rounded-[2.5rem] bg-gradient-to-br from-gold/40 to-rose/30 blur-2xl sm:-inset-4" />
             <div className="relative rounded-[2.5rem] border border-border bg-card p-3 shadow-elegant">
               <div className="rounded-[2rem] bg-secondary/40 p-5">
                 <div className="flex items-center justify-between">
@@ -245,7 +245,7 @@ function Landing() {
                   <div
                     key={p.id}
                     className={`relative rounded-3xl p-8 shadow-soft transition hover:shadow-elegant ${
-                      isHighlight ? "z-[1] scale-[1.02] bg-card ring-2 ring-gold/60" : "bg-card"
+                      isHighlight ? "z-[1] bg-card ring-2 ring-gold/60 md:scale-[1.02]" : "bg-card"
                     }`}
                   >
                     {isHighlight && (
@@ -337,9 +337,8 @@ function Landing() {
                 Começar agora <ArrowRight className="size-4" />
               </a>
               <Link
-                to="/agendar/$slug"
-                params={{ slug: "joyce-mendes" }}
-                className="inline-flex items-center gap-2 rounded-full border border-background/20 px-7 py-3.5 text-sm font-medium hover:bg-background/10 transition"
+                to={DEMO_BOOKING_PATH}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-background/20 px-6 py-3 text-sm font-medium transition hover:bg-background/10 sm:px-7 sm:py-3.5"
               >
                 Ver demonstração
               </Link>

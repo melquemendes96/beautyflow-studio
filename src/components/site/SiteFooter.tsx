@@ -1,4 +1,6 @@
+import { Link } from "@tanstack/react-router";
 import { WordMark } from "@/components/brand/Logo";
+import { DEMO_BOOKING_PATH } from "@/lib/app-constants";
 
 export function SiteFooter() {
   return (
@@ -6,26 +8,42 @@ export function SiteFooter() {
       <div className="container-page grid gap-8 py-14 md:grid-cols-4">
         <div className="space-y-3">
           <WordMark />
-          <p className="text-sm text-muted-foreground">
-            Agenda inteligente para negócios de beleza.
-          </p>
+          <p className="text-sm text-muted-foreground">Agenda inteligente para negócios de beleza.</p>
         </div>
         <div>
           <h4 className="mb-3 text-sm font-semibold">Produto</h4>
           <ul className="space-y-2 text-sm text-muted-foreground">
-            <li>Recursos</li><li>Planos</li><li>Demonstração</li>
+            <li>
+              <a href="#beneficios" className="hover:text-foreground">
+                Recursos
+              </a>
+            </li>
+            <li>
+              <a href="#planos" className="hover:text-foreground">
+                Planos
+              </a>
+            </li>
+            <li>
+              <Link to={DEMO_BOOKING_PATH} className="hover:text-foreground">
+                Demonstração
+              </Link>
+            </li>
           </ul>
         </div>
         <div>
           <h4 className="mb-3 text-sm font-semibold">Empresa</h4>
           <ul className="space-y-2 text-sm text-muted-foreground">
-            <li>Sobre</li><li>Contato</li><li>Blog</li>
+            <li>Sobre</li>
+            <li>Contato</li>
+            <li>Blog</li>
           </ul>
         </div>
         <div>
           <h4 className="mb-3 text-sm font-semibold">Legal</h4>
           <ul className="space-y-2 text-sm text-muted-foreground">
-            <li>Termos</li><li>Privacidade</li><li>LGPD</li>
+            <li>Termos</li>
+            <li>Privacidade</li>
+            <li>LGPD</li>
           </ul>
         </div>
       </div>

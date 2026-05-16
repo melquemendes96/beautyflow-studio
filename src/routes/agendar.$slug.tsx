@@ -1,5 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
+import { normalizePublicBookingSlug } from "@/lib/public-booking-slug";
+import { isSupabaseConfigured } from "@/lib/supabaseClient";
 import { Check, ArrowLeft, ArrowRight, Calendar } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { publicBookingService } from "@/services/publicBookingService";
@@ -14,7 +16,8 @@ export const Route = createFileRoute("/agendar/$slug")({
 type Step = "servico" | "data" | "horario" | "dados" | "confirmado";
 
 function Agendar() {
-  const { slug } = Route.useParams();
+  const { slug: slugParam } = Route.useParams();
+  const slug = useMemo(() => normalizePublicBookingSlug(slugParam), [slugParam]);
   const [step, setStep] = useState<Step>("servico");
   const [servico, setServico] = useState<string | null>(null);
   const [data, setData] = useState<string | null>(null);
@@ -24,9 +27,13 @@ function Agendar() {
   const pageQuery = useQuery({
     queryKey: ["public", "booking_page", slug],
     queryFn: async () => {
+      if (!slug) return null;
+      if (!isSupabaseConfigured()) {
+        throw new Error("supabase_not_configured");
+      }
       const res = await publicBookingService.getPageData(slug);
       if (res.error) throw res.error;
-      return res.data as {
+      const payload = res.data as {
         company?: { id: string; name: string; slug: string } | null;
         branding?: Record<string, unknown> | null;
         services?: Array<{
@@ -37,6 +44,8 @@ function Agendar() {
           image_url?: string | null;
         }>;
       } | null;
+      if (!payload?.company) return null;
+      return payload;
     },
   });
 
@@ -125,7 +134,27 @@ function Agendar() {
     );
   }
 
-  if (pageQuery.isError || !company) {
+  if (pageQuery.isError) {
+    const configError =
+      pageQuery.error instanceof Error && pageQuery.error.message === "supabase_not_configured";
+    return (
+      <div className="grid min-h-screen place-items-center bg-secondary/30 px-4">
+        <div className="max-w-md rounded-3xl border border-border bg-card p-8 text-center shadow-elegant">
+          <h1 className="font-display text-xl">{configError ? "Serviço indisponível" : "Erro ao carregar"}</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            {configError
+              ? "A página de agendamento não está configurada neste ambiente. Tente novamente mais tarde."
+              : "Não foi possível carregar os dados do studio. Verifique sua conexão e tente de novo."}
+          </p>
+          <Link to="/" className="mt-6 inline-block text-sm text-foreground underline-offset-4 hover:underline">
+            Voltar ao início
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  if (!company) {
     return (
       <div className="grid min-h-screen place-items-center bg-secondary/30 px-4">
         <div className="max-w-md rounded-3xl border border-border bg-card p-8 text-center shadow-elegant">

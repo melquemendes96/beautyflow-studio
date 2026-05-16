@@ -14,7 +14,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthProvider";
 import {
   clearOAuthFlowContext,
+  appendStudioNameToRedirectUrl,
   readOAuthFlowContext,
+  readStudioNameFromUrl,
   saveOAuthFlowContext,
 } from "@/lib/oauth-signup-intent";
 import { navigateAfterAuthenticatedSession } from "@/lib/complete-auth-onboarding";
@@ -91,6 +93,9 @@ function Cadastro() {
   useEffect(() => {
     const c = readOAuthFlowContext();
     if (c?.mode === "login") clearOAuthFlowContext();
+    const fromUrl = readStudioNameFromUrl();
+    if (fromUrl) setCompanyName(fromUrl);
+    else if (c?.mode === "signup" && c.companyName) setCompanyName(c.companyName);
   }, []);
 
   useEffect(() => {
@@ -110,6 +115,9 @@ function Cadastro() {
       });
       if (!res.ok) {
         oauthHandledRef.current = false;
+        if (res.code === "needs_company_name") {
+          setStep("account");
+        }
         setError(res.error);
         return;
       }
@@ -205,9 +213,10 @@ function Cadastro() {
     setGooglePending(true);
     try {
       const base = window.location.origin;
-      const cadastroUrl = planId
+      const cadastroBase = planId
         ? `${base}/cadastro?planId=${encodeURIComponent(planId)}`
         : `${base}/cadastro`;
+      const cadastroUrl = appendStudioNameToRedirectUrl(cadastroBase, name);
       saveOAuthFlowContext({
         mode: "signup",
         companyName: name,

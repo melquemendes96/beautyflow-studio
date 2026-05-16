@@ -112,8 +112,18 @@ function Config() {
         );
       }
 
-      if (slugNorm !== companyQuery.data?.slug) {
-        const companyRes = await companyService.updateForAdmin(companyId, { slug: slugNorm });
+      const currentSlug = companyQuery.data?.slug ?? "";
+      const slugChanges = Number(companyQuery.data?.slug_change_count ?? 0);
+      if (slugNorm !== currentSlug) {
+        if (slugChanges >= 1) {
+          throw new Error(
+            "Você já alterou o slug público uma vez neste ciclo. Entre em contato com o suporte se precisar mudar novamente.",
+          );
+        }
+        const companyRes = await companyService.updateForAdmin(companyId, {
+          slug: slugNorm,
+          slug_change_count: slugChanges + 1,
+        });
         if (companyRes.error) {
           const code = (companyRes.error as { code?: string })?.code;
           if (code === "23505") {
@@ -210,11 +220,15 @@ function Config() {
             onChange={(v) => setSlugInput(v)}
           />
           <p className="text-[11px] text-muted-foreground">
-            Use apenas letras minúsculas, números e hífens (ex.:{" "}
-            <span className="font-mono text-foreground/90">joyce-studio</span> ou{" "}
-            <span className="font-mono text-foreground/90">beleza2024</span>). Alterar o slug muda o endereço do
-            agendamento — atualize links já divulgados.
+            Use apenas letras minúsculas, números e hífens. Você pode alterar o slug{" "}
+            <span className="font-medium text-foreground">apenas uma vez</span> por ciclo de assinatura — atualize links
+            já divulgados após salvar.
           </p>
+          {Number(companyQuery.data?.slug_change_count ?? 0) >= 1 ? (
+            <p className="text-xs text-amber-700 dark:text-amber-400">
+              O slug já foi alterado uma vez. Para mudar de novo, fale com o suporte.
+            </p>
+          ) : null}
           {slugInput.trim().length > 0 && !isValidPublicBookingSlug(normalizedSlug) ? (
             <p className="text-xs text-destructive">
               Slug inválido após normalização. Remova caracteres especiais ou espaços soltos.

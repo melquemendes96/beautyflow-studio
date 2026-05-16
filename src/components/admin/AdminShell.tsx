@@ -4,6 +4,9 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthProvider";
 import { useCurrentCompany } from "@/lib/current-company";
 import { subscriptionService } from "@/services/subscriptionService";
+import { companyService } from "@/services/companyService";
+import { brandingService } from "@/services/brandingService";
+import { displayStudioName } from "@/lib/branding-utils";
 import { Logo } from "@/components/brand/Logo";
 import {
   LayoutDashboard, Calendar, Users, Scissors, Clock, BarChart3,
@@ -31,7 +34,34 @@ export function AdminShell() {
   const navigate = useNavigate();
   const { user, session, isPlatformAdmin, companyMemberships, isLoading, signOut, refresh } = useAuth();
   const { companyId, hasCompany } = useCurrentCompany();
-  const membershipSyncRef = useRef(false);
+  const membershipSyncRef = useRef(0);
+
+  const companyQuery = useQuery({
+    queryKey: ["admin", "company", companyId],
+    enabled: hasCompany && Boolean(companyId),
+    queryFn: async () => {
+      const res = await companyService.getByIdForAdmin(companyId!);
+      if (res.error) throw res.error;
+      return res.data ?? null;
+    },
+  });
+
+  const brandingQuery = useQuery({
+    queryKey: ["admin", "branding", companyId],
+    enabled: hasCompany && Boolean(companyId),
+    queryFn: async () => {
+      const res = await brandingService.getByCompany(companyId!);
+      if (res.error) throw res.error;
+      return res.data ?? null;
+    },
+  });
+
+  const studioDisplayName = useMemo(() => {
+    return displayStudioName(
+      companyQuery.data,
+      brandingQuery.data as Parameters<typeof displayStudioName>[1],
+    );
+  }, [companyQuery.data, brandingQuery.data]);
 
   const subscriptionQuery = useQuery({
     queryKey: ["admin", "subscription", companyId],
@@ -71,30 +101,31 @@ export function AdminShell() {
     if (isLoading) return;
 
     if (!session) {
-      membershipSyncRef.current = false;
+      membershipSyncRef.current = 0;
       void navigate({ to: "/login", search: { planId: undefined } });
       return;
     }
 
     if (companyMemberships.length > 0) {
-      membershipSyncRef.current = false;
+      membershipSyncRef.current = 0;
       return;
     }
     if (isPlatformAdmin) {
-      membershipSyncRef.current = false;
+      membershipSyncRef.current = 0;
       void navigate({ to: "/master" });
       return;
     }
 
-    // Sessão ok mas contexto ainda sem empresa (ex.: `user_bootstrap_company` acabou de rodar).
-    if (!membershipSyncRef.current) {
-      membershipSyncRef.current = true;
-      void refresh();
-      return;
+    // Sessão ok mas contexto ainda sem empresa (ex.: bootstrap acabou de rodar).
+    if (membershipSyncRef.current < 4) {
+      membershipSyncRef.current += 1;
+      const delay = membershipSyncRef.current * 400;
+      const t = window.setTimeout(() => void refresh(), delay);
+      return () => window.clearTimeout(t);
     }
 
-    membershipSyncRef.current = false;
-    void navigate({ to: "/login", search: { planId: undefined } });
+    membershipSyncRef.current = 0;
+    void navigate({ to: "/cadastro", search: {} });
   }, [companyMemberships.length, isLoading, isPlatformAdmin, navigate, refresh, session]);
 
   if (isLoading || !session) {
@@ -191,7 +222,9 @@ export function AdminShell() {
               <span>
                 Olá,{" "}
                 <span className="font-medium text-foreground">
-                  {user?.email?.split("@")[0] ?? "Equipe"}
+                  {studioDisplayName !== "Studio"
+                    ? studioDisplayName
+                    : user?.email?.split("@")[0] ?? "Equipe"}
                 </span>{" "}
                 ✨
               </span>
