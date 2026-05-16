@@ -1,17 +1,27 @@
 /**
- * PM2 (produção Linux). Uso na VPS após `npm ci` + `npm run build`:
- *   pm2 start ecosystem.config.cjs
- *   pm2 save && pm2 startup
+ * PM2 — produção VPS (Ubuntu + Nginx).
  *
- * Nginx deve fazer proxy para a porta definida em PORT (padrão 3000).
+ * IMPORTANTE:
+ * - dist/server/server.js é o handler SSR (export fetch), NÃO um servidor HTTP.
+ * - NUNCA rode: node dist/server/server.js | npm run preview
+ * - SEMPRE rode: npm run start  →  srvx escuta PORT (padrão 3000)
+ *
+ * Após git pull:
+ *   npm ci && npm run build && pm2 reload ecosystem.config.cjs --update-env
  */
+const path = require("node:path");
+
+const appRoot = __dirname;
+const srvxBin = path.join(appRoot, "node_modules", "srvx", "bin", "srvx.mjs");
+
 module.exports = {
   apps: [
     {
       name: "beautyflow-studio",
-      cwd: __dirname,
-      script: "npm",
-      args: "run start",
+      cwd: appRoot,
+      script: srvxBin,
+      interpreter: "node",
+      args: "serve --prod --dir ./dist/server --static ../client --host 0.0.0.0 --port 3000",
       instances: 1,
       exec_mode: "fork",
       autorestart: true,
