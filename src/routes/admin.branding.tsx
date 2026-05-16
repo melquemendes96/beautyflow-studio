@@ -1,7 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useId, useRef, useState } from "react";
 import { PageTitle } from "@/components/admin/AdminShell";
-import { Logo } from "@/components/brand/Logo";
+import { studioInitials } from "@/lib/branding-utils";
 import { Instagram, MapPin, Upload, X } from "lucide-react";
 import { useCurrentCompany } from "@/lib/current-company";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -53,6 +53,7 @@ function Branding() {
     nome: "",
     slogan: "",
     boasVindas: "",
+    horario: "",
     cor: "#1a1a1a",
     cor2: "#c9a960",
     instagram: "",
@@ -78,7 +79,7 @@ function Branding() {
         logo_image_pos_y: clampPercent(d.logo_image_pos_y, 50),
       };
       // se já foi preenchido pelo usuário, não sobreescreve texto; enquadramento vem do servidor
-      if (prev.nome || prev.slogan || prev.boasVindas) {
+      if (prev.nome || prev.slogan || prev.boasVindas || prev.horario) {
         return { ...prev, ...framing };
       }
       return {
@@ -87,6 +88,7 @@ function Branding() {
         boasVindas: String(d.welcome_text ?? ""),
         cor: String(d.primary_color ?? "#1a1a1a"),
         cor2: String(d.secondary_color ?? "#c9a960"),
+        horario: String(d.public_hours_text ?? ""),
         instagram: String(d.instagram_url ?? ""),
         whatsapp: String(d.whatsapp ?? ""),
         endereco: String(d.address ?? ""),
@@ -109,6 +111,7 @@ function Branding() {
         instagram_url: b.instagram.trim() || null,
         whatsapp: b.whatsapp.trim() || null,
         address: b.endereco.trim() || null,
+        public_hours_text: b.horario.trim() || null,
         logo_url: b.logo_url.trim() || null,
         banner_url: b.banner_url.trim() || null,
         banner_image_pos_x: b.banner_image_pos_x,
@@ -121,7 +124,12 @@ function Branding() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["admin", "branding", companyId] });
+      await queryClient.invalidateQueries({ queryKey: ["public", "booking_page"] });
       toast.success("Marca salva com sucesso");
+    },
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : "Não foi possível salvar a marca.";
+      toast.error(msg);
     },
   });
 
@@ -191,6 +199,12 @@ function Branding() {
             </div>
 
             <Field label="Texto de boas-vindas" value={b.boasVindas} onChange={(v) => setB({ ...b, boasVindas: v })} multiline />
+            <Field
+              label="Horário de funcionamento (página pública)"
+              value={b.horario}
+              onChange={(v) => setB({ ...b, horario: v })}
+              placeholder="Ex.: Seg–Sáb · 09h às 19h"
+            />
             <Field label="Instagram" value={b.instagram} onChange={(v) => setB({ ...b, instagram: v })} />
             <Field label="WhatsApp" value={b.whatsapp} onChange={(v) => setB({ ...b, whatsapp: v })} />
             <Field label="Endereço" value={b.endereco} onChange={(v) => setB({ ...b, endereco: v })} />
@@ -226,6 +240,9 @@ function Branding() {
                 <div className="-mt-14 mb-4 size-20 shrink-0">
                   <PreviewLogoAvatar
                     logoUrl={b.logo_url}
+                    studioName={b.nome}
+                    primaryColor={b.cor}
+                    secondaryColor={b.cor2}
                     pos={{ x: b.logo_image_pos_x, y: b.logo_image_pos_y }}
                     onPosChange={(p) =>
                       setB((s) => ({ ...s, logo_image_pos_x: p.x, logo_image_pos_y: p.y }))
@@ -235,9 +252,18 @@ function Branding() {
                 <h3 className="font-display text-xl" style={{ color: b.cor }}>{b.nome}</h3>
                 <p className="text-sm text-muted-foreground">{b.slogan}</p>
                 <p className="mt-3 text-sm">{b.boasVindas}</p>
-                <div className="mt-4 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                  <span className="inline-flex items-center gap-1"><Instagram className="size-3" /> {b.instagram}</span>
-                  <span className="inline-flex items-center gap-1"><MapPin className="size-3" /> {b.endereco}</span>
+                <div className="mt-4 flex flex-col gap-1 text-xs text-muted-foreground">
+                  {b.horario ? <span>{b.horario}</span> : null}
+                  {b.instagram ? (
+                    <span className="inline-flex items-center gap-1">
+                      <Instagram className="size-3" /> {b.instagram}
+                    </span>
+                  ) : null}
+                  {b.endereco ? (
+                    <span className="inline-flex items-center gap-1">
+                      <MapPin className="size-3" /> {b.endereco}
+                    </span>
+                  ) : null}
                 </div>
                 <button
                   type="button"
@@ -255,14 +281,37 @@ function Branding() {
   );
 }
 
-function Field({ label, value, onChange, multiline }: { label: string; value: string; onChange: (v: string) => void; multiline?: boolean }) {
+function Field({
+  label,
+  value,
+  onChange,
+  multiline,
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  multiline?: boolean;
+  placeholder?: string;
+}) {
   return (
     <label className="block">
       <span className="mb-1.5 block text-xs font-medium text-muted-foreground">{label}</span>
       {multiline ? (
-        <textarea value={value} onChange={(e) => onChange(e.target.value)} rows={3} className="w-full rounded-xl border border-input bg-background p-3 text-sm outline-none focus:border-foreground" />
+        <textarea
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          rows={3}
+          placeholder={placeholder}
+          className="w-full rounded-xl border border-input bg-background p-3 text-sm outline-none focus:border-foreground"
+        />
       ) : (
-        <input value={value} onChange={(e) => onChange(e.target.value)} className="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-foreground" />
+        <input
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+          className="w-full rounded-xl border border-input bg-background px-3 py-2.5 text-sm outline-none focus:border-foreground"
+        />
       )}
     </label>
   );
@@ -452,10 +501,16 @@ function PreviewBannerStrip({
 /** Avatar da logo na pré-visualização: arrastar para object-position (%). */
 function PreviewLogoAvatar({
   logoUrl,
+  studioName,
+  primaryColor,
+  secondaryColor,
   pos,
   onPosChange,
 }: {
   logoUrl: string;
+  studioName: string;
+  primaryColor: string;
+  secondaryColor: string;
   pos: FramingPos;
   onPosChange: (p: FramingPos) => void;
 }) {
@@ -511,7 +566,12 @@ function PreviewLogoAvatar({
           style={{ objectPosition: `${pos.x}% ${pos.y}%` }}
         />
       ) : (
-        <Logo className="h-12" />
+        <span
+          className="grid size-full place-items-center font-display text-lg font-semibold text-background"
+          style={{ background: `linear-gradient(135deg, ${primaryColor}, ${secondaryColor})` }}
+        >
+          {studioInitials(studioName || "Studio")}
+        </span>
       )}
     </div>
   );

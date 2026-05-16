@@ -1,20 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { Logo } from "@/components/brand/Logo";
-import { Instagram, MessageCircle, MapPin, Clock, Star, Check, ArrowLeft, ArrowRight, Calendar } from "lucide-react";
+import { Check, ArrowLeft, ArrowRight, Calendar } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { publicBookingService } from "@/services/publicBookingService";
+import { PublicStudioHero, getBrandingButtonStyle } from "@/components/booking/PublicStudioHero";
+import { displayStudioName, normalizeHexColor } from "@/lib/branding-utils";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/agendar/$slug")({
   component: Agendar,
 });
-
-function clampBookingPercent(value: unknown, fallback: number): number {
-  const n = typeof value === "number" ? value : Number(value);
-  if (!Number.isFinite(n)) return fallback;
-  return Math.min(100, Math.max(0, n));
-}
 
 type Step = "servico" | "data" | "horario" | "dados" | "confirmado";
 
@@ -22,7 +17,7 @@ function Agendar() {
   const { slug } = Route.useParams();
   const [step, setStep] = useState<Step>("servico");
   const [servico, setServico] = useState<string | null>(null);
-  const [data, setData] = useState<string | null>(null); // YYYY-MM-DD
+  const [data, setData] = useState<string | null>(null);
   const [hora, setHora] = useState<string | null>(null);
   const [form, setForm] = useState({ nome: "", email: "", whatsapp: "", notes: "" });
 
@@ -31,14 +26,23 @@ function Agendar() {
     queryFn: async () => {
       const res = await publicBookingService.getPageData(slug);
       if (res.error) throw res.error;
-      return res.data as any;
+      return res.data as {
+        company?: { id: string; name: string; slug: string } | null;
+        branding?: Record<string, unknown> | null;
+        services?: Array<{
+          id: string;
+          name: string;
+          price?: number;
+          duration_minutes?: number;
+          image_url?: string | null;
+        }>;
+      } | null;
     },
   });
 
   const company = pageQuery.data?.company ?? null;
   const branding = pageQuery.data?.branding ?? null;
-  const servicos = (pageQuery.data?.services ?? []) as any[];
-
+  const servicos = pageQuery.data?.services ?? [];
   const servicoSel = servicos.find((s) => s.id === servico);
 
   const slotsQuery = useQuery({
@@ -69,7 +73,7 @@ function Agendar() {
         notes: form.notes || null,
       });
       if (res.error) throw res.error;
-      return res.data as any;
+      return res.data as { ok?: boolean; error?: string };
     },
     onSuccess: (d) => {
       if (d?.ok === false) {
@@ -87,24 +91,12 @@ function Agendar() {
     },
   });
 
-  if (step === "confirmado")
-    return (
-      <Confirmado
-        slug={slug}
-        studioName={company?.name ?? "Studio"}
-        servico={servicoSel?.name || ""}
-        data={data!}
-        hora={hora!}
-      />
-    );
-
-  const gradientPrimary = branding?.primary_color ?? "#1a1a1a";
-  const gradientSecondary = branding?.secondary_color ?? "#c9a960";
-
-  const bannerPosX = clampBookingPercent(branding?.banner_image_pos_x, 50);
-  const bannerPosY = clampBookingPercent(branding?.banner_image_pos_y, 50);
-  const logoPosX = clampBookingPercent(branding?.logo_image_pos_x, 50);
-  const logoPosY = clampBookingPercent(branding?.logo_image_pos_y, 50);
+  const primary = normalizeHexColor(
+    typeof branding?.primary_color === "string" ? branding.primary_color : null,
+    "#1a1a1a",
+  );
+  const studioName = displayStudioName(company, branding as Parameters<typeof displayStudioName>[1]);
+  const btnStyle = getBrandingButtonStyle(primary);
 
   const dateLabel = useMemo(() => {
     if (!data) return "";
@@ -112,76 +104,70 @@ function Agendar() {
     return dt.toLocaleDateString("pt-BR", { day: "2-digit", month: "long", year: "numeric" });
   }, [data]);
 
+  if (step === "confirmado") {
+    return (
+      <Confirmado
+        slug={slug}
+        studioName={studioName}
+        servico={servicoSel?.name || ""}
+        data={data!}
+        hora={hora!}
+        primaryColor={primary}
+      />
+    );
+  }
+
+  if (pageQuery.isLoading) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-secondary/30 px-4">
+        <p className="text-sm text-muted-foreground">Carregando página do studio…</p>
+      </div>
+    );
+  }
+
+  if (pageQuery.isError || !company) {
+    return (
+      <div className="grid min-h-screen place-items-center bg-secondary/30 px-4">
+        <div className="max-w-md rounded-3xl border border-border bg-card p-8 text-center shadow-elegant">
+          <h1 className="font-display text-xl">Página não encontrada</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Este link de agendamento não existe ou o studio está indisponível.
+          </p>
+          <Link to="/" className="mt-6 inline-block text-sm text-foreground underline-offset-4 hover:underline">
+            Voltar ao início
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-secondary/30">
-      {/* Cover banner */}
-      <div className="relative h-48 overflow-hidden md:h-64">
-        <div
-          className="absolute inset-0"
-          style={{
-            backgroundImage: `linear-gradient(135deg, ${gradientPrimary}, ${gradientSecondary})`,
-          }}
-        />
-        {branding?.banner_url ? (
-          <img
-            src={branding.banner_url}
-            alt=""
-            className="absolute inset-0 size-full object-cover"
-            style={{ objectPosition: `${bannerPosX}% ${bannerPosY}%` }}
-          />
-        ) : (
-          <img
-            src="https://images.unsplash.com/photo-1560066984-138dadb4c035?w=1600"
-            alt=""
-            className="absolute inset-0 size-full object-cover opacity-40"
-          />
-        )}
-      </div>
+      <PublicStudioHero company={company} branding={branding as Parameters<typeof PublicStudioHero>[0]["branding"]} />
 
-      <div className="container-page -mt-20 pb-16">
-        {/* Studio card */}
-        <div className="rounded-3xl border border-border bg-card p-6 shadow-elegant md:p-8">
-          <div className="flex flex-col items-start gap-4 md:flex-row md:items-center">
-            <div className="-mt-16 grid size-24 place-items-center overflow-hidden rounded-3xl border-4 border-background bg-background shadow-soft md:-mt-20 md:size-28">
-              {branding?.logo_url ? (
-                <img
-                  src={branding.logo_url}
-                  alt=""
-                  className="size-full object-cover"
-                  style={{ objectPosition: `${logoPosX}% ${logoPosY}%` }}
-                />
-              ) : (
-                <Logo className="h-14 md:h-16" />
-              )}
-            </div>
-            <div className="flex-1">
-              <h1 className="font-display text-2xl md:text-3xl">{company?.name ?? "Carregando…"}</h1>
-              <p className="text-sm text-muted-foreground">{branding?.slogan ?? ""}</p>
-              <div className="mt-3 flex flex-wrap items-center gap-1 text-xs text-muted-foreground">
-                <Star className="size-3.5 fill-gold text-gold" /> 4.9 · 320 avaliações
-              </div>
-            </div>
-            <div className="flex flex-wrap gap-2">
-              <a className="inline-flex items-center gap-1.5 rounded-full bg-secondary px-3 py-1.5 text-xs"><Instagram className="size-3.5" /> {branding?.instagram_url ?? "Instagram"}</a>
-              <a className="inline-flex items-center gap-1.5 rounded-full bg-success/15 px-3 py-1.5 text-xs text-success"><MessageCircle className="size-3.5" /> WhatsApp</a>
-            </div>
-          </div>
-          <p className="mt-6 max-w-2xl text-sm leading-relaxed text-muted-foreground">{branding?.welcome_text ?? ""}</p>
-          <div className="mt-4 flex flex-wrap gap-4 text-xs text-muted-foreground">
-            <span className="inline-flex items-center gap-1.5"><MapPin className="size-3.5" /> {branding?.address ?? ""}</span>
-            <span className="inline-flex items-center gap-1.5"><Clock className="size-3.5" /> Seg–Sáb · 09h às 19h</span>
-          </div>
-        </div>
-
-        {/* Stepper */}
+      <div className="container-page pb-16">
         <div className="mt-8 flex items-center justify-center gap-2 text-xs">
           {(["servico", "data", "horario", "dados"] as Step[]).map((s, i) => {
             const idx = ["servico", "data", "horario", "dados"].indexOf(step);
             const active = i <= idx;
             return (
               <div key={s} className="flex items-center gap-2">
-                <div className={`grid size-7 place-items-center rounded-full text-[11px] ${active ? "bg-foreground text-background" : "bg-muted text-muted-foreground"}`}>{i + 1}</div>
-                {i < 3 && <div className={`h-px w-6 md:w-10 ${active && i < idx ? "bg-foreground" : "bg-border"}`} />}
+                <div
+                  className="grid size-7 place-items-center rounded-full text-[11px] text-background"
+                  style={{
+                    backgroundColor: active ? primary : undefined,
+                    color: active ? "#fff" : undefined,
+                    ...(active ? {} : { background: "var(--muted)", color: "var(--muted-foreground)" }),
+                  }}
+                >
+                  {i + 1}
+                </div>
+                {i < 3 && (
+                  <div
+                    className="h-px w-6 md:w-10"
+                    style={{ backgroundColor: active && i < idx ? primary : "var(--border)" }}
+                  />
+                )}
               </div>
             );
           })}
@@ -191,26 +177,41 @@ function Agendar() {
           {step === "servico" && (
             <>
               <h2 className="font-display text-xl">Escolha o serviço</h2>
-              <div className="mt-5 grid gap-3 md:grid-cols-2">
-                {servicos.map((s) => (
-                  <button
-                    key={s.id}
-                    onClick={() => setServico(s.id)}
-                    className={`flex items-center gap-4 rounded-2xl border p-4 text-left transition ${servico === s.id ? "border-foreground bg-secondary/60 shadow-soft" : "border-border hover:border-foreground/30"}`}
-                  >
-                    <img
-                      src={s.image_url ?? "https://images.unsplash.com/photo-1522337360788-8b13dee7a37e?auto=format&fit=crop&w=600&q=60"}
-                      alt=""
-                      className="size-16 rounded-xl object-cover"
-                    />
-                    <div className="flex-1">
-                      <div className="font-medium">{s.name}</div>
-                      <div className="text-xs text-muted-foreground">{s.duration_minutes} min · R$ {Number(s.price ?? 0).toFixed(2).replace(".", ",")}</div>
-                    </div>
-                    {servico === s.id && <Check className="size-5 text-success" />}
-                  </button>
-                ))}
-              </div>
+              {servicos.length === 0 ? (
+                <p className="mt-4 text-sm text-muted-foreground">Nenhum serviço disponível no momento.</p>
+              ) : (
+                <div className="mt-5 grid gap-3 md:grid-cols-2">
+                  {servicos.map((s) => (
+                    <button
+                      key={s.id}
+                      type="button"
+                      onClick={() => setServico(s.id)}
+                      className={`flex min-h-[5rem] items-center gap-4 rounded-2xl border p-4 text-left transition ${
+                        servico === s.id ? "bg-secondary/60 shadow-soft" : "border-border hover:border-foreground/30"
+                      }`}
+                      style={servico === s.id ? { borderColor: primary } : undefined}
+                    >
+                      {s.image_url ? (
+                        <img src={s.image_url} alt="" className="size-16 rounded-xl object-cover" />
+                      ) : (
+                        <div
+                          className="grid size-16 shrink-0 place-items-center rounded-xl text-lg font-semibold text-background"
+                          style={{ background: `linear-gradient(135deg, ${primary}, ${normalizeHexColor(typeof branding?.secondary_color === "string" ? branding.secondary_color : null, "#c9a960")})` }}
+                        >
+                          {s.name.slice(0, 1).toUpperCase()}
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <div className="font-medium">{s.name}</div>
+                        <div className="text-xs text-muted-foreground">
+                          {s.duration_minutes ?? 0} min · R$ {Number(s.price ?? 0).toFixed(2).replace(".", ",")}
+                        </div>
+                      </div>
+                      {servico === s.id && <Check className="size-5 text-success" />}
+                    </button>
+                  ))}
+                </div>
+              )}
             </>
           )}
 
@@ -218,37 +219,33 @@ function Agendar() {
             <>
               <h2 className="font-display text-xl">Escolha a data</h2>
               <div className="mt-5 grid grid-cols-7 gap-2 text-xs text-muted-foreground">
-                {["D", "S", "T", "Q", "Q", "S", "S"].map((d, i) => <div key={i} className="text-center">{d}</div>)}
+                {["D", "S", "T", "Q", "Q", "S", "S"].map((d, i) => (
+                  <div key={i} className="text-center">
+                    {d}
+                  </div>
+                ))}
                 {Array.from({ length: 35 }).map((_, i) => {
                   const offset = i - 2;
                   const base = new Date();
                   const date = new Date(base.getFullYear(), base.getMonth(), base.getDate() + offset);
                   const valid = offset >= 0 && offset < 30;
                   const ymd = toYmd(date);
-                  // Fase 8 vai calcular disponibilidade real; por enquanto, não bloqueamos dias.
-                  const isFull = false;
                   const sel = data === ymd;
                   return (
                     <button
                       key={i}
-                      disabled={!valid || isFull}
+                      type="button"
+                      disabled={!valid}
                       onClick={() => setData(ymd)}
                       className={`aspect-square rounded-xl text-sm transition ${
-                        !valid ? "" :
-                        sel ? "bg-foreground text-background shadow-soft" :
-                        isFull ? "bg-destructive/10 text-destructive/60" :
-                        "bg-success/10 text-foreground hover:bg-success/20"
+                        !valid ? "" : sel ? "text-background shadow-soft" : "bg-success/10 text-foreground hover:bg-success/20"
                       }`}
+                      style={valid && sel ? { backgroundColor: primary } : undefined}
                     >
                       {valid ? date.getDate() : ""}
                     </button>
                   );
                 })}
-              </div>
-              <div className="mt-4 flex flex-wrap gap-3 text-xs text-muted-foreground">
-                <span className="inline-flex items-center gap-1"><span className="size-3 rounded-full bg-success/30" /> Disponível</span>
-                <span className="inline-flex items-center gap-1"><span className="size-3 rounded-full bg-destructive/30" /> Lotado</span>
-                <span className="inline-flex items-center gap-1"><span className="size-3 rounded-full bg-muted" /> Indisponível</span>
               </div>
             </>
           )}
@@ -262,11 +259,12 @@ function Agendar() {
                   return (
                     <button
                       key={h}
+                      type="button"
                       onClick={() => setHora(h)}
-                      className={`rounded-xl border px-3 py-3 text-sm transition ${
-                        sel ? "border-foreground bg-foreground text-background" :
-                        "border-border bg-success/10 hover:border-foreground/40"
+                      className={`min-h-11 rounded-xl border px-3 py-3 text-sm transition ${
+                        sel ? "border-transparent text-background" : "border-border bg-success/10 hover:border-foreground/40"
                       }`}
+                      style={sel ? btnStyle : undefined}
                     >
                       {h}
                     </button>
@@ -288,31 +286,49 @@ function Agendar() {
               <div className="mt-5 grid gap-4">
                 <Field label="Nome completo" value={form.nome} onChange={(v) => setForm({ ...form, nome: v })} />
                 <Field label="E-mail" type="email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
-                <Field label="WhatsApp" value={form.whatsapp} onChange={(v) => setForm({ ...form, whatsapp: v })} placeholder="(11) 99999-0000" />
+                <Field
+                  label="WhatsApp"
+                  value={form.whatsapp}
+                  onChange={(v) => setForm({ ...form, whatsapp: v })}
+                  placeholder="(11) 99999-0000"
+                />
                 <Field label="Observações (opcional)" value={form.notes} onChange={(v) => setForm({ ...form, notes: v })} />
               </div>
               <div className="mt-6 rounded-2xl bg-secondary/60 p-4 text-sm">
-                <div className="flex justify-between"><span className="text-muted-foreground">Serviço</span><span>{servicoSel?.name}</span></div>
-                <div className="mt-1 flex justify-between"><span className="text-muted-foreground">Data</span><span>{dateLabel}</span></div>
-                <div className="mt-1 flex justify-between"><span className="text-muted-foreground">Horário</span><span>{hora}</span></div>
-                <div className="mt-2 flex justify-between border-t border-border pt-2 font-medium"><span>Total</span><span>R$ {Number(servicoSel?.price ?? 0).toFixed(2).replace(".", ",")}</span></div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Serviço</span>
+                  <span>{servicoSel?.name}</span>
+                </div>
+                <div className="mt-1 flex justify-between">
+                  <span className="text-muted-foreground">Data</span>
+                  <span>{dateLabel}</span>
+                </div>
+                <div className="mt-1 flex justify-between">
+                  <span className="text-muted-foreground">Horário</span>
+                  <span>{hora}</span>
+                </div>
+                <div className="mt-2 flex justify-between border-t border-border pt-2 font-medium">
+                  <span>Total</span>
+                  <span>R$ {Number(servicoSel?.price ?? 0).toFixed(2).replace(".", ",")}</span>
+                </div>
               </div>
             </>
           )}
 
-          {/* Nav */}
-          <div className="mt-8 flex items-center justify-between">
+          <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
             <button
+              type="button"
               onClick={() => {
                 const order: Step[] = ["servico", "data", "horario", "dados"];
                 const i = order.indexOf(step);
                 if (i > 0) setStep(order[i - 1]);
               }}
-              className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-foreground"
+              className="inline-flex min-h-11 items-center justify-center gap-1 text-sm text-muted-foreground hover:text-foreground"
             >
               <ArrowLeft className="size-4" /> Voltar
             </button>
             <button
+              type="button"
               disabled={
                 (step === "servico" && !servico) ||
                 (step === "data" && !data) ||
@@ -325,9 +341,10 @@ function Agendar() {
                 if (i < order.length - 1) setStep(order[i + 1]);
                 else createMutation.mutate();
               }}
-              className="inline-flex items-center gap-2 rounded-full bg-foreground px-6 py-3 text-sm text-background shadow-soft transition hover:opacity-90 disabled:opacity-30"
+              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full px-6 py-3 text-sm shadow-soft transition hover:opacity-90 disabled:opacity-30"
+              style={btnStyle}
             >
-              {step === "dados" ? (createMutation.isPending ? "Confirmando…" : "Confirmar agendamento") : "Continuar"}{" "}
+              {step === "dados" ? (createMutation.isPending ? "Confirmando…" : "Confirmar agendamento") : "Continuar"}
               <ArrowRight className="size-4" />
             </button>
           </div>
@@ -343,7 +360,19 @@ function Agendar() {
   );
 }
 
-function Field({ label, value, onChange, type = "text", placeholder }: { label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string }) {
+function Field({
+  label,
+  value,
+  onChange,
+  type = "text",
+  placeholder,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  type?: string;
+  placeholder?: string;
+}) {
   return (
     <label className="block">
       <span className="mb-1.5 block text-xs font-medium text-muted-foreground">{label}</span>
@@ -364,13 +393,16 @@ function Confirmado({
   servico,
   data,
   hora,
+  primaryColor,
 }: {
   slug: string;
   studioName: string;
   servico: string;
   data: string;
   hora: string;
+  primaryColor: string;
 }) {
+  const btnStyle = getBrandingButtonStyle(primaryColor);
   return (
     <div className="grid min-h-screen place-items-center bg-secondary/30 px-4">
       <div className="w-full max-w-md rounded-3xl border border-border bg-card p-8 text-center shadow-elegant">
@@ -381,13 +413,25 @@ function Confirmado({
         <p className="mt-1 text-sm text-muted-foreground">Você receberá uma mensagem no WhatsApp.</p>
 
         <div className="mt-6 space-y-2 rounded-2xl bg-secondary/60 p-5 text-left text-sm">
-          <div className="flex justify-between"><span className="text-muted-foreground">Estúdio</span><span>{studioName}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Serviço</span><span>{servico}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Data</span><span>{new Date(`${data}T00:00:00`).toLocaleDateString("pt-BR")}</span></div>
-          <div className="flex justify-between"><span className="text-muted-foreground">Horário</span><span>{hora}</span></div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Estúdio</span>
+            <span>{studioName}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Serviço</span>
+            <span>{servico}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Data</span>
+            <span>{new Date(`${data}T00:00:00`).toLocaleDateString("pt-BR")}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Horário</span>
+            <span>{hora}</span>
+          </div>
         </div>
 
-        <button className="mt-6 inline-flex w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 py-3 text-sm text-background">
+        <button type="button" className="mt-6 inline-flex w-full min-h-11 items-center justify-center gap-2 rounded-full px-5 py-3 text-sm" style={btnStyle}>
           <Calendar className="size-4" /> Adicionar ao calendário
         </button>
         <Link to="/cliente" className="mt-3 inline-block w-full rounded-full border border-border bg-background px-5 py-3 text-sm">
