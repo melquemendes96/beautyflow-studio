@@ -12,6 +12,7 @@ import {
 } from "@/lib/oauth-signup-intent";
 import { useAuth } from "@/contexts/AuthProvider";
 import { isMasterAccount } from "@/lib/auth-profile";
+import { usePublicAuthRedirect } from "@/lib/use-public-auth-redirect";
 import { Lock, Mail } from "lucide-react";
 
 type LoginScreenProps = {
@@ -32,6 +33,8 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
     refresh: refreshAuth,
   } = useAuth();
   const oauthHandledRef = useRef(false);
+
+  usePublicAuthRedirect(planId);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");

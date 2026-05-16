@@ -2,11 +2,15 @@ import type { Session } from "@supabase/supabase-js";
 import { isMasterAccount, resolveUserEmail } from "@/lib/auth-profile";
 import { getSupabase } from "@/lib/supabaseClient";
 
-/** Aguarda sessão OAuth propagar access_token e e-mail no client (hash na URL). */
-export async function waitForValidSession(maxAttempts = 12): Promise<Session | null> {
+const MAX_WAIT_MS = 4000;
+
+/** Aguarda sessão OAuth propagar (hash na URL), com teto de tempo. */
+export async function waitForValidSession(maxAttempts = 8): Promise<Session | null> {
   const supabase = getSupabase();
+  const started = Date.now();
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    if (Date.now() - started > MAX_WAIT_MS) break;
     const {
       data: { session },
       error: sessionError,

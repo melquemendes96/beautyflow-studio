@@ -10,7 +10,7 @@ import {
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
 import { loadAuthProfile, type CompanyMembership, isMasterAccount } from "@/lib/auth-profile";
-import { profileService } from "@/services/profileService";
+import { getAuthConfigError, readSessionQuick, withAuthTimeout } from "@/lib/auth-bootstrap";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabaseClient";
 
 type AuthContextValue = {
@@ -20,18 +20,15 @@ type AuthContextValue = {
   companyMemberships: CompanyMembership[];
   isLoading: boolean;
   authConfigError: string | null;
-  refresh: () => Promise<void>;
+  refresh: (opts?: { silent?: boolean; waitForSession?: boolean }) => Promise<void>;
   signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-const PROFILE_REFRESH_EVENTS = new Set([
-  "SIGNED_IN",
-  "SIGNED_OUT",
-  "USER_UPDATED",
-  "PASSWORD_RECOVERY",
-]);
+const PROFILE_REFRESH_EVENTS = new Set(["SIGNED_IN", "SIGNED_OUT", "USER_UPDATED", "PASSWORD_RECOVERY"]);
+
+const AUTH_BOOT_TIMEOUT_MS = 6000;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
@@ -43,99 +40,147 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const refreshInFlightRef = useRef<Promise<void> | null>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const initialSessionHandledRef = useRef(false);
+  const bootedRef = useRef(false);
 
-  const refresh = useCallback(async () => {
-    if (!isSupabaseConfigured()) {
-      setSession(null);
-      setUser(null);
+  const applyQuickSession = useCallback((s: Session | null) => {
+    setSession(s);
+    setUser(s?.user ?? null);
+    if (s?.user) {
+      setIsPlatformAdmin(isMasterAccount(s));
+    } else {
       setIsPlatformAdmin(false);
       setCompanyMemberships([]);
-      setAuthConfigError(null);
-      setIsLoading(false);
-      return;
-    }
-
-    if (refreshInFlightRef.current) {
-      await refreshInFlightRef.current;
-      return;
-    }
-
-    const run = (async () => {
-      setIsLoading(true);
-      try {
-        const profile = await loadAuthProfile({ waitForSession: true });
-        if (profile.session && (profile.isPlatformAdmin || isMasterAccount(profile.session))) {
-          await profileService.ensureProfile().catch(() => undefined);
-          await getSupabase().rpc("ensure_platform_admin").catch(() => undefined);
-        }
-        setSession(profile.session);
-        setUser(profile.user);
-        setIsPlatformAdmin(profile.isPlatformAdmin);
-        setCompanyMemberships(profile.companyMemberships);
-        setAuthConfigError(profile.authConfigError);
-      } finally {
-        setIsLoading(false);
-      }
-    })();
-
-    refreshInFlightRef.current = run;
-    try {
-      await run;
-    } finally {
-      refreshInFlightRef.current = null;
     }
   }, []);
 
-  const scheduleRefresh = useCallback(() => {
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-    debounceTimerRef.current = setTimeout(() => {
-      debounceTimerRef.current = null;
-      void refresh();
-    }, 400);
-  }, [refresh]);
+  const refresh = useCallback(
+    async (opts?: { silent?: boolean; waitForSession?: boolean }) => {
+      const configError = getAuthConfigError();
+      if (configError) {
+        setAuthConfigError(configError);
+        applyQuickSession(null);
+        setIsLoading(false);
+        return;
+      }
+
+      if (!isSupabaseConfigured()) {
+        applyQuickSession(null);
+        setAuthConfigError(null);
+        setIsLoading(false);
+        return;
+      }
+
+      if (refreshInFlightRef.current) {
+        await refreshInFlightRef.current;
+        return;
+      }
+
+      const run = (async () => {
+        if (!opts?.silent) setIsLoading(true);
+        try {
+          const profile = await withAuthTimeout(
+            loadAuthProfile({
+              waitForSession: opts?.waitForSession ?? false,
+              full: true,
+            }),
+            AUTH_BOOT_TIMEOUT_MS,
+          );
+          setSession(profile.session);
+          setUser(profile.user);
+          setIsPlatformAdmin(profile.isPlatformAdmin);
+          setCompanyMemberships(profile.companyMemberships);
+          setAuthConfigError(profile.authConfigError);
+        } catch (e) {
+          if (import.meta.env.DEV) console.warn("[AuthProvider] refresh timeout/error", e);
+          const quick = await readSessionQuick();
+          applyQuickSession(quick);
+          if (!quick) setAuthConfigError(null);
+        } finally {
+          setIsLoading(false);
+        }
+      })();
+
+      refreshInFlightRef.current = run;
+      try {
+        await run;
+      } finally {
+        refreshInFlightRef.current = null;
+      }
+    },
+    [applyQuickSession],
+  );
+
+  const scheduleRefresh = useCallback(
+    (opts?: { silent?: boolean; waitForSession?: boolean }) => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = setTimeout(() => {
+        debounceTimerRef.current = null;
+        void refresh(opts);
+      }, 300);
+    },
+    [refresh],
+  );
 
   const signOut = useCallback(async () => {
     if (isSupabaseConfigured()) {
       await getSupabase().auth.signOut();
     }
-    await refresh();
-  }, [refresh]);
+    applyQuickSession(null);
+    setIsPlatformAdmin(false);
+    setCompanyMemberships([]);
+    setIsLoading(false);
+  }, [applyQuickSession]);
 
   useEffect(() => {
+    if (bootedRef.current) return;
+    bootedRef.current = true;
+
+    const configError = getAuthConfigError();
+    if (configError) {
+      setAuthConfigError(configError);
+      setIsLoading(false);
+      return;
+    }
+
     if (!isSupabaseConfigured()) {
       setIsLoading(false);
       return;
     }
 
+    const safetyTimer = window.setTimeout(() => {
+      setIsLoading(false);
+    }, AUTH_BOOT_TIMEOUT_MS);
+
+    void (async () => {
+      const quick = await readSessionQuick();
+      applyQuickSession(quick);
+      setIsLoading(false);
+
+      if (quick) {
+        void refresh({ silent: true, waitForSession: false });
+      }
+    })();
+
     const supabase = getSupabase();
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "TOKEN_REFRESHED") return;
       if (event === "INITIAL_SESSION") {
-        if (!initialSessionHandledRef.current) {
-          initialSessionHandledRef.current = true;
-          void refresh();
-        }
-        return;
-      }
-      if (event === "TOKEN_REFRESHED") {
+        void refresh({ silent: true, waitForSession: false });
         return;
       }
       if (PROFILE_REFRESH_EVENTS.has(event)) {
-        scheduleRefresh();
+        scheduleRefresh({ silent: true, waitForSession: event === "SIGNED_IN" });
       }
     });
 
     return () => {
+      window.clearTimeout(safetyTimer);
       subscription.unsubscribe();
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
-      }
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
     };
-  }, [refresh, scheduleRefresh]);
+  }, [applyQuickSession, refresh, scheduleRefresh]);
 
   const value = useMemo(
     () => ({

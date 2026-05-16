@@ -1,5 +1,6 @@
 import type { Session } from "@supabase/supabase-js";
 import { getSupabase, getSupabaseKeyConfigurationError, isSupabaseConfigured } from "@/lib/supabaseClient";
+import { readSessionQuick } from "@/lib/auth-bootstrap";
 import { waitForValidSession } from "@/lib/wait-for-auth-session";
 
 export type CompanyMembership = {
@@ -101,11 +102,11 @@ async function loadPanelContext(session: Session): Promise<{
   let isPlatformAdmin = isMasterAccount(session);
   let memberships: CompanyMembership[] = [];
 
-  if (isPlatformAdmin) {
-    await syncPlatformAdminInDatabase();
-  }
-
   const { data: rpcData, error: rpcError } = await supabase.rpc("get_auth_panel_context");
+
+  if (isPlatformAdmin || (rpcData as PanelContextPayload)?.is_platform_admin) {
+    void syncPlatformAdminInDatabase();
+  }
 
   if (!rpcError && rpcData && typeof rpcData === "object") {
     const payload = rpcData as PanelContextPayload;
@@ -143,7 +144,10 @@ async function loadPanelContext(session: Session): Promise<{
   return { isPlatformAdmin, companyMemberships: memberships };
 }
 
-export async function loadAuthProfile(opts?: { waitForSession?: boolean }): Promise<AuthProfile> {
+export async function loadAuthProfile(opts?: {
+  waitForSession?: boolean;
+  full?: boolean;
+}): Promise<AuthProfile> {
   const configError = getSupabaseKeyConfigurationError();
   if (configError) {
     return emptyAuthProfile(configError);
@@ -154,10 +158,23 @@ export async function loadAuthProfile(opts?: { waitForSession?: boolean }): Prom
   }
 
   try {
-    const attempts = opts?.waitForSession ? 15 : 4;
-    const session = await waitForValidSession(attempts);
+    const session = opts?.waitForSession
+      ? await waitForValidSession(8)
+      : await readSessionQuick();
+
     if (!session?.user) {
       return emptyAuthProfile();
+    }
+
+    const quickMaster = isMasterAccount(session);
+    if (opts?.full === false) {
+      return {
+        session,
+        user: session.user,
+        isPlatformAdmin: quickMaster,
+        companyMemberships: [],
+        authConfigError: null,
+      };
     }
 
     const result = await loadPanelContext(session);

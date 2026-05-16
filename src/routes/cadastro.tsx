@@ -19,8 +19,7 @@ import {
   saveOAuthFlowContext,
 } from "@/lib/oauth-signup-intent";
 import { navigateAfterAuthenticatedSession } from "@/lib/complete-auth-onboarding";
-import { guardPublicAuthRoute } from "@/lib/route-guards";
-import { useAuthenticatedPanelRedirect } from "@/lib/use-authenticated-panel-redirect";
+import { usePublicAuthRedirect } from "@/lib/use-public-auth-redirect";
 
 export const Route = createFileRoute("/cadastro")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -35,9 +34,6 @@ export const Route = createFileRoute("/cadastro")({
       },
     ],
   }),
-  beforeLoad: async ({ search }) => {
-    await guardPublicAuthRoute(search.planId);
-  },
   component: Cadastro,
 });
 
@@ -73,7 +69,7 @@ function Cadastro() {
   } = useAuth();
   const oauthHandledRef = useRef(false);
 
-  useAuthenticatedPanelRedirect(planId);
+  usePublicAuthRedirect(planId);
 
   const [step, setStep] = useState<"account" | "verify_email">("account");
   const [companyName, setCompanyName] = useState("");

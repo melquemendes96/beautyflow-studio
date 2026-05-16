@@ -158,39 +158,12 @@ export async function guardMasterRoute(): Promise<void> {
   }
 }
 
-/** Rotas públicas de auth: redireciona se já autenticado. */
-export async function guardPublicAuthRoute(planId?: string): Promise<void> {
-  if (skipGuardOnServer()) return;
-  if (!isSupabaseConfigured()) return;
-
-  const profile = await loadAuthProfile();
-  if (!profile.session) return;
-
-  if (profile.isPlatformAdmin || isMasterAccount(profile.session)) {
-    throw redirect({ to: "/master" });
-  }
-
-  if (profile.companyMemberships.length === 0) {
-    throw redirect({ to: "/onboarding/company" });
-  }
-
-  const companyId = profile.companyMemberships[0]?.company_id;
-  if (!companyId) {
-    throw redirect({ to: "/onboarding/company" });
-  }
-
-  const sub = await loadTenantSubscription(companyId);
-  if (!isSubscriptionDashboardAllowed(sub)) {
-    if (planId) {
-      throw redirect({ to: "/billing/checkout", search: { planId, trial: true } });
-    }
-    throw redirect({ to: "/billing/plans", search: { billing: "setup" } });
-  }
-
-  if (planId) {
-    throw redirect({ to: "/billing/checkout", search: { planId, trial: false } });
-  }
-  throw redirect({ to: "/dashboard" });
+/**
+ * Rotas públicas de auth: não bloqueia navegação.
+ * Redirect pós-login fica no cliente (usePublicAuthRedirect / LoginScreen).
+ */
+export async function guardPublicAuthRoute(_planId?: string): Promise<void> {
+  return;
 }
 
 export const PublicRoute = guardPublicAuthRoute;
