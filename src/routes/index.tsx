@@ -122,7 +122,7 @@ function Landing() {
             <div className="relative rounded-[2.5rem] border border-border bg-card p-3 shadow-elegant">
               <div className="rounded-[2rem] bg-secondary/40 p-5">
                 <div className="flex items-center justify-between">
-                  <Logo className="h-9" />
+                  <Logo onLight className="h-12 max-w-[220px]" />
                   <span className="rounded-full bg-success/15 px-2.5 py-1 text-[10px] text-success">Aberto</span>
                 </div>
                 <div className="mt-5 text-sm text-muted-foreground">Próximo horário</div>

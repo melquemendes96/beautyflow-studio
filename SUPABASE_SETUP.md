@@ -62,3 +62,14 @@ values ('COLE_AQUI_O_UUID_DO_AUTH_USERS');
    - Produção: `https://SEU_DOMINIO/cadastro` e `https://SEU_DOMINIO/login`.
 3. No Google Cloud, em **Authorized redirect URIs**, inclua a URL de callback do Supabase: `https://<ref-do-projeto>.supabase.co/auth/v1/callback` (o painel do Supabase em Google provider costuma exibir esse valor).
 
+### Webhook Mercado Pago — assinatura `x-signature` (recomendado em produção)
+
+1. No painel Mercado Pago, ao configurar o webhook, copie o **secret** de assinatura gerado para o app.
+2. No Supabase, em **Edge Functions → Secrets** da function `mercado-pago-webhook`, defina `MERCADO_PAGO_WEBHOOK_SECRET` com esse valor.
+3. Com o secret definido, a function **exige** cabeçalhos `x-signature` e valida HMAC-SHA256 conforme a [documentação oficial de webhooks](https://www.mercadopago.com.br/developers/pt/docs/your-integrations/notifications/webhooks). Notificações **GET** (IPN legado) sem `x-signature` ainda são aceitas para compatibilidade, com log de aviso.
+4. Sem `MERCADO_PAGO_WEBHOOK_SECRET`, o comportamento permanece o anterior (útil em ambientes de teste).
+
+### WhatsApp Meta (Cloud API) — webhook
+
+1. Faça deploy da function `meta-whatsapp-webhook` (`npm run supabase:deploy:meta-whatsapp-webhook` ou `supabase:deploy:all-functions`).
+2. Guia de URL, `company_id`, verify token e `META_APP_SECRET`: **`docs/META_WHATSAPP_CLOUD_API.md`**.

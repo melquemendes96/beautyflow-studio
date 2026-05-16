@@ -235,7 +235,7 @@ function Cadastro() {
         className="hidden flex-col justify-between p-12 text-background lg:flex"
         style={{ background: "var(--charcoal)" }}
       >
-        <Logo className="h-10 brightness-0 invert" />
+        <Logo className="h-12 max-w-[260px]" />
         <div>
           <span className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3 py-1 text-[10px] font-medium uppercase tracking-widest text-gold">
             <Sparkles className="size-3" /> Conta gratuita para começar
@@ -270,7 +270,7 @@ function Cadastro() {
       <div className="flex items-center justify-center p-6">
         <div className="w-full max-w-md rounded-3xl border border-border bg-card p-8 shadow-elegant">
           <div className="mb-6 flex flex-wrap items-center justify-between gap-3">
-            <Logo className="h-9" />
+            <Logo onLight className="h-11 max-w-[240px]" />
             <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" asChild>
               <Link to="/">Voltar</Link>
             </Button>

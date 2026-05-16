@@ -32,6 +32,111 @@ function parsePaymentIdFromRequest(req: Request, bodyUnknown: unknown): string |
   return null;
 }
 
+/** ID usado no manifest da assinatura x-signature (Mercado Pago). */
+function extractDataIdForSignature(
+  url: URL,
+  bodyUnknown: unknown,
+  paymentResourceId: string | null,
+): string | null {
+  if (paymentResourceId) return paymentResourceId;
+  if (bodyUnknown && typeof bodyUnknown === "object") {
+    const data = (bodyUnknown as Record<string, unknown>).data;
+    if (data && typeof data === "object" && (data as Record<string, unknown>).id != null) {
+      return String((data as Record<string, unknown>).id).trim();
+    }
+  }
+  const q = url.searchParams.get("data.id") ?? url.searchParams.get("id");
+  return q ? String(q).trim() : null;
+}
+
+function parseMpSignatureHeader(xSignature: string): { ts: string; v1: string } | null {
+  let ts = "";
+  let v1 = "";
+  for (const part of xSignature.split(",")) {
+    const [k, ...rest] = part.split("=");
+    if (!k || rest.length === 0) continue;
+    const key = k.trim();
+    const value = rest.join("=").trim();
+    if (key === "ts") ts = value;
+    else if (key === "v1") v1 = value;
+  }
+  return ts && v1 ? { ts, v1 } : null;
+}
+
+function timingSafeEqualHex(a: string, b: string): boolean {
+  const na = a.trim().toLowerCase();
+  const nb = b.trim().toLowerCase();
+  if (na.length !== nb.length) return false;
+  let x = 0;
+  for (let i = 0; i < na.length; i++) x |= na.charCodeAt(i) ^ nb.charCodeAt(i);
+  return x === 0;
+}
+
+async function hmacSha256Hex(secret: string, message: string): Promise<string> {
+  const enc = new TextEncoder();
+  const key = await crypto.subtle.importKey(
+    "raw",
+    enc.encode(secret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sig = await crypto.subtle.sign("HMAC", key, enc.encode(message));
+  return Array.from(new Uint8Array(sig))
+    .map((c) => c.toString(16).padStart(2, "0"))
+    .join("");
+}
+
+/**
+ * Valida notificação Mercado Pago (HMAC-SHA256) quando MERCADO_PAGO_WEBHOOK_SECRET está definido.
+ * @see https://www.mercadopago.com.br/developers/pt/docs/your-integrations/notifications/webhooks
+ */
+async function assertMercadoPagoSignature(
+  req: Request,
+  url: URL,
+  bodyUnknown: unknown,
+  paymentResourceId: string | null,
+  webhookSecret: string,
+): Promise<Response | null> {
+  const xSignature = req.headers.get("x-signature") ?? req.headers.get("X-Signature");
+  const xRequestId = req.headers.get("x-request-id") ?? req.headers.get("X-Request-Id") ?? "";
+
+  if (!xSignature) {
+    return new Response(JSON.stringify({ error: "missing_x_signature" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const parsed = parseMpSignatureHeader(xSignature);
+  if (!parsed) {
+    return new Response(JSON.stringify({ error: "invalid_x_signature_format" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const dataId = extractDataIdForSignature(url, bodyUnknown, paymentResourceId);
+  if (!dataId) {
+    return new Response(JSON.stringify({ error: "cannot_verify_signature_without_id" }), {
+      status: 400,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const manifest = `id:${dataId};request-id:${xRequestId};ts:${parsed.ts};`;
+  const expectedHex = await hmacSha256Hex(webhookSecret, manifest);
+  if (!timingSafeEqualHex(expectedHex, parsed.v1)) {
+    console.error("[mercado-pago-webhook] signature mismatch");
+    return new Response(JSON.stringify({ error: "invalid_signature" }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  return null;
+}
+
 async function fetchPayment(accessToken: string, paymentId: string): Promise<MpPayment | null> {
   const res = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -132,6 +237,8 @@ Deno.serve(async (req) => {
   const accessToken = Deno.env.get("MERCADO_PAGO_ACCESS_TOKEN");
   const supabaseUrl = Deno.env.get("SUPABASE_URL");
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+  const webhookSecret = Deno.env.get("MERCADO_PAGO_WEBHOOK_SECRET")?.trim() ?? "";
+
   if (!accessToken || !supabaseUrl || !serviceKey) {
     return new Response("misconfigured", { status: 500 });
   }
@@ -144,20 +251,44 @@ Deno.serve(async (req) => {
     const qTopic = (url.searchParams.get("topic") ?? url.searchParams.get("type") ?? "").toLowerCase();
     const qId = url.searchParams.get("id") ?? url.searchParams.get("data.id");
     if (req.method === "GET" && qTopic === "payment" && qId) {
+      if (webhookSecret) {
+        const xSig = req.headers.get("x-signature") ?? req.headers.get("X-Signature");
+        if (xSig) {
+          const getErr = await assertMercadoPagoSignature(
+            req,
+            url,
+            null,
+            String(qId).trim(),
+            webhookSecret,
+          );
+          if (getErr) return getErr;
+        } else {
+          console.warn(
+            "[mercado-pago-webhook] GET IPN sem x-signature — aceito para compatibilidade com IPN legado Mercado Pago.",
+          );
+        }
+      }
       console.log("[mercado-pago-webhook] GET payment notification id=", qId);
       return processApprovedOrRejectedPayment(admin, accessToken, String(qId).trim());
     }
     return new Response("ok", { status: 200 });
   }
 
-  let bodyUnknown: unknown;
+  const rawBody = await req.text();
+  let bodyUnknown: unknown = null;
   try {
-    bodyUnknown = await req.json();
+    bodyUnknown = rawBody ? JSON.parse(rawBody) : null;
   } catch {
     bodyUnknown = null;
   }
 
   const paymentResourceId = parsePaymentIdFromRequest(req, bodyUnknown);
+
+  if (webhookSecret) {
+    const sigErr = await assertMercadoPagoSignature(req, url, bodyUnknown, paymentResourceId, webhookSecret);
+    if (sigErr) return sigErr;
+  }
+
   if (!paymentResourceId) {
     const hint =
       bodyUnknown && typeof bodyUnknown === "object"

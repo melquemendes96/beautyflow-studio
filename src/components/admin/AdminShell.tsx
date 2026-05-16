@@ -102,7 +102,7 @@ export function AdminShell() {
       <div className="min-h-screen bg-secondary/30">
         <div className="mx-auto flex min-h-screen max-w-md items-center justify-center px-6 text-center">
           <div className="rounded-3xl border border-border bg-card p-8 shadow-elegant">
-            <Logo className="mx-auto h-10" />
+            <Logo onLight className="mx-auto h-11 max-w-[240px]" />
             <div className="mt-4 font-display text-xl">Carregando seu painel…</div>
             <p className="mt-2 text-sm text-muted-foreground">
               Validando sua sessão com segurança.
@@ -125,7 +125,7 @@ export function AdminShell() {
         >
           <Menu className="size-5" />
         </button>
-        <Logo className="h-8" />
+        <Logo onLight className="h-9 max-w-[160px]" />
         <AdminNotificationsBell companyId={companyId} hasCompany={hasCompany} />
       </div>
 
@@ -137,7 +137,7 @@ export function AdminShell() {
           }`}
         >
           <div className="flex h-16 items-center justify-between border-b border-sidebar-border px-5">
-            <Logo className="h-9" />
+            <Logo onLight className="h-10 max-w-[200px]" />
             <button
               type="button"
               onClick={() => setOpen(false)}

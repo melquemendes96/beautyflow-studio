@@ -1,5 +1,6 @@
 import { authService } from "@/services/authService";
 import { getPostLoginDestination } from "@/lib/post-login-redirect";
+import { resolveCompanyNameForBootstrap } from "@/lib/resolve-company-name";
 import { onboardingService } from "@/services/onboardingService";
 
 type NavigateFn = (opts: {
@@ -17,12 +18,28 @@ export async function navigateAfterAuthenticatedSession(opts: {
 }): Promise<{ ok: true } | { ok: false; error: string }> {
   const dest = await getPostLoginDestination();
   if (!dest.ok) {
-    const boot = await onboardingService.bootstrapCompany({
-      companyName: opts.companyName?.trim() ? opts.companyName.trim() : null,
-    });
-    const data = boot.data as { ok?: boolean } | null;
+    const companyName = await resolveCompanyNameForBootstrap(opts.companyName);
+    if (!companyName) {
+      await authService.signOut();
+      return {
+        ok: false,
+        error:
+          "Informe o nome do seu studio no cadastro (mínimo 2 caracteres) antes de entrar no painel.",
+      };
+    }
+
+    const boot = await onboardingService.bootstrapCompany({ companyName });
+    const data = boot.data as { ok?: boolean; error?: string } | null;
     if (boot.error || data?.ok === false) {
       await authService.signOut();
+      const rpcError = data?.error;
+      if (rpcError === "company_name_required" || rpcError === "invalid_company_name") {
+        return {
+          ok: false,
+          error:
+            "Não encontramos o nome do studio na sua conta. Refaça o cadastro informando o nome do negócio.",
+        };
+      }
       return {
         ok: false,
         error: "Não foi possível preparar seu studio. Tente novamente ou fale com o suporte.",

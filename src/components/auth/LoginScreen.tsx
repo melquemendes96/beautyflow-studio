@@ -25,7 +25,6 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
   const { session, isLoading: authLoading, refresh: refreshAuth } = useAuth();
   const oauthHandledRef = useRef(false);
 
-  const [companyName, setCompanyName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -49,7 +48,6 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
       const res = await navigateAfterAuthenticatedSession({
         navigate,
         planId: ctx.planId ?? planId,
-        companyName: ctx.companyName,
         refreshAuth,
       });
       if (!res.ok) {
@@ -81,7 +79,6 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
       const res = await navigateAfterAuthenticatedSession({
         navigate,
         planId,
-        companyName: companyName.trim() ? companyName.trim() : null,
         refreshAuth,
       });
       if (!res.ok) setError(res.error);
@@ -104,7 +101,7 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
       const loginUrl = planId ? `${base}/login?planId=${encodeURIComponent(planId)}` : `${base}/login`;
       saveOAuthFlowContext({
         mode: "login",
-        companyName: companyName.trim(),
+        companyName: "",
         planId,
       });
       const { data, error: oErr } = await authService.signInWithGoogle(loginUrl);
@@ -130,7 +127,7 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
         className="hidden flex-col justify-between p-12 text-background lg:flex"
         style={{ background: "var(--charcoal)" }}
       >
-        <Logo className="h-10 brightness-0 invert" />
+        <Logo className="h-14 max-w-[280px]" />
         <div>
           <div className="font-display text-4xl leading-tight">Sua agenda, sua marca, suas regras.</div>
           <p className="mt-3 max-w-md text-background/70">
@@ -157,7 +154,7 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
       <div className="flex items-center justify-center p-6">
         <div className="w-full max-w-md rounded-3xl border border-border bg-card p-8 shadow-elegant">
           <div className="mb-6 lg:hidden">
-            <Logo className="h-10" />
+            <Logo onLight className="h-11 max-w-[240px]" />
           </div>
           <h1 className="font-display text-2xl tracking-tight">Entrar no painel</h1>
           <p className="mt-1 text-sm text-muted-foreground">Bem-vinda de volta. Acesse seu studio.</p>
@@ -190,18 +187,6 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
 
           <form onSubmit={(e) => void onSubmit(e)} aria-busy={pending}>
             <div className="space-y-4">
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-medium text-muted-foreground">
-                  Nome do studio (se for seu primeiro acesso)
-                </span>
-                <input
-                  value={companyName}
-                  onChange={(ev) => setCompanyName(ev.target.value)}
-                  placeholder="Ex.: Joyce Mendes Beauty"
-                  autoComplete="organization"
-                  className="w-full rounded-xl border border-input bg-background py-3 px-4 text-sm outline-none transition focus:border-foreground focus:ring-2 focus:ring-gold/30"
-                />
-              </label>
               <label className="block">
                 <span className="mb-1.5 block text-xs font-medium text-muted-foreground">E-mail</span>
                 <div className="relative">

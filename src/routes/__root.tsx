@@ -86,6 +86,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       { name: "twitter:image", content: "https://pub-bb2e103a32db4e198524a2e9ed8f35b4.r2.dev/ddaebd8d-7dc8-49da-baff-d243f08b448e/id-preview-d2bd4794--310dfe6d-c3cf-445a-abc6-fc2e00656a6b.lovable.app-1778113839363.png" },
     ],
     links: [
+      { rel: "icon", href: "/logo-beautyflow.png", type: "image/png" },
       { rel: "preconnect", href: "https://fonts.googleapis.com" },
       { rel: "preconnect", href: "https://fonts.gstatic.com", crossOrigin: "anonymous" },
       { rel: "stylesheet", href: "https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Playfair+Display:wght@500;600;700&display=swap" },

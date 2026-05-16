@@ -34,5 +34,8 @@ dist-ssr
 *.sln
 *.sw?
 
+# PM2 logs (ecosystem.config.cjs)
+logs/
+
 # Supabase CLI local cache (do not commit)
 supabase/.temp/

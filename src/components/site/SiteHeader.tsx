@@ -6,7 +6,7 @@ export function SiteHeader() {
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-xl">
       <div className="container-page flex h-16 items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
-          <Logo className="h-9" />
+          <Logo onLight className="h-11 max-w-[220px]" />
         </Link>
         <nav className="hidden items-center gap-8 text-sm text-muted-foreground md:flex">
           <a href="#beneficios" className="hover:text-foreground transition-colors">Benefícios</a>

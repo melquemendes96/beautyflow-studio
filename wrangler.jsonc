@@ -4,4 +4,5 @@
   "compatibility_date": "2025-09-24",
   "compatibility_flags": ["nodejs_compat"],
   "main": "src/server.ts",
+  /* Opcional/Legacy: Cloudflare Workers. Produção VPS: npm run build + npm run start (ver docs/DEPLOY_VPS_UBUNTU.md). */
 }
