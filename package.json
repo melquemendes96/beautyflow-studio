@@ -9,6 +9,7 @@
   "scripts": {
     "dev": "vite dev",
     "build": "vite build",
+    "postbuild": "node scripts/verify-production-build.mjs",
     "build:dev": "vite build --mode development",
     "start": "srvx serve --prod --dir ./dist/server --static ../client --host 0.0.0.0",
     "preview": "vite preview",

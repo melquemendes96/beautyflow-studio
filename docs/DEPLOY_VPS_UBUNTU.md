@@ -134,15 +134,17 @@ mkdir -p logs
 npm run start
 ```
 
-Ou com **PM2** (recomendado):
+Ou com **PM2** (recomendado — usa **srvx**, não `node server.js`):
 
 ```bash
 sudo npm install -g pm2
 cd /var/www/beautyflow-studio
+npm run build
 pm2 start ecosystem.config.cjs
 pm2 save
 pm2 startup
 # execute o comando que o PM2 imprimir (systemd)
+curl -sS -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3000/
 ```
 
 Variáveis úteis:
@@ -161,12 +163,17 @@ O script `start` usa **srvx** em modo produção, servindo:
 
 ## 7. Atualização (deploy novo)
 
+**Produção = `srvx` (`npm run start`), nunca `vite preview` nem `node dist/server/server.js`.**
+
+Guia completo de recuperação 502: **`docs/VPS_PRODUCTION_RUNBOOK.md`**
+
 ```bash
 cd /var/www/beautyflow-studio
 git pull
 npm ci
 npm run build
-pm2 reload beautyflow-studio
+pm2 reload ecosystem.config.cjs --update-env
+curl -sS -o /dev/null -w "HTTP %{http_code}\n" http://127.0.0.1:3000/
 ```
 
 ---
