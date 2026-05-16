@@ -1,5 +1,9 @@
 import { getSupabase } from "@/lib/supabaseClient";
 
+async function syncMasterAccess(): Promise<void> {
+  await getSupabase().rpc("ensure_platform_admin");
+}
+
 async function syncTenantSubscriptionFromMasterPlan(companyId: string, planId: string | null) {
   const supabase = getSupabase();
   if (!planId) {
@@ -28,19 +32,26 @@ async function syncTenantSubscriptionFromMasterPlan(companyId: string, planId: s
 }
 
 /**
- * Operações do painel master (donos da plataforma).
- * Acesso efetivo depende de RLS + `platform_admins` (Fases 2–3).
+ * Painel master — leituras via RPC SECURITY DEFINER (RLS-safe).
+ * Escritas usam tabelas com is_platform_admin() após ensure_platform_admin.
  */
 export const masterService = {
-  listCompanies() {
+  async listCompanies() {
+    await syncMasterAccess();
+    const rpc = await getSupabase().rpc("master_list_companies");
+    if (!rpc.error) return rpc;
     return getSupabase().from("companies").select("*").order("created_at", { ascending: false });
   },
 
-  listPlans() {
+  async listPlans() {
+    await syncMasterAccess();
+    const rpc = await getSupabase().rpc("master_list_plans");
+    if (!rpc.error) return rpc;
     return getSupabase().from("plans").select("*").order("price");
   },
 
   async createCompany(input: { name: string; slug: string; email?: string; phone?: string; plan_id?: string | null }) {
+    await syncMasterAccess();
     const res = await getSupabase()
       .from("companies")
       .insert({
@@ -64,6 +75,7 @@ export const masterService = {
   },
 
   async updateCompany(companyId: string, patch: { status?: string; plan_id?: string | null }) {
+    await syncMasterAccess();
     const res = await getSupabase().from("companies").update(patch).eq("id", companyId).select("*").single();
     if (res.error) return res;
     if (Object.prototype.hasOwnProperty.call(patch, "plan_id")) {
@@ -73,7 +85,8 @@ export const masterService = {
     return res;
   },
 
-  createPlan(input: { name: string; price: number; features: string[]; active: boolean }) {
+  async createPlan(input: { name: string; price: number; features: string[]; active: boolean }) {
+    await syncMasterAccess();
     return getSupabase()
       .from("plans")
       .insert({
@@ -86,16 +99,18 @@ export const masterService = {
       .single();
   },
 
-  updatePlan(planId: string, patch: { name?: string; price?: number; features?: string[]; active?: boolean }) {
+  async updatePlan(planId: string, patch: { name?: string; price?: number; features?: string[]; active?: boolean }) {
+    await syncMasterAccess();
     return getSupabase().from("plans").update(patch).eq("id", planId).select("*").single();
   },
 
-  deletePlan(planId: string) {
+  async deletePlan(planId: string) {
+    await syncMasterAccess();
     return getSupabase().from("plans").delete().eq("id", planId);
   },
 
-  /** Pagamentos confirmados recentes (painel master — feed de notificações). */
-  listRecentPaidPayments(limit = 40) {
+  async listRecentPaidPayments(limit = 40) {
+    await syncMasterAccess();
     return getSupabase()
       .from("payment_transactions")
       .select("id, amount, paid_at, created_at, status, companies(name, slug)")
@@ -105,8 +120,8 @@ export const masterService = {
       .limit(limit);
   },
 
-  /** Chamados recentes com nome da empresa (feed de notificações). */
-  listRecentSupportTicketsWithCompany(limit = 40) {
+  async listRecentSupportTicketsWithCompany(limit = 40) {
+    await syncMasterAccess();
     return getSupabase()
       .from("support_tickets")
       .select("id, subject, status, created_at, companies(name, slug)")
@@ -114,13 +129,14 @@ export const masterService = {
       .limit(limit);
   },
 
-  createCoupon(input: {
+  async createCoupon(input: {
     code: string;
     discount_type: "percent" | "fixed";
     discount_value: number;
     active: boolean;
     expires_at?: string | null;
   }) {
+    await syncMasterAccess();
     return getSupabase()
       .from("coupons")
       .insert({
@@ -134,21 +150,38 @@ export const masterService = {
       .single();
   },
 
-  updateCoupon(
+  async updateCoupon(
     couponId: string,
     patch: { discount_type?: "percent" | "fixed"; discount_value?: number; active?: boolean; expires_at?: string | null },
   ) {
+    await syncMasterAccess();
     return getSupabase().from("coupons").update(patch).eq("id", couponId).select("*").single();
   },
 
-  listSubscriptions() {
+  async listSubscriptions() {
+    await syncMasterAccess();
+    const rpc = await getSupabase().rpc("master_list_subscriptions");
+    if (!rpc.error && rpc.data) {
+      const rows = (rpc.data as Record<string, unknown>[]).map((row) => ({
+        ...row,
+        companies: {
+          name: row.company_name ?? null,
+          slug: row.company_slug ?? null,
+        },
+        plans: {
+          name: row.plan_name ?? null,
+          price: row.plan_price ?? null,
+        },
+      }));
+      return { ...rpc, data: rows };
+    }
     return getSupabase()
       .from("tenant_subscriptions")
       .select("*, companies(name, slug), plans(name, price)")
       .order("updated_at", { ascending: false });
   },
 
-  updateSubscription(
+  async updateSubscription(
     subscriptionId: string,
     patch: {
       plan_id?: string;
@@ -157,17 +190,19 @@ export const masterService = {
       current_period_end?: string | null;
     },
   ) {
+    await syncMasterAccess();
     return getSupabase().from("tenant_subscriptions").update(patch).eq("id", subscriptionId).select("*").single();
   },
 
-  listPayments() {
+  async listPayments() {
+    await syncMasterAccess();
     return getSupabase()
       .from("payment_transactions")
       .select("*, companies(name, slug), tenant_subscriptions(status, current_period_end, plan_id)")
       .order("created_at", { ascending: false });
   },
 
-  createPayment(input: {
+  async createPayment(input: {
     company_id: string;
     tenant_subscription_id?: string | null;
     amount: number;
@@ -177,6 +212,7 @@ export const masterService = {
     paid_at?: string | null;
     gateway_provider?: string;
   }) {
+    await syncMasterAccess();
     return getSupabase()
       .from("payment_transactions")
       .insert({
@@ -193,10 +229,11 @@ export const masterService = {
       .single();
   },
 
-  updatePayment(
+  async updatePayment(
     paymentId: string,
     patch: { status?: string; paid_at?: string | null; due_date?: string | null; payment_method?: string | null },
   ) {
+    await syncMasterAccess();
     return getSupabase().from("payment_transactions").update(patch).eq("id", paymentId).select("*").single();
   },
 
@@ -222,14 +259,16 @@ export const masterService = {
     });
   },
 
-  listSupportTickets() {
+  async listSupportTickets() {
+    await syncMasterAccess();
     return getSupabase()
       .from("support_tickets")
       .select("*")
       .order("created_at", { ascending: false });
   },
 
-  listCoupons() {
+  async listCoupons() {
+    await syncMasterAccess();
     return getSupabase().from("coupons").select("*").order("created_at", { ascending: false });
   },
 };

@@ -9,7 +9,8 @@ import {
   type ReactNode,
 } from "react";
 import type { Session, User } from "@supabase/supabase-js";
-import { loadAuthProfile, type CompanyMembership } from "@/lib/auth-profile";
+import { loadAuthProfile, type CompanyMembership, isMasterAccount } from "@/lib/auth-profile";
+import { profileService } from "@/services/profileService";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabaseClient";
 
 type AuthContextValue = {
@@ -64,6 +65,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(true);
       try {
         const profile = await loadAuthProfile({ waitForSession: true });
+        if (profile.session && (profile.isPlatformAdmin || isMasterAccount(profile.session))) {
+          await profileService.ensureProfile().catch(() => undefined);
+          await getSupabase().rpc("ensure_platform_admin").catch(() => undefined);
+        }
         setSession(profile.session);
         setUser(profile.user);
         setIsPlatformAdmin(profile.isPlatformAdmin);

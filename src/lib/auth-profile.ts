@@ -79,24 +79,37 @@ type PanelContextPayload = {
   company_memberships?: Array<{ company_id: string; role: string }>;
 };
 
+async function syncPlatformAdminInDatabase(): Promise<boolean> {
+  const supabase = getSupabase();
+  const { data, error } = await supabase.rpc("ensure_platform_admin");
+  if (error) {
+    if (import.meta.env.DEV) {
+      console.warn("[auth] ensure_platform_admin:", error.message);
+    }
+    return false;
+  }
+  const payload = data as { ok?: boolean; is_platform_admin?: boolean } | null;
+  return payload?.ok === true || payload?.is_platform_admin === true;
+}
+
 async function loadPanelContext(session: Session): Promise<{
   isPlatformAdmin: boolean;
   companyMemberships: CompanyMembership[];
 }> {
-  if (isMasterAccount(session)) {
-    return { isPlatformAdmin: true, companyMemberships: [] };
-  }
-
   const supabase = getSupabase();
   const userId = session.user.id;
-  let isPlatformAdmin = false;
+  let isPlatformAdmin = isMasterAccount(session);
   let memberships: CompanyMembership[] = [];
+
+  if (isPlatformAdmin) {
+    await syncPlatformAdminInDatabase();
+  }
 
   const { data: rpcData, error: rpcError } = await supabase.rpc("get_auth_panel_context");
 
   if (!rpcError && rpcData && typeof rpcData === "object") {
     const payload = rpcData as PanelContextPayload;
-    isPlatformAdmin = payload.is_platform_admin === true;
+    isPlatformAdmin = payload.is_platform_admin === true || isPlatformAdmin;
     memberships = (payload.company_memberships ?? [])
       .map((row) => ({
         company_id: String(row.company_id),
