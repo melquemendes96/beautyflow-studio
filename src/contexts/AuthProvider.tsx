@@ -4,6 +4,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -17,18 +18,31 @@ type AuthContextValue = {
   isPlatformAdmin: boolean;
   companyMemberships: CompanyMembership[];
   isLoading: boolean;
+  authConfigError: string | null;
   refresh: () => Promise<void>;
   signOut: () => Promise<void>;
 };
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
+const PROFILE_REFRESH_EVENTS = new Set([
+  "SIGNED_IN",
+  "SIGNED_OUT",
+  "USER_UPDATED",
+  "PASSWORD_RECOVERY",
+]);
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [companyMemberships, setCompanyMemberships] = useState<CompanyMembership[]>([]);
+  const [authConfigError, setAuthConfigError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+
+  const refreshInFlightRef = useRef<Promise<void> | null>(null);
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const initialSessionHandledRef = useRef(false);
 
   const refresh = useCallback(async () => {
     if (!isSupabaseConfigured()) {
@@ -36,20 +50,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       setIsPlatformAdmin(false);
       setCompanyMemberships([]);
+      setAuthConfigError(null);
       setIsLoading(false);
       return;
     }
-    setIsLoading(true);
+
+    if (refreshInFlightRef.current) {
+      await refreshInFlightRef.current;
+      return;
+    }
+
+    const run = (async () => {
+      setIsLoading(true);
+      try {
+        const profile = await loadAuthProfile();
+        setSession(profile.session);
+        setUser(profile.user);
+        setIsPlatformAdmin(profile.isPlatformAdmin);
+        setCompanyMemberships(profile.companyMemberships);
+        setAuthConfigError(profile.authConfigError);
+      } finally {
+        setIsLoading(false);
+      }
+    })();
+
+    refreshInFlightRef.current = run;
     try {
-      const profile = await loadAuthProfile();
-      setSession(profile.session);
-      setUser(profile.user);
-      setIsPlatformAdmin(profile.isPlatformAdmin);
-      setCompanyMemberships(profile.companyMemberships);
+      await run;
     } finally {
-      setIsLoading(false);
+      refreshInFlightRef.current = null;
     }
   }, []);
+
+  const scheduleRefresh = useCallback(() => {
+    if (debounceTimerRef.current) {
+      clearTimeout(debounceTimerRef.current);
+    }
+    debounceTimerRef.current = setTimeout(() => {
+      debounceTimerRef.current = null;
+      void refresh();
+    }, 400);
+  }, [refresh]);
 
   const signOut = useCallback(async () => {
     if (isSupabaseConfigured()) {
@@ -59,21 +100,37 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refresh]);
 
   useEffect(() => {
-    void refresh();
-  }, [refresh]);
-
-  useEffect(() => {
     if (!isSupabaseConfigured()) {
+      setIsLoading(false);
       return;
     }
+
     const supabase = getSupabase();
     const {
       data: { subscription },
-    } = supabase.auth.onAuthStateChange(() => {
-      void refresh();
+    } = supabase.auth.onAuthStateChange((event) => {
+      if (event === "INITIAL_SESSION") {
+        if (!initialSessionHandledRef.current) {
+          initialSessionHandledRef.current = true;
+          void refresh();
+        }
+        return;
+      }
+      if (event === "TOKEN_REFRESHED") {
+        return;
+      }
+      if (PROFILE_REFRESH_EVENTS.has(event)) {
+        scheduleRefresh();
+      }
     });
-    return () => subscription.unsubscribe();
-  }, [refresh]);
+
+    return () => {
+      subscription.unsubscribe();
+      if (debounceTimerRef.current) {
+        clearTimeout(debounceTimerRef.current);
+      }
+    };
+  }, [refresh, scheduleRefresh]);
 
   const value = useMemo(
     () => ({
@@ -82,10 +139,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isPlatformAdmin,
       companyMemberships,
       isLoading,
+      authConfigError,
       refresh,
       signOut,
     }),
-    [session, user, isPlatformAdmin, companyMemberships, isLoading, refresh, signOut],
+    [session, user, isPlatformAdmin, companyMemberships, isLoading, authConfigError, refresh, signOut],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

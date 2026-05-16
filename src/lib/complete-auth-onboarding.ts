@@ -25,6 +25,10 @@ export async function navigateAfterAuthenticatedSession(opts: {
   refreshAuth?: () => Promise<void>;
 }): Promise<AuthOnboardingResult> {
   const dest = await getPostLoginDestination();
+  if (dest.ok && dest.href === "/master") {
+    await opts.navigate({ to: "/master", replace: true });
+    return { ok: true };
+  }
   if (!dest.ok) {
     const companyName =
       (await resolveCompanyNameForBootstrap(opts.companyName)) ??

@@ -21,17 +21,31 @@ select to_regclass('public.platform_admins') as platform_admins;
 
 Se retornar `platform_admins`, está ok.
 
+### Chave anon no `.env` (obrigatório)
+
+O painel usa **PostgREST** (`/rest/v1`). Use a chave **anon legacy** (JWT que começa com `eyJ...`):
+
+- Dashboard → **Settings → API → Legacy API Keys → anon**
+- No `.env`: `VITE_SUPABASE_ANON_KEY=eyJ...`
+- A chave nova `sb_publishable_...` **sozinha** costuma gerar **401** em `platform_admins` / `company_users`.
+
+Depois de alterar o `.env`, rode `npm run build` (produção) e reinicie o dev server.
+
 ### Criar o dono do SaaS (Painel Master)
+
+O painel master usa a tabela `public.platform_admins` (não colunas em `auth.users`).
 
 1. Pegue o UUID do seu usuário em **Authentication → Users**.
 2. No SQL Editor:
 
 ```sql
 insert into public.platform_admins (user_id)
-values ('COLE_AQUI_O_UUID_DO_AUTH_USERS');
+select id from auth.users where email = 'seu@email.com'
+on conflict do nothing;
 ```
 
-3. Faça logout/login no app e acesse `/master`.
+3. Aplique a migration `20260516300000_auth_panel_context_master_rls.sql` (RPC `get_auth_panel_context`).
+4. Faça logout/login no app e acesse `/master`.
 
 ### Billing Mercado Pago (Fase 12)
 

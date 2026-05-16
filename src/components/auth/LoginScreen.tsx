@@ -3,7 +3,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { Logo } from "@/components/brand/Logo";
 import { GoogleOAuthButton } from "@/components/auth/GoogleOAuthButton";
 import { authService } from "@/services/authService";
-import { getSupabase, getSupabaseProjectRef, isSupabaseConfigured } from "@/lib/supabaseClient";
+import { getSupabaseKeyConfigurationError, isSupabaseConfigured } from "@/lib/supabaseClient";
 import { navigateAfterAuthenticatedSession } from "@/lib/complete-auth-onboarding";
 import {
   clearOAuthFlowContext,
@@ -28,6 +28,7 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
     isLoading: authLoading,
     companyMemberships,
     isPlatformAdmin,
+    authConfigError,
     refresh: refreshAuth,
   } = useAuth();
   const oauthHandledRef = useRef(false);
@@ -40,24 +41,16 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
 
   useAuthenticatedPanelRedirect(planId);
 
-  /** Avisa se o token não é aceito pela API (URL/chave errada no build de produção). */
   useEffect(() => {
-    if (!isSupabaseConfigured() || authLoading || !session || isPlatformAdmin) return;
-    void (async () => {
-      const { error } = await getSupabase().from("platform_admins").select("id").limit(1);
-      if (error && (error as { status?: number }).status === 401) {
-        const ref = getSupabaseProjectRef();
-        setError(
-          ref
-            ? `Sessão rejeitada pelo Supabase (projeto ${ref}). Confira VITE_SUPABASE_URL e a chave anon no .env da VPS, rode npm run build de novo e reinicie o PM2.`
-            : "Sessão rejeitada pelo Supabase. Verifique VITE_SUPABASE_URL e a chave anon no .env, rebuild e reinicie o servidor.",
-        );
-      }
-    })();
-  }, [authLoading, session, isPlatformAdmin]);
+    const configErr = authConfigError ?? getSupabaseKeyConfigurationError();
+    if (configErr) {
+      setError(configErr);
+    }
+  }, [authConfigError]);
 
   useEffect(() => {
     if (!isSupabaseConfigured() || authLoading || !session) return;
+    if (authConfigError) return;
     if (isPlatformAdmin || companyMemberships.length > 0) return;
 
     const ctx = readOAuthFlowContext();
@@ -82,6 +75,7 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
   }, [
     session,
     authLoading,
+    authConfigError,
     isPlatformAdmin,
     companyMemberships.length,
     planId,
@@ -197,7 +191,8 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
               <p>{error}</p>
               {(error.includes("Nenhum studio") ||
                 error.includes("nome do studio") ||
-                error.includes("nome do negócio")) && (
+                error.includes("nome do negócio") ||
+                error.includes("chave anon")) && (
                 <Link
                   to="/cadastro"
                   search={planId ? { planId } : {}}

@@ -59,10 +59,9 @@ export function MasterShell() {
     }
 
     setMasterAccessOk(false);
-    if (masterRetryRef.current < 5) {
+    if (masterRetryRef.current < 2) {
       masterRetryRef.current += 1;
-      const delay = masterRetryRef.current * 400;
-      const t = window.setTimeout(() => void refresh(), delay);
+      const t = window.setTimeout(() => void refresh(), 800);
       return () => window.clearTimeout(t);
     }
 
