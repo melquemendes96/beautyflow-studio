@@ -162,7 +162,7 @@ export async function guardMasterRoute(): Promise<void> {
     throw redirect({ to: "/login" });
   }
   if (!profile.isPlatformAdmin) {
-    throw redirect({ to: "/admin" });
+    throw redirect({ to: "/login" });
   }
 }
 

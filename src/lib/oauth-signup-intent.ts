@@ -71,7 +71,8 @@ export function readOAuthFlowContext(): OAuthFlowContext | null {
 export function readStudioNameFromUrl(): string | null {
   if (typeof window === "undefined") return null;
   try {
-    const v = new URLSearchParams(window.location.search).get("bf_studio");
+    const params = new URLSearchParams(window.location.search);
+    const v = params.get("bf_studio") ?? params.get("bt_studio");
     const t = v?.trim();
     return t && t.length >= 2 ? t : null;
   } catch {

@@ -1,12 +1,7 @@
--- Bootstrap: branding + business_settings padrão; limite de alteração de slug; metadata do usuário
+-- Corrige user_bootstrap_company: remove UPDATE em auth.users (causa erro_interno no Supabase).
+-- Metadata company_name é gravado pelo cliente após bootstrap (auth.updateUser).
 
 BEGIN;
-
-ALTER TABLE public.companies
-  ADD COLUMN IF NOT EXISTS slug_change_count INTEGER NOT NULL DEFAULT 0;
-
-COMMENT ON COLUMN public.companies.slug_change_count IS
-  'Quantas vezes o slug público foi alterado (máx. 1 por ciclo — validado no app).';
 
 CREATE OR REPLACE FUNCTION public.user_bootstrap_company(
   p_company_name text DEFAULT NULL
@@ -69,8 +64,8 @@ BEGIN
     EXIT WHEN v_try >= 10;
   END LOOP;
 
-  INSERT INTO public.companies (name, slug, status, onboarding_completed, slug_change_count)
-  VALUES (v_name, v_slug, 'active'::public.company_status, false, 0)
+  INSERT INTO public.companies (name, slug, status, onboarding_completed)
+  VALUES (v_name, v_slug, 'active'::public.company_status, false)
   RETURNING id INTO v_company_id;
 
   INSERT INTO public.company_users (company_id, user_id, role)
@@ -87,11 +82,15 @@ BEGIN
   RETURN json_build_object('ok', true, 'company_id', v_company_id, 'slug', v_slug, 'existing', false);
 EXCEPTION
   WHEN OTHERS THEN
-    RETURN json_build_object('ok', false, 'error', 'erro_interno', 'detail', SQLERRM);
+    RETURN json_build_object(
+      'ok', false,
+      'error', 'erro_interno',
+      'detail', SQLERRM
+    );
 END;
 $$;
 
 COMMENT ON FUNCTION public.user_bootstrap_company(text) IS
-  'Cria empresa + owner + branding/business_settings. Nome obrigatório (param ou metadata). Sem fallback Meu Studio.';
+  'Cria empresa + owner + branding/business_settings. Sem UPDATE em auth.users.';
 
 COMMIT;

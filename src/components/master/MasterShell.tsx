@@ -1,5 +1,5 @@
 import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Logo } from "@/components/brand/Logo";
 import { useAuth } from "@/contexts/AuthProvider";
 import {
@@ -38,21 +38,39 @@ export function MasterShell() {
   const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const { user, session, isPlatformAdmin, isLoading, signOut } = useAuth();
+  const { user, session, isPlatformAdmin, isLoading, signOut, refresh } = useAuth();
+  const masterRetryRef = useRef(0);
+  const [masterAccessOk, setMasterAccessOk] = useState(false);
 
-  // Trava de segurança: não renderiza painel antes de validar a sessão no client.
   useEffect(() => {
     if (isLoading) return;
+
     if (!session) {
-      void navigate({ to: "/login" });
+      masterRetryRef.current = 0;
+      setMasterAccessOk(false);
+      void navigate({ to: "/login", replace: true });
       return;
     }
-    if (!isPlatformAdmin) {
-      void navigate({ to: "/admin" });
-    }
-  }, [isLoading, isPlatformAdmin, navigate, session]);
 
-  if (isLoading || !session) {
+    if (isPlatformAdmin) {
+      masterRetryRef.current = 0;
+      setMasterAccessOk(true);
+      return;
+    }
+
+    setMasterAccessOk(false);
+    if (masterRetryRef.current < 5) {
+      masterRetryRef.current += 1;
+      const delay = masterRetryRef.current * 400;
+      const t = window.setTimeout(() => void refresh(), delay);
+      return () => window.clearTimeout(t);
+    }
+
+    masterRetryRef.current = 0;
+    void navigate({ to: "/login", replace: true });
+  }, [isLoading, isPlatformAdmin, navigate, refresh, session]);
+
+  if (isLoading || !session || !masterAccessOk) {
     return (
       <div className="min-h-screen bg-secondary/30">
         <div className="mx-auto flex min-h-screen max-w-md items-center justify-center px-6 text-center">

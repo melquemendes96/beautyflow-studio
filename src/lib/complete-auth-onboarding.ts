@@ -12,7 +12,11 @@ type NavigateFn = (opts: {
 
 export type AuthOnboardingResult =
   | { ok: true }
-  | { ok: false; error: string; code?: "needs_company_name" | "bootstrap_failed" };
+  | {
+      ok: false;
+      error: string;
+      code?: "needs_company_name" | "bootstrap_failed" | "no_panel_access";
+    };
 
 export async function navigateAfterAuthenticatedSession(opts: {
   navigate: NavigateFn;
@@ -29,16 +33,19 @@ export async function navigateAfterAuthenticatedSession(opts: {
     if (!companyName) {
       return {
         ok: false,
-        code: "needs_company_name",
+        code: "no_panel_access",
         error:
-          "Informe o nome do seu studio no cadastro (mínimo 2 caracteres) antes de entrar no painel.",
+          "Nenhum studio está vinculado a esta conta. Se é sua primeira vez, crie uma conta e informe o nome do seu negócio. Se já se cadastrou, use o mesmo e-mail ou entre com senha.",
       };
     }
 
     const boot = await onboardingService.bootstrapCompany({ companyName });
-    const data = boot.data as { ok?: boolean; error?: string; slug?: string } | null;
+    const data = boot.data as { ok?: boolean; error?: string; slug?: string; detail?: string } | null;
     if (boot.error || data?.ok === false) {
       const rpcError = data?.error;
+      if (import.meta.env.DEV && (boot.error || data?.detail)) {
+        console.error("[bootstrap]", boot.error ?? data?.detail);
+      }
       if (rpcError === "company_name_required" || rpcError === "invalid_company_name") {
         return {
           ok: false,
@@ -47,13 +54,22 @@ export async function navigateAfterAuthenticatedSession(opts: {
             "Não encontramos o nome do studio na sua conta. Volte ao cadastro e informe o nome do negócio.",
         };
       }
+      if (rpcError === "unauthorized") {
+        return {
+          ok: false,
+          code: "bootstrap_failed",
+          error: "Sessão expirada. Faça login novamente.",
+        };
+      }
       return {
         ok: false,
         code: "bootstrap_failed",
-        error: "Não foi possível preparar seu studio. Tente novamente ou fale com o suporte.",
+        error:
+          "Não foi possível criar seu studio. Verifique se as migrations do Supabase foram aplicadas e tente de novo.",
       };
     }
 
+    await authService.updateCompanyNameMetadata(companyName);
     await opts.refreshAuth?.();
     if (opts.planId) {
       await opts.navigate({

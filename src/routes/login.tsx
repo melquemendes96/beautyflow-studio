@@ -9,14 +9,14 @@ export const Route = createFileRoute("/login")({
   beforeLoad: async ({ search }) => {
     const profile = await loadAuthProfile();
     if (!profile.session) return;
+    if (profile.isPlatformAdmin) {
+      throw redirect({ to: "/master" });
+    }
     if (profile.companyMemberships.length > 0) {
       if (search.planId) {
         throw redirect({ to: "/admin/plano/checkout", search: { planId: search.planId, trial: false } });
       }
       throw redirect({ to: "/admin" });
-    }
-    if (profile.isPlatformAdmin) {
-      throw redirect({ to: "/master" });
     }
   },
   component: LoginPage,

@@ -46,6 +46,12 @@ export const authService = {
     return getSupabase().auth.signOut();
   },
 
+  updateCompanyNameMetadata(companyName: string) {
+    const name = companyName.trim();
+    if (name.length < 2) return Promise.resolve({ data: { user: null }, error: null });
+    return getSupabase().auth.updateUser({ data: { company_name: name } });
+  },
+
   onAuthStateChange(callback: (event: AuthChangeEvent, session: Session | null) => void) {
     return getSupabase().auth.onAuthStateChange(callback);
   },

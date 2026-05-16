@@ -3,7 +3,7 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import { Logo } from "@/components/brand/Logo";
 import { GoogleOAuthButton } from "@/components/auth/GoogleOAuthButton";
 import { authService } from "@/services/authService";
-import { isSupabaseConfigured } from "@/lib/supabaseClient";
+import { getSupabase, getSupabaseProjectRef, isSupabaseConfigured } from "@/lib/supabaseClient";
 import { navigateAfterAuthenticatedSession } from "@/lib/complete-auth-onboarding";
 import {
   clearOAuthFlowContext,
@@ -11,6 +11,7 @@ import {
   saveOAuthFlowContext,
 } from "@/lib/oauth-signup-intent";
 import { useAuth } from "@/contexts/AuthProvider";
+import { useAuthenticatedPanelRedirect } from "@/lib/use-authenticated-panel-redirect";
 import { Lock, Mail } from "lucide-react";
 
 type LoginScreenProps = {
@@ -22,7 +23,13 @@ type LoginScreenProps = {
 
 export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
   const navigate = useNavigate();
-  const { session, isLoading: authLoading, refresh: refreshAuth } = useAuth();
+  const {
+    session,
+    isLoading: authLoading,
+    companyMemberships,
+    isPlatformAdmin,
+    refresh: refreshAuth,
+  } = useAuth();
   const oauthHandledRef = useRef(false);
 
   const [email, setEmail] = useState("");
@@ -31,8 +38,28 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
   const [pending, setPending] = useState(false);
   const [googlePending, setGooglePending] = useState(false);
 
+  useAuthenticatedPanelRedirect(planId);
+
+  /** Avisa se o token não é aceito pela API (URL/chave errada no build de produção). */
+  useEffect(() => {
+    if (!isSupabaseConfigured() || authLoading || !session || isPlatformAdmin) return;
+    void (async () => {
+      const { error } = await getSupabase().from("platform_admins").select("id").limit(1);
+      if (error && (error as { status?: number }).status === 401) {
+        const ref = getSupabaseProjectRef();
+        setError(
+          ref
+            ? `Sessão rejeitada pelo Supabase (projeto ${ref}). Confira VITE_SUPABASE_URL e a chave anon no .env da VPS, rode npm run build de novo e reinicie o PM2.`
+            : "Sessão rejeitada pelo Supabase. Verifique VITE_SUPABASE_URL e a chave anon no .env, rebuild e reinicie o servidor.",
+        );
+      }
+    })();
+  }, [authLoading, session, isPlatformAdmin]);
+
   useEffect(() => {
     if (!isSupabaseConfigured() || authLoading || !session) return;
+    if (isPlatformAdmin || companyMemberships.length > 0) return;
+
     const ctx = readOAuthFlowContext();
     if (!ctx || ctx.mode !== "login") return;
     if (oauthHandledRef.current) return;
@@ -47,16 +74,20 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
       });
       if (!res.ok) {
         oauthHandledRef.current = false;
-        if (res.code === "needs_company_name") {
-          void navigate({ to: "/cadastro", search: planId ? { planId } : {} });
-          return;
-        }
         setError(res.error);
         return;
       }
       clearOAuthFlowContext();
     })();
-  }, [session, authLoading, planId, navigate, refreshAuth]);
+  }, [
+    session,
+    authLoading,
+    isPlatformAdmin,
+    companyMemberships.length,
+    planId,
+    navigate,
+    refreshAuth,
+  ]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -80,13 +111,7 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
         planId,
         refreshAuth,
       });
-      if (!res.ok) {
-        if (res.code === "needs_company_name") {
-          void navigate({ to: "/cadastro", search: planId ? { planId } : {} });
-          return;
-        }
-        setError(res.error);
-      }
+      if (!res.ok) setError(res.error);
     } finally {
       setPending(false);
     }
@@ -165,12 +190,23 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
           <p className="mt-1 text-sm text-muted-foreground">Bem-vinda de volta. Acesse seu studio.</p>
 
           {error && (
-            <p
+            <div
               role="alert"
               className="mt-4 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive"
             >
-              {error}
-            </p>
+              <p>{error}</p>
+              {(error.includes("Nenhum studio") ||
+                error.includes("nome do studio") ||
+                error.includes("nome do negócio")) && (
+                <Link
+                  to="/cadastro"
+                  search={planId ? { planId } : {}}
+                  className="mt-2 inline-block font-medium underline underline-offset-2"
+                >
+                  Criar conta com nome do studio →
+                </Link>
+              )}
+            </div>
           )}
 
           <div className="mt-6">

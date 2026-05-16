@@ -20,6 +20,7 @@ import {
   saveOAuthFlowContext,
 } from "@/lib/oauth-signup-intent";
 import { navigateAfterAuthenticatedSession } from "@/lib/complete-auth-onboarding";
+import { useAuthenticatedPanelRedirect } from "@/lib/use-authenticated-panel-redirect";
 
 export const Route = createFileRoute("/cadastro")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -37,14 +38,14 @@ export const Route = createFileRoute("/cadastro")({
   beforeLoad: async ({ search }) => {
     const profile = await loadAuthProfile();
     if (!profile.session) return;
+    if (profile.isPlatformAdmin) {
+      throw redirect({ to: "/master" });
+    }
     if (profile.companyMemberships.length > 0) {
       if (search.planId) {
         throw redirect({ to: "/admin/plano/checkout", search: { planId: search.planId, trial: false } });
       }
       throw redirect({ to: "/admin" });
-    }
-    if (profile.isPlatformAdmin) {
-      throw redirect({ to: "/master" });
     }
   },
   component: Cadastro,
@@ -73,8 +74,16 @@ function passwordMeetsPolicy(pw: string) {
 function Cadastro() {
   const { planId } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const { session, isLoading: authLoading, refresh: refreshAuth } = useAuth();
+  const {
+    session,
+    isLoading: authLoading,
+    isPlatformAdmin,
+    companyMemberships,
+    refresh: refreshAuth,
+  } = useAuth();
   const oauthHandledRef = useRef(false);
+
+  useAuthenticatedPanelRedirect(planId);
 
   const [step, setStep] = useState<"account" | "verify_email">("account");
   const [companyName, setCompanyName] = useState("");
@@ -100,6 +109,8 @@ function Cadastro() {
 
   useEffect(() => {
     if (!isSupabaseConfigured() || authLoading || !session) return;
+    if (isPlatformAdmin || companyMemberships.length > 0) return;
+
     const ctx = readOAuthFlowContext();
     if (!ctx || ctx.mode !== "signup") return;
     if (oauthHandledRef.current) return;
@@ -123,7 +134,15 @@ function Cadastro() {
       }
       clearOAuthFlowContext();
     })();
-  }, [session, authLoading, planId, navigate]);
+  }, [
+    session,
+    authLoading,
+    isPlatformAdmin,
+    companyMemberships.length,
+    planId,
+    navigate,
+    refreshAuth,
+  ]);
 
   const plansQuery = useQuery({
     queryKey: ["public", "plans"],

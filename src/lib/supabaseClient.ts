@@ -25,6 +25,13 @@ export function isSupabaseConfigured(): boolean {
   return Boolean(url && publishableKey);
 }
 
+/** Referência do projeto na URL (ex.: rfdphonjgsmyeqnsfjom). */
+export function getSupabaseProjectRef(): string | null {
+  if (!url) return null;
+  const m = url.match(/https:\/\/([a-z0-9]+)\.supabase\.co/i);
+  return m?.[1] ?? null;
+}
+
 function createSupabaseClient(): SupabaseClient {
   if (!url || !publishableKey) {
     throw new Error(
