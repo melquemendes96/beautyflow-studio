@@ -18,7 +18,10 @@ type AuthContextValue = {
   user: User | null;
   isPlatformAdmin: boolean;
   companyMemberships: CompanyMembership[];
+  /** Boot rápido (getSession) — rotas públicas liberam a UI quando false. */
   isLoading: boolean;
+  /** Perfil completo (RPC/memberships) carregado — use antes de redirect pós-login. */
+  profileReady: boolean;
   authConfigError: string | null;
   refresh: (opts?: { silent?: boolean; waitForSession?: boolean }) => Promise<void>;
   signOut: () => Promise<void>;
@@ -37,6 +40,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [companyMemberships, setCompanyMemberships] = useState<CompanyMembership[]>([]);
   const [authConfigError, setAuthConfigError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [profileReady, setProfileReady] = useState(false);
 
   const refreshInFlightRef = useRef<Promise<void> | null>(null);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -60,6 +64,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setAuthConfigError(configError);
         applyQuickSession(null);
         setIsLoading(false);
+        setProfileReady(true);
         return;
       }
 
@@ -67,6 +72,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         applyQuickSession(null);
         setAuthConfigError(null);
         setIsLoading(false);
+        setProfileReady(true);
         return;
       }
 
@@ -97,6 +103,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           if (!quick) setAuthConfigError(null);
         } finally {
           setIsLoading(false);
+          setProfileReady(true);
         }
       })();
 
@@ -129,6 +136,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsPlatformAdmin(false);
     setCompanyMemberships([]);
     setIsLoading(false);
+    setProfileReady(true);
   }, [applyQuickSession]);
 
   useEffect(() => {
@@ -139,16 +147,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (configError) {
       setAuthConfigError(configError);
       setIsLoading(false);
+      setProfileReady(true);
       return;
     }
 
     if (!isSupabaseConfigured()) {
       setIsLoading(false);
+      setProfileReady(true);
       return;
     }
 
     const safetyTimer = window.setTimeout(() => {
       setIsLoading(false);
+      setProfileReady(true);
     }, AUTH_BOOT_TIMEOUT_MS);
 
     void (async () => {
@@ -157,7 +168,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setIsLoading(false);
 
       if (quick) {
-        void refresh({ silent: true, waitForSession: false });
+        await refresh({ silent: true, waitForSession: false });
+      } else {
+        setProfileReady(true);
       }
     })();
 
@@ -189,11 +202,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       isPlatformAdmin,
       companyMemberships,
       isLoading,
+      profileReady,
       authConfigError,
       refresh,
       signOut,
     }),
-    [session, user, isPlatformAdmin, companyMemberships, isLoading, authConfigError, refresh, signOut],
+    [
+      session,
+      user,
+      isPlatformAdmin,
+      companyMemberships,
+      isLoading,
+      profileReady,
+      authConfigError,
+      refresh,
+      signOut,
+    ],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

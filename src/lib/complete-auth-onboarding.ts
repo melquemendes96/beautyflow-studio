@@ -38,6 +38,12 @@ export async function navigateAfterAuthenticatedSession(opts: {
 
   await profileService.ensureProfile().catch(() => undefined);
 
+  if (profile.isPlatformAdmin || isMasterAccount(profile.session)) {
+    await opts.refreshAuth?.();
+    await navigateToAuthDestination(opts.navigate, { kind: "master", path: "/master" });
+    return { ok: true };
+  }
+
   const dest = await resolveAuthDestination({
     planId: opts.planId,
     preferTrial: opts.preferTrial,

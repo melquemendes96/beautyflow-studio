@@ -108,6 +108,14 @@ async function loadPanelContext(session: Session): Promise<{
     void syncPlatformAdminInDatabase();
   }
 
+  if (isAuthHttpError(rpcError)) {
+    if (import.meta.env.DEV) {
+      console.warn("[loadAuthProfile] sessão inválida (401) — limpando auth local");
+    }
+    await supabase.auth.signOut().catch(() => undefined);
+    return { isPlatformAdmin: false, companyMemberships: [] };
+  }
+
   if (!rpcError && rpcData && typeof rpcData === "object") {
     const payload = rpcData as PanelContextPayload;
     isPlatformAdmin = payload.is_platform_admin === true || isPlatformAdmin;
@@ -117,7 +125,7 @@ async function loadPanelContext(session: Session): Promise<{
         role: row.role as CompanyMembership["role"],
       }))
       .filter((m) => m.company_id.length > 0);
-  } else if (!isAuthHttpError(rpcError) && import.meta.env.DEV && rpcError) {
+  } else if (import.meta.env.DEV && rpcError) {
     console.warn("[loadAuthProfile] get_auth_panel_context:", rpcError.message);
   }
 

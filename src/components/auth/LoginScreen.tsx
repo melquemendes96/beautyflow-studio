@@ -26,13 +26,13 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
   const navigate = useNavigate();
   const {
     session,
-    isLoading: authLoading,
-    companyMemberships,
+    profileReady,
     isPlatformAdmin,
     authConfigError,
     refresh: refreshAuth,
   } = useAuth();
   const oauthHandledRef = useRef(false);
+  const [redirecting, setRedirecting] = useState(false);
 
   usePublicAuthRedirect(planId);
 
@@ -42,6 +42,8 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
   const [pending, setPending] = useState(false);
   const [googlePending, setGooglePending] = useState(false);
 
+  const formDisabled = pending || googlePending || redirecting;
+
   useEffect(() => {
     const configErr = authConfigError ?? getSupabaseKeyConfigurationError();
     if (configErr) {
@@ -50,19 +52,16 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
   }, [authConfigError]);
 
   useEffect(() => {
-    if (!isSupabaseConfigured() || authLoading || !session) return;
-    if (authConfigError) return;
+    if (!profileReady || !session || authConfigError) return;
 
     const ctx = readOAuthFlowContext();
-    const shouldRunOAuth = ctx?.mode === "login";
-    const shouldRunSession =
-      isPlatformAdmin ||
-      isMasterAccount(session) ||
-      companyMemberships.length > 0;
+    const fromOAuth = ctx?.mode === "login";
+    const alreadyLoggedIn = isPlatformAdmin || isMasterAccount(session);
 
-    if (!shouldRunOAuth && !shouldRunSession) return;
+    if (!fromOAuth && !alreadyLoggedIn) return;
     if (oauthHandledRef.current) return;
     oauthHandledRef.current = true;
+    setRedirecting(true);
     setError(null);
 
     void (async () => {
@@ -71,30 +70,24 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
         planId: ctx?.planId ?? planId,
         refreshAuth,
       });
+      setRedirecting(false);
       if (!res.ok) {
         oauthHandledRef.current = false;
-        setError(res.error);
+        if (res.code !== "no_panel_access" || !isMasterAccount(session)) {
+          setError(res.error);
+        }
         return;
       }
       clearOAuthFlowContext();
     })();
-  }, [
-    session,
-    authLoading,
-    authConfigError,
-    isPlatformAdmin,
-    companyMemberships.length,
-    planId,
-    navigate,
-    refreshAuth,
-  ]);
+  }, [profileReady, session, authConfigError, isPlatformAdmin, planId, navigate, refreshAuth]);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     if (!isSupabaseConfigured()) {
       setError(
-        "Crie o arquivo .env na raiz do projeto com VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY (ou VITE_SUPABASE_ANON_KEY). Valores em: Supabase → Configurações do projeto → API. Depois reinicie o npm run dev.",
+        "Defina VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY (JWT eyJ...) no .env e reinicie o npm run dev.",
       );
       return;
     }
@@ -106,6 +99,7 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
         setError("E-mail ou senha inválidos. Tente novamente.");
         return;
       }
+      setRedirecting(true);
       const res = await navigateAfterAuthenticatedSession({
         navigate,
         planId,
@@ -114,6 +108,7 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
       if (!res.ok) setError(res.error);
     } finally {
       setPending(false);
+      setRedirecting(false);
     }
   };
 
@@ -150,9 +145,17 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
 
   return (
     <div
-      className="grid min-h-screen lg:grid-cols-2"
+      className="relative grid min-h-screen lg:grid-cols-2"
       style={{ background: "var(--gradient-hero)" }}
     >
+      {redirecting && (
+        <div
+          className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-background/40 backdrop-blur-[2px]"
+          aria-hidden
+        >
+          <p className="rounded-full bg-card px-4 py-2 text-sm shadow-elegant">Redirecionando…</p>
+        </div>
+      )}
       <div
         className="hidden flex-col justify-between p-12 text-background lg:flex"
         style={{ background: "var(--charcoal)" }}
@@ -181,8 +184,8 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
         <div className="text-xs text-background/40">© 2026 JM BeautyFlow</div>
       </div>
 
-      <div className="flex items-center justify-center p-6">
-        <div className="w-full max-w-md rounded-3xl border border-border bg-card p-8 shadow-elegant">
+      <div className="relative z-10 flex items-center justify-center p-6">
+        <div className="pointer-events-auto w-full max-w-md rounded-3xl border border-border bg-card p-8 shadow-elegant">
           <div className="mb-6 lg:hidden">
             <Logo onLight className="h-14 max-w-[260px]" />
           </div>
@@ -215,11 +218,11 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
             <GoogleOAuthButton
               label="Continuar com Google"
               pending={googlePending}
-              disabled={pending || authLoading}
+              disabled={formDisabled}
               onClick={() => void onGoogle()}
             />
             <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
+              <div className="pointer-events-none absolute inset-0 flex items-center">
                 <span className="w-full border-t border-border" />
               </div>
               <div className="relative flex justify-center text-xs uppercase tracking-wider">
@@ -228,34 +231,37 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
             </div>
           </div>
 
-          <form onSubmit={(e) => void onSubmit(e)} aria-busy={pending}>
+          <form onSubmit={(e) => void onSubmit(e)} className="relative z-10" noValidate>
             <div className="space-y-4">
               <label className="block">
                 <span className="mb-1.5 block text-xs font-medium text-muted-foreground">E-mail</span>
                 <div className="relative">
-                  <Mail className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Mail className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <input
                     type="email"
+                    name="email"
                     autoComplete="email"
                     value={email}
                     onChange={(ev) => setEmail(ev.target.value)}
+                    disabled={formDisabled}
                     required
-                    className="w-full rounded-xl border border-input bg-background py-3 pl-10 pr-4 text-sm outline-none transition focus:border-foreground focus:ring-2 focus:ring-gold/30"
+                    className="relative z-10 w-full rounded-xl border border-input bg-background py-3 pl-10 pr-4 text-sm outline-none transition focus:border-foreground focus:ring-2 focus:ring-gold/30 disabled:opacity-60"
                   />
                 </div>
               </label>
               <label className="block">
                 <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Senha</span>
                 <div className="relative">
-                  <Lock className="absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                  <Lock className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
                   <input
                     type="password"
+                    name="password"
                     autoComplete="current-password"
                     value={password}
                     onChange={(ev) => setPassword(ev.target.value)}
+                    disabled={formDisabled}
                     required
-                    aria-invalid={error ? true : undefined}
-                    className="w-full rounded-xl border border-input bg-background py-3 pl-10 pr-4 text-sm outline-none transition focus:border-foreground focus:ring-2 focus:ring-gold/30"
+                    className="relative z-10 w-full rounded-xl border border-input bg-background py-3 pl-10 pr-4 text-sm outline-none transition focus:border-foreground focus:ring-2 focus:ring-gold/30 disabled:opacity-60"
                   />
                 </div>
               </label>
@@ -263,10 +269,10 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
 
             <button
               type="submit"
-              disabled={pending || googlePending}
+              disabled={formDisabled}
               className="mt-6 w-full rounded-full bg-foreground py-3.5 text-sm font-medium text-background shadow-soft transition hover:opacity-90 disabled:opacity-60"
             >
-              {pending ? "Entrando…" : "Entrar no painel"}
+              {pending ? "Entrando…" : redirecting ? "Redirecionando…" : "Entrar no painel"}
             </button>
           </form>
 
@@ -283,7 +289,11 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
                 Criar conta
               </Link>
             </div>
-            <p className="text-center text-muted-foreground sm:text-left">Recuperação de senha em breve</p>
+            <p className="text-center text-muted-foreground sm:text-left">
+              <Link to="/forgot-password" className="hover:text-foreground hover:underline">
+                Esqueci minha senha
+              </Link>
+            </p>
           </div>
         </div>
       </div>
