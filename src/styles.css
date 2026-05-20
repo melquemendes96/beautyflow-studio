@@ -160,6 +160,27 @@
   max-width: 1200px;
 }
 
+/* Página pública /agendar/:slug — visual premium (sem lógica) */
+.public-booking-pill {
+  box-shadow: 0 2px 12px -4px rgba(0, 0, 0, 0.08);
+  backdrop-filter: blur(6px);
+}
+.public-booking-pill:hover {
+  box-shadow: 0 4px 18px -6px rgba(0, 0, 0, 0.12);
+  transform: translateY(-1px);
+}
+.public-booking-pill--muted {
+  background: color-mix(in srgb, var(--color-secondary) 85%, transparent);
+  color: var(--color-foreground);
+}
+.public-booking-pill--whatsapp {
+  background: color-mix(in srgb, var(--color-success) 18%, var(--color-background));
+  color: color-mix(in srgb, var(--color-success) 85%, #0a0a0a);
+}
+.public-booking-pill--whatsapp:hover {
+  background: color-mix(in srgb, var(--color-success) 24%, var(--color-background));
+}
+
 /* Quantum Lovable - watermark removal */
 #lovable-badge {
   display: none !important;

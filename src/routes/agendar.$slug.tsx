@@ -191,18 +191,18 @@ function Agendar() {
   }
 
   return (
-    <div className="min-h-screen bg-secondary/30">
+    <div className="min-h-screen bg-[#f7f4ef]">
       <PublicStudioHero company={company} branding={branding as Parameters<typeof PublicStudioHero>[0]["branding"]} />
 
-      <div className="container-page pb-16">
-        <div className="mt-8 flex items-center justify-center gap-2 text-xs">
+      <div className="mx-auto w-full max-w-[1400px] px-4 pb-16 md:px-6">
+        <div className="mt-6 flex items-center justify-center gap-2 text-xs md:mt-8">
           {(["servico", "data", "horario", "dados"] as Step[]).map((s, i) => {
             const idx = ["servico", "data", "horario", "dados"].indexOf(step);
             const active = i <= idx;
             return (
               <div key={s} className="flex items-center gap-2">
                 <div
-                  className="grid size-7 place-items-center rounded-full text-[11px] text-background"
+                  className="grid size-8 place-items-center rounded-full text-[11px] font-medium text-background shadow-sm transition-all duration-200 md:size-9"
                   style={{
                     backgroundColor: active ? primary : undefined,
                     color: active ? "#fff" : undefined,
@@ -222,10 +222,10 @@ function Agendar() {
           })}
         </div>
 
-        <div className="mt-6 rounded-3xl border border-border bg-card p-6 shadow-soft md:p-8">
+        <div className="mt-5 animate-in fade-in slide-in-from-bottom-2 rounded-[28px] border border-border/50 bg-card p-6 shadow-[0_8px_40px_-14px_rgba(0,0,0,0.12)] duration-300 md:mt-6 md:p-8 lg:p-9">
           {step === "servico" && (
             <>
-              <h2 className="font-display text-xl">Escolha o serviço</h2>
+              <h2 className="font-display text-xl font-bold md:text-2xl">Escolha o serviço</h2>
               {servicos.length === 0 ? (
                 <p className="mt-4 text-sm text-muted-foreground">Nenhum serviço disponível.</p>
               ) : (
@@ -273,7 +273,7 @@ function Agendar() {
 
           {step === "data" && (
             <>
-              <h2 className="font-display text-xl">Escolha a data</h2>
+              <h2 className="font-display text-xl font-bold md:text-2xl">Escolha a data</h2>
               <div className="mt-5 grid grid-cols-7 gap-2 text-xs text-muted-foreground">
                 {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d) => (
                   <div key={d} className="text-center text-[10px] sm:text-xs">
@@ -308,7 +308,7 @@ function Agendar() {
 
           {step === "horario" && (
             <>
-              <h2 className="font-display text-xl">Escolha o horário</h2>
+              <h2 className="font-display text-xl font-bold md:text-2xl">Escolha o horário</h2>
               <div className="mt-5 grid grid-cols-3 gap-2 md:grid-cols-5">
                 {(slotsQuery.data ?? []).map((h) => {
                   const sel = hora === h;
@@ -337,7 +337,7 @@ function Agendar() {
 
           {step === "dados" && (
             <>
-              <h2 className="font-display text-xl">Seus dados</h2>
+              <h2 className="font-display text-xl font-bold md:text-2xl">Seus dados</h2>
               <p className="mt-1 text-sm text-muted-foreground">Para confirmarmos seu agendamento.</p>
               <div className="mt-5 grid gap-4">
                 <Field label="Nome completo" value={form.nome} onChange={(v) => setForm({ ...form, nome: v })} />
@@ -371,7 +371,7 @@ function Agendar() {
             </>
           )}
 
-          <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-8 flex flex-col-reverse gap-4 sm:flex-row sm:items-center sm:justify-between">
             <button
               type="button"
               onClick={() => {
@@ -397,7 +397,7 @@ function Agendar() {
                 if (i < order.length - 1) setStep(order[i + 1]);
                 else createMutation.mutate();
               }}
-              className="inline-flex min-h-12 items-center justify-center gap-2 rounded-full px-6 py-3 text-sm shadow-soft transition hover:opacity-90 disabled:opacity-30"
+              className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-medium shadow-[0_4px_20px_-6px_rgba(0,0,0,0.25)] transition hover:opacity-90 disabled:opacity-30 sm:w-auto"
               style={btnStyle}
             >
               {step === "dados" ? (createMutation.isPending ? "Confirmando…" : "Confirmar agendamento") : "Continuar"}
@@ -406,8 +406,8 @@ function Agendar() {
           </div>
         </div>
 
-        <div className="mt-6 text-center">
-          <Link to="/cliente" className="text-xs text-muted-foreground hover:text-foreground">
+        <div className="mt-8 text-center">
+          <Link to="/cliente" className="text-sm text-muted-foreground transition hover:text-foreground">
             Já é cliente? Ver meus atendimentos →
           </Link>
         </div>
