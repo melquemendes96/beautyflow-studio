@@ -1,12 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { normalizePublicBookingSlug } from "@/lib/public-booking-slug";
+import { isValidPublicBookingSlug, normalizePublicBookingSlug } from "@/lib/public-booking-slug";
+import {
+  PUBLIC_BOOKING_STALE_MS,
+  PUBLIC_SLOTS_STALE_MS,
+  publicBookingKeys,
+} from "@/lib/public-booking-queries";
 import { isSupabaseConfigured } from "@/lib/supabaseClient";
 import { Check, ArrowLeft, ArrowRight, Calendar } from "lucide-react";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { publicBookingService } from "@/services/publicBookingService";
+import { BrandedImage } from "@/components/booking/BrandedImage";
 import { PublicStudioHero, getBrandingButtonStyle } from "@/components/booking/PublicStudioHero";
-import { displayStudioName, normalizeHexColor } from "@/lib/branding-utils";
+import { displayStudioName, normalizeHexColor, studioInitials } from "@/lib/branding-utils";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/agendar/$slug")({
@@ -24,8 +30,12 @@ function Agendar() {
   const [hora, setHora] = useState<string | null>(null);
   const [form, setForm] = useState({ nome: "", email: "", whatsapp: "", notes: "" });
 
+  const slugValid = isValidPublicBookingSlug(slug);
+
   const pageQuery = useQuery({
-    queryKey: ["public", "booking_page", slug],
+    queryKey: publicBookingKeys.page(slug),
+    enabled: slugValid && isSupabaseConfigured(),
+    staleTime: PUBLIC_BOOKING_STALE_MS,
     queryFn: async () => {
       if (!slug) return null;
       if (!isSupabaseConfigured()) {
@@ -55,8 +65,9 @@ function Agendar() {
   const servicoSel = servicos.find((s) => s.id === servico);
 
   const slotsQuery = useQuery({
-    queryKey: ["public", "available_slots", slug, servico, data],
-    enabled: Boolean(servico && data),
+    queryKey: publicBookingKeys.slots(slug, servico ?? "", data ?? ""),
+    enabled: slugValid && Boolean(servico && data),
+    staleTime: PUBLIC_SLOTS_STALE_MS,
     queryFn: async () => {
       const res = await publicBookingService.getAvailableSlots({
         slug,
@@ -126,6 +137,15 @@ function Agendar() {
     );
   }
 
+  if (!slugValid) {
+    return (
+      <PublicErrorCard
+        title="Link inválido"
+        message="O endereço desta página de agendamento não é válido. Verifique o link enviado pelo studio."
+      />
+    );
+  }
+
   if (pageQuery.isLoading) {
     return (
       <div className="grid min-h-screen place-items-center bg-secondary/30 px-4">
@@ -140,11 +160,11 @@ function Agendar() {
     return (
       <div className="grid min-h-screen place-items-center bg-secondary/30 px-4">
         <div className="max-w-md rounded-3xl border border-border bg-card p-8 text-center shadow-elegant">
-          <h1 className="font-display text-xl">{configError ? "Serviço indisponível" : "Erro ao carregar"}</h1>
+          <h1 className="font-display text-xl">{configError ? "Serviço indisponível" : "Erro ao carregar informações"}</h1>
           <p className="mt-2 text-sm text-muted-foreground">
             {configError
               ? "A página de agendamento não está configurada neste ambiente. Tente novamente mais tarde."
-              : "Não foi possível carregar os dados do studio. Verifique sua conexão e tente de novo."}
+              : "Erro ao carregar informações. Verifique sua conexão e tente de novo."}
           </p>
           <Link to="/" className="mt-6 inline-block text-sm text-foreground underline-offset-4 hover:underline">
             Voltar ao início
@@ -158,9 +178,9 @@ function Agendar() {
     return (
       <div className="grid min-h-screen place-items-center bg-secondary/30 px-4">
         <div className="max-w-md rounded-3xl border border-border bg-card p-8 text-center shadow-elegant">
-          <h1 className="font-display text-xl">Página não encontrada</h1>
+          <h1 className="font-display text-xl">Empresa não encontrada</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Este link de agendamento não existe ou o studio está indisponível.
+            Este link de agendamento não existe ou o studio está indisponível no momento.
           </p>
           <Link to="/" className="mt-6 inline-block text-sm text-foreground underline-offset-4 hover:underline">
             Voltar ao início
@@ -207,7 +227,7 @@ function Agendar() {
             <>
               <h2 className="font-display text-xl">Escolha o serviço</h2>
               {servicos.length === 0 ? (
-                <p className="mt-4 text-sm text-muted-foreground">Nenhum serviço disponível no momento.</p>
+                <p className="mt-4 text-sm text-muted-foreground">Nenhum serviço disponível.</p>
               ) : (
                 <div className="mt-5 grid gap-3 md:grid-cols-2">
                   {servicos.map((s) => (
@@ -221,7 +241,14 @@ function Agendar() {
                       style={servico === s.id ? { borderColor: primary } : undefined}
                     >
                       {s.image_url ? (
-                        <img src={s.image_url} alt="" className="size-16 rounded-xl object-cover" />
+                        <BrandedImage
+                          src={s.image_url}
+                          alt=""
+                          className="size-16 rounded-xl object-cover"
+                          fallback={
+                            <ServiceInitials name={s.name} primary={primary} secondary={normalizeHexColor(typeof branding?.secondary_color === "string" ? branding.secondary_color : null, "#c9a960")} />
+                          }
+                        />
                       ) : (
                         <div
                           className="grid size-16 shrink-0 place-items-center rounded-xl text-lg font-semibold text-background"
@@ -248,8 +275,8 @@ function Agendar() {
             <>
               <h2 className="font-display text-xl">Escolha a data</h2>
               <div className="mt-5 grid grid-cols-7 gap-2 text-xs text-muted-foreground">
-                {["D", "S", "T", "Q", "Q", "S", "S"].map((d, i) => (
-                  <div key={i} className="text-center">
+                {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d) => (
+                  <div key={d} className="text-center text-[10px] sm:text-xs">
                     {d}
                   </div>
                 ))}
@@ -302,7 +329,7 @@ function Agendar() {
               </div>
               {!slotsQuery.isLoading && (slotsQuery.data ?? []).length === 0 && (
                 <div className="mt-4 rounded-2xl border border-border bg-secondary/40 p-4 text-sm text-muted-foreground">
-                  Sem horários disponíveis para essa data. Escolha outra data.
+                  Nenhum horário disponível para essa data. Escolha outra data.
                 </div>
               )}
             </>
@@ -362,7 +389,7 @@ function Agendar() {
                 (step === "servico" && !servico) ||
                 (step === "data" && !data) ||
                 (step === "horario" && !hora) ||
-                (step === "dados" && (!form.nome || !form.email || !form.whatsapp))
+                (step === "dados" && (!form.nome.trim() || (!form.email.trim() && !form.whatsapp.trim())))
               }
               onClick={() => {
                 const order: Step[] = ["servico", "data", "horario", "dados"];
@@ -470,6 +497,31 @@ function Confirmado({
           Voltar à página
         </Link>
       </div>
+    </div>
+  );
+}
+
+function PublicErrorCard({ title, message }: { title: string; message: string }) {
+  return (
+    <div className="grid min-h-screen place-items-center bg-secondary/30 px-4">
+      <div className="max-w-md rounded-3xl border border-border bg-card p-8 text-center shadow-elegant">
+        <h1 className="font-display text-xl">{title}</h1>
+        <p className="mt-2 text-sm text-muted-foreground">{message}</p>
+        <Link to="/" className="mt-6 inline-block text-sm text-foreground underline-offset-4 hover:underline">
+          Voltar ao início
+        </Link>
+      </div>
+    </div>
+  );
+}
+
+function ServiceInitials({ name, primary, secondary }: { name: string; primary: string; secondary: string }) {
+  return (
+    <div
+      className="grid size-16 shrink-0 place-items-center rounded-xl text-lg font-semibold text-background"
+      style={{ background: `linear-gradient(135deg, ${primary}, ${secondary})` }}
+    >
+      {studioInitials(name)}
     </div>
   );
 }

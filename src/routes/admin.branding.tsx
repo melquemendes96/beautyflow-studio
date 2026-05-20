@@ -11,6 +11,8 @@ import { PublicBookingLinkCard } from "@/components/admin/PublicBookingLinkCard"
 import { toast } from "sonner";
 import { AdminBrandingFormSkeleton, AdminBrandingPreviewSkeleton } from "@/components/admin/AdminPageStates";
 import { uploadCompanyImage } from "@/lib/company-media-upload";
+import { publicBookingKeys } from "@/lib/public-booking-queries";
+import { normalizePublicBookingSlug } from "@/lib/public-booking-slug";
 
 function clampPercent(value: unknown, fallback: number): number {
   const n = typeof value === "number" ? value : Number(value);
@@ -111,6 +113,15 @@ function Branding() {
     });
   }, [brandingQuery.data]);
 
+  const invalidatePublicPage = async () => {
+    const slug = companyQuery.data?.slug
+      ? normalizePublicBookingSlug(String(companyQuery.data.slug))
+      : null;
+    if (slug) {
+      await queryClient.invalidateQueries({ queryKey: publicBookingKeys.page(slug) });
+    }
+  };
+
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!companyId) throw new Error("Sem empresa");
@@ -141,7 +152,7 @@ function Branding() {
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["admin", "branding", companyId] });
       await queryClient.invalidateQueries({ queryKey: ["admin", "company", companyId] });
-      await queryClient.invalidateQueries({ queryKey: ["public", "booking_page"] });
+      await invalidatePublicPage();
       toast.success("Marca salva com sucesso");
     },
     onError: (err: unknown) => {
@@ -195,6 +206,7 @@ function Branding() {
                     logo_image_pos_y: 50,
                   }))
                 }
+                onUploaded={() => void invalidatePublicPage()}
                 disabled={!hasCompany}
               />
               <BrandAssetUpload
@@ -210,6 +222,7 @@ function Branding() {
                     banner_image_pos_y: 50,
                   }))
                 }
+                onUploaded={() => void invalidatePublicPage()}
                 disabled={!hasCompany}
               />
             </div>
@@ -356,6 +369,7 @@ function BrandAssetUpload({
   url,
   kind,
   onChangeUrl,
+  onUploaded,
   disabled,
 }: {
   label: string;
@@ -363,6 +377,7 @@ function BrandAssetUpload({
   url: string;
   kind: "logo" | "banner";
   onChangeUrl: (url: string) => void;
+  onUploaded?: () => void;
   disabled?: boolean;
 }) {
   const inputId = useId();
@@ -391,6 +406,7 @@ function BrandAssetUpload({
       return;
     }
     onChangeUrl(publicUrl);
+    onUploaded?.();
     toast.success("Imagem enviada.");
   };
 

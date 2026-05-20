@@ -1,9 +1,14 @@
 import { getSupabase } from "@/lib/supabaseClient";
+import { normalizePublicBookingSlug } from "@/lib/public-booking-slug";
+
+function normSlug(slug: string) {
+  return normalizePublicBookingSlug(slug);
+}
 
 export const clientPortalService = {
   getPortalData(params: { slug: string; email: string; whatsapp: string }) {
     return getSupabase().rpc("get_client_portal_data", {
-      p_slug: params.slug,
+      p_slug: normSlug(params.slug),
       p_email: params.email,
       p_whatsapp: params.whatsapp,
     });
@@ -11,7 +16,7 @@ export const clientPortalService = {
 
   cancelAppointment(params: { slug: string; email: string; whatsapp: string; appointmentId: string }) {
     return getSupabase().rpc("client_cancel_appointment", {
-      p_slug: params.slug,
+      p_slug: normSlug(params.slug),
       p_email: params.email,
       p_whatsapp: params.whatsapp,
       p_appointment_id: params.appointmentId,
@@ -27,7 +32,7 @@ export const clientPortalService = {
     newTime: string; // HH:MM
   }) {
     return getSupabase().rpc("client_reschedule_appointment", {
-      p_slug: params.slug,
+      p_slug: normSlug(params.slug),
       p_email: params.email,
       p_whatsapp: params.whatsapp,
       p_appointment_id: params.appointmentId,
@@ -45,7 +50,7 @@ export const clientPortalService = {
     comment?: string;
   }) {
     return getSupabase().rpc("client_submit_rating", {
-      p_slug: params.slug,
+      p_slug: normSlug(params.slug),
       p_email: params.email,
       p_whatsapp: params.whatsapp,
       p_appointment_id: params.appointmentId,

@@ -1,10 +1,12 @@
-/** Normaliza texto para o formato aceito em `companies.slug` (migration `companies_slug_format`). */
+/**
+ * Normaliza slug igual a `normalize_booking_slug` no Postgres:
+ * lowercase, sequências não [a-z0-9-] viram hífen, trim de hífens nas pontas.
+ */
 export function normalizePublicBookingSlug(raw: string): string {
   return raw
     .trim()
     .toLowerCase()
-    .replace(/\s+/g, "-")
-    .replace(/[^a-z0-9-]/g, "")
+    .replace(/[^a-z0-9-]+/g, "-")
     .replace(/-+/g, "-")
     .replace(/^-+|-+$/g, "");
 }

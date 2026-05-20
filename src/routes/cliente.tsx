@@ -4,6 +4,7 @@ import { Calendar, Star, ArrowRight, LogOut } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { clientPortalService } from "@/services/clientPortalService";
+import { normalizePublicBookingSlug } from "@/lib/public-booking-slug";
 import { toast } from "sonner";
 import { publicBookingService } from "@/services/publicBookingService";
 import {
@@ -73,7 +74,7 @@ function ClienteHistoryRowSkeleton() {
 
 function Cliente() {
   const queryClient = useQueryClient();
-  const [auth, setAuth] = useState({ slug: "joyce-mendes", email: "", whatsapp: "" });
+  const [auth, setAuth] = useState({ slug: "", email: "", whatsapp: "" });
   const [isAuthed, setIsAuthed] = useState(false);
   const [accessError, setAccessError] = useState<string | null>(null);
   const [rescheduleOpen, setRescheduleOpen] = useState(false);
@@ -221,7 +222,7 @@ function Cliente() {
     }
     setAuth((s) => ({
       ...s,
-      slug: s.slug.trim(),
+      slug: normalizePublicBookingSlug(s.slug),
       email: s.email.trim(),
       whatsapp: s.whatsapp.trim(),
     }));

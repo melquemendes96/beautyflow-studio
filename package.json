@@ -13,6 +13,7 @@
     "build:dev": "vite build --mode development",
     "start": "srvx serve --prod --dir ./dist/server --static ../client --host 0.0.0.0",
     "preview": "vite preview",
+    "test:public-booking": "node scripts/public-booking-slug.test.mjs",
     "lint": "eslint .",
     "format": "prettier --write .",
     "supabase:deploy:mercado-pago-preference": "npx supabase functions deploy create-mercado-pago-preference",

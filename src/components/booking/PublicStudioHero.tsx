@@ -1,4 +1,5 @@
 import { Instagram, MapPin, MessageCircle, Clock } from "lucide-react";
+import { BrandedImage } from "@/components/booking/BrandedImage";
 import {
   clampPercent,
   displayStudioName,
@@ -38,7 +39,7 @@ export function PublicStudioHero({ company, branding }: PublicStudioHeroProps) {
           style={{ background: `linear-gradient(135deg, ${primary}, ${secondary})` }}
         />
         {branding?.banner_url ? (
-          <img
+          <BrandedImage
             src={branding.banner_url}
             alt=""
             className="absolute inset-0 size-full object-cover"
@@ -52,11 +53,14 @@ export function PublicStudioHero({ company, branding }: PublicStudioHeroProps) {
           <div className="flex flex-col items-start gap-4 md:flex-row md:items-center">
             <div className="-mt-16 grid size-24 place-items-center overflow-hidden rounded-3xl border-4 border-background bg-background shadow-soft md:-mt-20 md:size-28">
               {branding?.logo_url ? (
-                <img
+                <BrandedImage
                   src={branding.logo_url}
                   alt={studioName}
                   className="size-full object-cover"
                   style={{ objectPosition: `${logoPosX}% ${logoPosY}%` }}
+                  fallback={
+                    <StudioInitialsBlock primary={primary} secondary={secondary} studioName={studioName} />
+                  }
                 />
               ) : (
                 <div
@@ -134,4 +138,24 @@ export function PublicStudioHero({ company, branding }: PublicStudioHeroProps) {
 
 export function getBrandingButtonStyle(primary: string): React.CSSProperties {
   return { backgroundColor: primary, color: "#ffffff" };
+}
+
+function StudioInitialsBlock({
+  primary,
+  secondary,
+  studioName,
+}: {
+  primary: string;
+  secondary: string;
+  studioName: string;
+}) {
+  return (
+    <div
+      className="grid size-full place-items-center font-display text-2xl font-semibold text-background md:text-3xl"
+      style={{ background: `linear-gradient(135deg, ${primary}, ${secondary})` }}
+      aria-hidden
+    >
+      {studioInitials(studioName)}
+    </div>
+  );
 }
