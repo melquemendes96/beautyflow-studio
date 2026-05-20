@@ -13,13 +13,14 @@ function shouldSkipPublicRedirect(pathname: string): boolean {
  * Redireciona usuário já logado que abre /login ou /cadastro.
  * Não roda em onboarding/admin/master (evita loop).
  */
-export function usePublicAuthRedirect(planId?: string) {
+export function usePublicAuthRedirect(planId?: string, opts?: { skip?: boolean }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
-  const { session, profileReady, authConfigError, refresh } = useAuth();
+  const { session, profileReady, authConfigError, isPlatformAdmin, refresh } = useAuth();
   const handledRef = useRef(false);
 
   useEffect(() => {
+    if (opts?.skip || isPlatformAdmin) return;
     if (shouldSkipPublicRedirect(pathname)) return;
     if (!profileReady || !session || authConfigError) return;
     if (handledRef.current) return;
@@ -34,5 +35,5 @@ export function usePublicAuthRedirect(planId?: string) {
         console.warn("[usePublicAuthRedirect]", res.error);
       }
     });
-  }, [pathname, profileReady, session, authConfigError, planId, navigate, refresh]);
+  }, [pathname, profileReady, session, authConfigError, isPlatformAdmin, planId, navigate, refresh, opts?.skip]);
 }

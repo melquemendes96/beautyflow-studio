@@ -82,6 +82,7 @@ export async function resolvePostLoginDestination(opts?: {
 /** Cria empresa + vínculos se ainda não existir (uma execução por vez). */
 export async function ensureUserCompanyBootstrap(opts: {
   companyName?: string | null;
+  planId?: string | null;
   session?: Session | null;
 }): Promise<BootstrapResult> {
   if (bootstrapInFlight) return bootstrapInFlight;
@@ -109,7 +110,10 @@ export async function ensureUserCompanyBootstrap(opts: {
     await safeEnsureProfile();
 
     const boot = await withAuthTimeout(
-      onboardingService.bootstrapCompany({ companyName: name }),
+      onboardingService.completeSignupOnboarding({
+        companyName: name,
+        planId: opts.planId ?? null,
+      }),
       BOOTSTRAP_TIMEOUT_MS,
     );
 
@@ -179,6 +183,7 @@ export async function runPostLoginNavigation(opts: {
       if (pendingName) {
         const boot = await ensureUserCompanyBootstrap({
           companyName: pendingName,
+          planId: opts.planId ?? null,
           session: profile.session,
         });
         if (!boot.ok) {

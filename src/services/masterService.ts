@@ -1,26 +1,33 @@
 import { getSupabase } from "@/lib/supabaseClient";
-import { waitForValidSession } from "@/lib/wait-for-auth-session";
 
-async function requireMasterSession() {
-  const session = await waitForValidSession(6);
-  if (!session?.access_token) {
-    return { ok: false as const, error: { message: "Sessão expirada. Faça login novamente.", status: 401 } };
-  }
+type GateError = { message: string; status?: number; code?: string };
 
-  const { data, error } = await getSupabase().rpc("ensure_platform_admin");
-  if (error) {
-    return { ok: false as const, error };
-  }
+/**
+ * Exige sessão JWT válida. `ensure_platform_admin` é best-effort (sincroniza vínculo).
+ * Não bloqueia listagem: RPCs e RLS checam is_platform_admin().
+ */
+async function requireMasterSession(): Promise<
+  { ok: true } | { ok: false; error: GateError }
+> {
+  const supabase = getSupabase();
+  const {
+    data: { session },
+    error: sessionError,
+  } = await supabase.auth.getSession();
 
-  const payload = data as { ok?: boolean; is_platform_admin?: boolean } | null;
-  if (payload?.ok !== true && payload?.is_platform_admin !== true) {
+  if (sessionError || !session?.access_token) {
     return {
-      ok: false as const,
-      error: { message: "Acesso negado: usuário não é platform_admin.", status: 403 },
+      ok: false,
+      error: {
+        message: "Sessão expirada. Faça logout e login novamente.",
+        status: 401,
+        code: "401",
+      },
     };
   }
 
-  return { ok: true as const };
+  void supabase.rpc("ensure_platform_admin");
+  return { ok: true };
 }
 
 async function syncTenantSubscriptionFromMasterPlan(companyId: string, planId: string | null) {
@@ -51,22 +58,31 @@ async function syncTenantSubscriptionFromMasterPlan(companyId: string, planId: s
 }
 
 /**
- * Painel master — leituras via RPC SECURITY DEFINER (RLS-safe).
- * Planos: CRUD via RPC master_* (não depende só de policy na tabela).
+ * Painel master — RPCs SECURITY DEFINER + fallback em tabela (RLS platform_admin).
  */
 export const masterService = {
   async listCompanies() {
     const gate = await requireMasterSession();
     if (!gate.ok) return { data: null, error: gate.error };
-    const rpc = await getSupabase().rpc("master_list_companies");
+    const supabase = getSupabase();
+    const rpc = await supabase.rpc("master_list_companies");
     if (!rpc.error) return rpc;
-    return getSupabase().from("companies").select("*").order("created_at", { ascending: false });
+    return supabase.from("companies").select("*").order("created_at", { ascending: false });
   },
 
   async listPlans() {
     const gate = await requireMasterSession();
     if (!gate.ok) return { data: null, error: gate.error };
-    return getSupabase().rpc("master_list_plans");
+    const supabase = getSupabase();
+
+    const rpc = await supabase.rpc("master_list_plans");
+    if (!rpc.error) return rpc;
+
+    // Fallback: RLS com EXISTS em platform_admins (após migration 20260517030000)
+    const table = await supabase.from("plans").select("*").order("price", { ascending: true });
+    if (!table.error) return table;
+
+    return rpc;
   },
 
   async createCompany(input: { name: string; slug: string; email?: string; phone?: string; plan_id?: string | null }) {
@@ -109,30 +125,48 @@ export const masterService = {
   async createPlan(input: { name: string; price: number; features: string[]; active: boolean }) {
     const gate = await requireMasterSession();
     if (!gate.ok) return { data: null, error: gate.error };
-    return getSupabase().rpc("master_create_plan", {
+    const supabase = getSupabase();
+    const rpc = await supabase.rpc("master_create_plan", {
       p_name: input.name,
       p_price: input.price,
       p_features: input.features,
       p_active: input.active,
     });
+    if (!rpc.error) return rpc;
+    return supabase
+      .from("plans")
+      .insert({
+        name: input.name,
+        price: input.price,
+        features: input.features,
+        active: input.active,
+      })
+      .select("*")
+      .single();
   },
 
   async updatePlan(planId: string, patch: { name?: string; price?: number; features?: string[]; active?: boolean }) {
     const gate = await requireMasterSession();
     if (!gate.ok) return { data: null, error: gate.error };
-    return getSupabase().rpc("master_update_plan", {
+    const supabase = getSupabase();
+    const rpc = await supabase.rpc("master_update_plan", {
       p_plan_id: planId,
       p_name: patch.name ?? null,
       p_price: patch.price ?? null,
       p_features: patch.features ?? null,
       p_active: patch.active ?? null,
     });
+    if (!rpc.error) return rpc;
+    return supabase.from("plans").update(patch).eq("id", planId).select("*").single();
   },
 
   async deletePlan(planId: string) {
     const gate = await requireMasterSession();
     if (!gate.ok) return { data: null, error: gate.error };
-    return getSupabase().rpc("master_delete_plan", { p_plan_id: planId });
+    const supabase = getSupabase();
+    const rpc = await supabase.rpc("master_delete_plan", { p_plan_id: planId });
+    if (!rpc.error) return rpc;
+    return supabase.from("plans").delete().eq("id", planId);
   },
 
   async listRecentPaidPayments(limit = 40) {

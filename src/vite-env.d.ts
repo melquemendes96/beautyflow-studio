@@ -2,8 +2,7 @@
 
 interface ImportMetaEnv {
   readonly VITE_SUPABASE_URL: string | undefined;
-  /** Chave pública (anon). Alias aceito: VITE_SUPABASE_ANON_KEY */
-  readonly VITE_SUPABASE_PUBLISHABLE_KEY: string | undefined;
+  /** JWT anon (eyJ...). Única chave usada no cliente. */
   readonly VITE_SUPABASE_ANON_KEY: string | undefined;
   readonly VITE_SUPABASE_PROJECT_ID: string | undefined;
   /** Chave pública Mercado Pago (não confundir com access token). */

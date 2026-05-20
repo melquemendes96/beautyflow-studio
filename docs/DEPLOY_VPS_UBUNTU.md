@@ -119,7 +119,7 @@ Copie o código (git clone ou rsync). Na **primeira vez** e a cada deploy de dep
 npm ci
 ```
 
-Crie `.env` ou `.env.production` na raiz com **pelo menos** `VITE_SUPABASE_URL` e `VITE_SUPABASE_PUBLISHABLE_KEY` (ou `VITE_SUPABASE_ANON_KEY`). Opcional: `VITE_MERCADO_PAGO_PUBLIC_KEY`.
+Crie `.env` ou `.env.production` na raiz com **obrigatório** `VITE_SUPABASE_URL` e `VITE_SUPABASE_ANON_KEY` (JWT `eyJ...`, Legacy anon no dashboard). **Não** use `VITE_SUPABASE_PUBLISHABLE_KEY` (`sb_publishable_` causa 401). Opcional: `VITE_MERCADO_PAGO_PUBLIC_KEY`. Remova `.env.backup` antigos na VPS.
 
 Build de produção:
 

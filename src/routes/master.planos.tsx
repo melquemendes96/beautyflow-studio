@@ -29,6 +29,7 @@ import {
 import { CreditCard, X } from "lucide-react";
 import { toast } from "sonner";
 import { AdminEmptyState, AdminServiceCardSkeleton } from "@/components/admin/AdminPageStates";
+import { formatSupabaseApiError } from "@/lib/format-supabase-api-error";
 
 export const Route = createFileRoute("/master/planos")({
   component: MasterPlanos,
@@ -80,6 +81,10 @@ function MasterPlanos() {
       setEditingId(null);
       setForm({ name: "", price: "", featuresText: "", active: true });
       await queryClient.invalidateQueries({ queryKey: ["master", "plans"] });
+      toast.success("Plano criado.");
+    },
+    onError: (err: unknown) => {
+      toast.error(formatSupabaseApiError(err));
     },
   });
 
@@ -105,6 +110,10 @@ function MasterPlanos() {
       await queryClient.invalidateQueries({ queryKey: ["master", "plans"] });
       await queryClient.invalidateQueries({ queryKey: ["master", "companies"] });
       await queryClient.invalidateQueries({ queryKey: ["master", "subscriptions"] });
+      toast.success("Plano atualizado.");
+    },
+    onError: (err: unknown) => {
+      toast.error(formatSupabaseApiError(err));
     },
   });
 
@@ -246,6 +255,25 @@ function MasterPlanos() {
         }
       />
 
+      {error && (
+        <div
+          role="alert"
+          className="mb-6 rounded-xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
+        >
+          <p className="font-medium">Não foi possível carregar os planos.</p>
+          <p className="mt-1 text-xs opacity-90">{formatSupabaseApiError(error)}</p>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="mt-3"
+            onClick={() => void queryClient.invalidateQueries({ queryKey: ["master", "plans"] })}
+          >
+            Tentar novamente
+          </Button>
+        </div>
+      )}
+
       <AlertDialog open={Boolean(deleteTarget)} onOpenChange={(o) => !o && setDeleteTarget(null)}>
         <AlertDialogContent className="rounded-3xl">
           <AlertDialogHeader>
@@ -310,7 +338,7 @@ function MasterPlanos() {
             </div>
           </div>
         ))}
-        {!isLoading && (data?.length ?? 0) === 0 && (
+        {!isLoading && !error && (data?.length ?? 0) === 0 && (
           <div className="lg:col-span-3">
             <AdminEmptyState
               icon={CreditCard}
@@ -329,7 +357,6 @@ function MasterPlanos() {
         )}
       </div>
 
-      {error && <div className="mt-4 text-sm text-destructive">Não foi possível carregar os planos.</div>}
     </div>
   );
 }

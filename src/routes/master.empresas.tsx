@@ -24,6 +24,7 @@ import {
   selectValueToPlanId,
 } from "@/lib/plan-select-value";
 import { toast } from "sonner";
+import { formatSupabaseApiError } from "@/lib/format-supabase-api-error";
 
 export const Route = createFileRoute("/master/empresas")({
   component: MasterEmpresas,
@@ -291,7 +292,8 @@ function MasterEmpresas() {
 
         {error && (
           <div className="border-b border-destructive/20 bg-destructive/10 px-5 py-4 text-sm text-destructive">
-            Não foi possível carregar as empresas. Verifique sessão Master e políticas RLS no Supabase.
+            <p className="font-medium">Nao foi possivel carregar as empresas.</p>
+            <p className="mt-1 text-xs opacity-90">{formatSupabaseApiError(error)}</p>
           </div>
         )}
 

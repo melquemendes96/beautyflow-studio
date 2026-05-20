@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { subscriptionService } from "@/services/subscriptionService";
+import { PUBLIC_PLANS_FALLBACK } from "@/lib/public-plans-fallback";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Check } from "lucide-react";
 
@@ -32,10 +33,17 @@ function PublicPlansPage() {
     queryKey: ["public", "plans", "page"],
     queryFn: async () => {
       const res = await subscriptionService.listPlans();
-      if (res.error) throw res.error;
-      return res.data ?? [];
+      const rows = (res.data ?? []) as PublicPlan[];
+      if (!res.error && rows.length > 0) return rows;
+      return PUBLIC_PLANS_FALLBACK.map((p) => ({
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        features: p.features,
+      }));
     },
     staleTime: 5 * 60_000,
+    retry: 1,
   });
 
   const plans = (plansQuery.data ?? []) as PublicPlan[];
@@ -81,14 +89,14 @@ function PublicPlansPage() {
               <div className="mt-8 flex flex-col gap-2">
                 <Link
                   to="/cadastro"
-                  search={{ planId: plan.id }}
+                  search={plan.id.startsWith("fallback-") ? {} : { planId: plan.id }}
                   className="rounded-full bg-foreground py-3 text-center text-sm font-medium text-background"
                 >
                   Começar teste grátis
                 </Link>
                 <Link
                   to="/cadastro"
-                  search={{ planId: plan.id }}
+                  search={plan.id.startsWith("fallback-") ? {} : { planId: plan.id }}
                   className="rounded-full border border-border py-3 text-center text-sm font-medium"
                 >
                   Assinar agora

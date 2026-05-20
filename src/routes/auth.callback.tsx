@@ -42,11 +42,12 @@ function AuthCallbackPage() {
         preferTrial: ctx?.mode === "signup",
       });
 
-      clearOAuthFlowContext();
-
       if (!res.ok) {
         setError(res.error);
+        return;
       }
+
+      clearOAuthFlowContext();
     })();
   }, [navigate, refreshAuth]);
 

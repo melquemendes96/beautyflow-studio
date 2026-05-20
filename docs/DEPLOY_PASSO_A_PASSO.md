@@ -84,7 +84,7 @@ Cole (com seus valores reais do Supabase → Settings → API):
 
 ```env
 VITE_SUPABASE_URL=https://SEU_PROJETO.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=eyJ...
+VITE_SUPABASE_ANON_KEY=eyJ...
 NODE_ENV=production
 PORT=3000
 HOST=0.0.0.0

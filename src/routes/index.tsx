@@ -276,7 +276,7 @@ function Landing() {
                     </Link>
                     <Link
                       to="/login"
-                      search={{ planId: String(p.id) }}
+                      search={p.id.startsWith("fallback-") ? {} : { planId: String(p.id) }}
                       className="mt-3 block text-center text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
                     >
                       Já tenho conta

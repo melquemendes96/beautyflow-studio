@@ -1,4 +1,4 @@
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Check, Lock, Mail, Sparkles, Building2 } from "lucide-react";
@@ -6,6 +6,7 @@ import { Logo } from "@/components/brand/Logo";
 import { GoogleOAuthButton } from "@/components/auth/GoogleOAuthButton";
 import { authService } from "@/services/authService";
 import { subscriptionService } from "@/services/subscriptionService";
+import { PUBLIC_PLANS_FALLBACK } from "@/lib/public-plans-fallback";
 import { isSupabaseConfigured } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +20,33 @@ import {
 } from "@/lib/oauth-signup-intent";
 import { navigateAfterAuthenticatedSession } from "@/lib/complete-auth-onboarding";
 import { usePublicAuthRedirect } from "@/lib/use-public-auth-redirect";
+
+function CadastroRouteError({ error, reset }: { error: Error; reset: () => void }) {
+  if (import.meta.env.DEV) {
+    console.error("[/cadastro]", error);
+  }
+  return (
+    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+      <div className="max-w-md rounded-3xl border border-border bg-card p-8 text-center shadow-elegant">
+        <h1 className="font-display text-xl">Não foi possível carregar o cadastro agora.</h1>
+        <p className="mt-2 text-sm text-muted-foreground">
+          Tente novamente em instantes. Se o problema continuar, volte à página inicial.
+        </p>
+        {import.meta.env.DEV && (
+          <p className="mt-3 break-all text-left text-xs text-destructive">{error.message}</p>
+        )}
+        <div className="mt-6 flex flex-wrap justify-center gap-2">
+          <Button type="button" onClick={() => reset()}>
+            Tentar novamente
+          </Button>
+          <Button variant="outline" type="button" asChild>
+            <Link to="/">Voltar para início</Link>
+          </Button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export const Route = createFileRoute("/cadastro")({
   validateSearch: (s: Record<string, unknown>) => ({
@@ -34,6 +62,7 @@ export const Route = createFileRoute("/cadastro")({
     ],
   }),
   component: Cadastro,
+  errorComponent: CadastroRouteError,
 });
 
 function formatBrl(value: number) {
@@ -56,19 +85,43 @@ function passwordMeetsPolicy(pw: string) {
   return c.len && c.lower && c.upper && c.digit;
 }
 
+function formatSignupError(err: unknown): string {
+  const raw =
+    err && typeof err === "object" && "message" in err && typeof (err as { message: unknown }).message === "string"
+      ? (err as { message: string }).message
+      : "";
+  const msg = raw && raw.length > 0 ? raw : "Não foi possível criar sua conta. Tente novamente.";
+  if (msg.includes("429")) return "Muitas tentativas. Aguarde alguns minutos e tente novamente.";
+  if (/already registered|already exists|User already registered/i.test(msg)) {
+    return "Este e-mail já está cadastrado. Faça login ou use outro e-mail.";
+  }
+  if (/password|weak/i.test(msg)) return "Senha fraca. Use os requisitos indicados abaixo.";
+  return msg;
+}
+
+type PublicPlanRow = { id: string; name: string; price?: number | null; features?: string[] | null };
+
 function Cadastro() {
-  const { planId } = Route.useSearch();
+  const { planId: planIdFromUrl } = Route.useSearch();
   const navigate = Route.useNavigate();
+  const [selectedPlanId, setSelectedPlanId] = useState<string | undefined>(planIdFromUrl);
   const {
     session,
     profileReady,
     isPlatformAdmin,
     companyMemberships,
+    isLoading,
     refresh: refreshAuth,
   } = useAuth();
   const oauthHandledRef = useRef(false);
 
-  usePublicAuthRedirect(planId);
+  const effectivePlanId = planIdFromUrl ?? selectedPlanId;
+
+  useEffect(() => {
+    if (planIdFromUrl) setSelectedPlanId(planIdFromUrl);
+  }, [planIdFromUrl]);
+
+  usePublicAuthRedirect(effectivePlanId, { skip: isPlatformAdmin });
 
   const [step, setStep] = useState<"account" | "verify_email">("account");
   const [companyName, setCompanyName] = useState("");
@@ -90,6 +143,7 @@ function Cadastro() {
     const fromUrl = readStudioNameFromUrl();
     if (fromUrl) setCompanyName(fromUrl);
     else if (c?.mode === "signup" && c.companyName) setCompanyName(c.companyName);
+    if (c?.planId) setSelectedPlanId(c.planId);
   }, []);
 
   useEffect(() => {
@@ -105,15 +159,14 @@ function Cadastro() {
     void (async () => {
       const res = await navigateAfterAuthenticatedSession({
         navigate,
-        planId: ctx.planId ?? planId,
+        planId: ctx.planId ?? effectivePlanId,
+        preferTrial: true,
         companyName: ctx.companyName?.trim() ? ctx.companyName : null,
         refreshAuth,
       });
       if (!res.ok) {
         oauthHandledRef.current = false;
-        if (res.code === "needs_company_name") {
-          setStep("account");
-        }
+        if (res.code === "needs_company_name") setStep("account");
         setError(res.error);
         return;
       }
@@ -124,26 +177,48 @@ function Cadastro() {
     profileReady,
     isPlatformAdmin,
     companyMemberships.length,
-    planId,
+    effectivePlanId,
     navigate,
     refreshAuth,
   ]);
 
   const plansQuery = useQuery({
-    queryKey: ["public", "plans"],
+    queryKey: ["public", "plans", "cadastro"],
     queryFn: async () => {
       const res = await subscriptionService.listPlans();
-      if (res.error) throw res.error;
-      return res.data ?? [];
+      const rows = (res.data ?? []) as PublicPlanRow[];
+      if (!res.error && rows.length > 0) return rows;
+      return PUBLIC_PLANS_FALLBACK.map((p) => ({
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        features: p.features,
+      }));
     },
-    enabled: Boolean(planId),
+    staleTime: 5 * 60_000,
+    retry: 1,
   });
 
-  const selectedPlan = useMemo(
-    () =>
-      (plansQuery.data ?? []).find((p: { id: string }) => String(p.id) === String(planId ?? "")) ?? null,
-    [plansQuery.data, planId],
-  );
+  const activePlans = useMemo(() => {
+    const rows = (plansQuery.data ?? []) as PublicPlanRow[];
+    return rows.filter((p) => !String(p.id).startsWith("fallback-"));
+  }, [plansQuery.data]);
+
+  const displayPlans = useMemo(() => {
+    const rows = (plansQuery.data ?? []) as PublicPlanRow[];
+    if (rows.length > 0) return rows;
+    return PUBLIC_PLANS_FALLBACK.map((p) => ({
+      id: p.id,
+      name: p.name,
+      price: p.price,
+      features: p.features,
+    }));
+  }, [plansQuery.data]);
+
+  const selectedPlan = useMemo(() => {
+    if (!effectivePlanId || effectivePlanId.startsWith("fallback-")) return null;
+    return displayPlans.find((p) => String(p.id) === String(effectivePlanId)) ?? null;
+  }, [displayPlans, effectivePlanId]);
 
   const createAccountMutation = useMutation({
     mutationFn: async () => {
@@ -153,7 +228,9 @@ function Cadastro() {
       if (!emailOk(e)) throw new Error("Digite um e-mail válido.");
       if (!passwordMeetsPolicy(password)) throw new Error("A senha não atende aos requisitos abaixo.");
       const loginBase = window.location.origin + "/login";
-      const emailRedirectTo = planId ? `${loginBase}?planId=${encodeURIComponent(planId)}` : loginBase;
+      const emailRedirectTo = effectivePlanId
+        ? `${loginBase}?planId=${encodeURIComponent(effectivePlanId)}`
+        : loginBase;
       const signUp = await authService.signUpWithPassword(e, password, {
         companyName: name,
         emailRedirectTo,
@@ -166,13 +243,7 @@ function Cadastro() {
       setStep("verify_email");
     },
     onError: (err: unknown) => {
-      const raw =
-        err && typeof err === "object" && "message" in err && typeof (err as { message: unknown }).message === "string"
-          ? (err as { message: string }).message
-          : "";
-      const msg =
-        raw && raw.length > 0 ? raw : "Não foi possível criar sua conta. Tente novamente.";
-      setError(msg.includes("429") ? "Muitas tentativas. Aguarde alguns minutos e tente novamente." : msg);
+      setError(formatSignupError(err));
     },
   });
 
@@ -189,10 +260,15 @@ function Cadastro() {
   const onAccountSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    clearOAuthFlowContext();
+    const name = companyName.trim();
+    saveOAuthFlowContext({
+      mode: "signup",
+      companyName: name,
+      planId: effectivePlanId,
+    });
     if (!isSupabaseConfigured()) {
       setError(
-        "Crie o arquivo .env na raiz do projeto com VITE_SUPABASE_URL e VITE_SUPABASE_PUBLISHABLE_KEY (ou VITE_SUPABASE_ANON_KEY). Valores em: Supabase → Configurações do projeto → API. Depois reinicie o npm run dev.",
+        "Crie o arquivo .env na raiz do projeto com VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY (JWT eyJ...). Valores em: Supabase → Configurações do projeto → API → Legacy anon. Depois reinicie o npm run dev.",
       );
       return;
     }
@@ -205,7 +281,7 @@ function Cadastro() {
     setFieldErrors({});
     if (!isSupabaseConfigured()) {
       setError(
-        "Configure o Supabase no arquivo .env (VITE_SUPABASE_URL e chave pública) e reinicie o servidor.",
+        "Configure o Supabase no .env (VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY eyJ...) e reinicie o servidor.",
       );
       return;
     }
@@ -219,7 +295,7 @@ function Cadastro() {
       saveOAuthFlowContext({
         mode: "signup",
         companyName: name,
-        planId,
+        planId: effectivePlanId,
       });
       const { data, error: oErr } = await authService.signInWithGoogle();
       if (oErr) {
@@ -235,6 +311,7 @@ function Cadastro() {
     }
   };
 
+  const loginSearch = effectivePlanId ? { planId: effectivePlanId } : {};
   const pending = createAccountMutation.isPending;
 
   return (
@@ -252,8 +329,8 @@ function Cadastro() {
             Configure seu studio em poucos minutos
           </h1>
           <p className="mt-4 max-w-md text-background/70">
-            Depois de criar a conta, você confirma o e-mail (se usar senha) e entra no painel para escolher o plano e
-            personalizar sua página pública.
+            Crie sua conta, vincule seu plano e acesse o painel com agenda, clientes e página pública pronta para
+            personalizar.
           </p>
           <ul className="mt-10 max-w-md space-y-4 text-sm text-background/65">
             {[
@@ -288,36 +365,59 @@ function Cadastro() {
             <>
               <h1 className="font-display text-2xl tracking-tight">Criar sua conta</h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Use Google ou e-mail. Em seguida você confirma o acesso e entra no painel.
+                Use Google ou e-mail. Sua empresa será criada automaticamente no primeiro acesso.
               </p>
 
-              {planId && (
-                <div className="mt-5 rounded-2xl border border-border bg-secondary/40 p-4 text-sm">
-                  <div className="font-medium text-foreground">Plano escolhido</div>
-                  {plansQuery.isLoading && (
-                    <div className="mt-2 space-y-2">
-                      <Skeleton className="h-4 w-40" />
-                      <Skeleton className="h-3 w-28" />
-                    </div>
-                  )}
-                  {plansQuery.isError && (
-                    <p className="mt-2 text-muted-foreground">
-                      Não foi possível carregar os planos agora. Você ainda pode criar a conta; escolha o plano de novo
-                      na página inicial se precisar.
-                    </p>
-                  )}
-                  {!plansQuery.isLoading && !plansQuery.isError && selectedPlan && (
-                    <p className="mt-2 text-muted-foreground">
-                      {selectedPlan.name} · R$ {formatBrl(Number(selectedPlan.price ?? 0))}/mês
-                    </p>
-                  )}
-                  {!plansQuery.isLoading && !plansQuery.isError && !selectedPlan && (
-                    <p className="mt-2 text-muted-foreground">
-                      Não encontramos esse plano. Volte à página inicial e selecione um plano válido.
-                    </p>
-                  )}
+              <div className="mt-5 rounded-2xl border border-border bg-secondary/40 p-4 text-sm">
+                <div className="font-medium text-foreground">
+                  {planIdFromUrl || selectedPlan ? "Plano escolhido" : "Escolha um plano (opcional)"}
                 </div>
-              )}
+                {plansQuery.isLoading && (
+                  <div className="mt-2 space-y-2">
+                    <Skeleton className="h-4 w-40" />
+                    <Skeleton className="h-3 w-28" />
+                  </div>
+                )}
+                {!plansQuery.isLoading && !planIdFromUrl && activePlans.length > 0 && (
+                  <div className="mt-3 grid gap-2">
+                    {activePlans.slice(0, 3).map((p) => {
+                      const picked = effectivePlanId === p.id;
+                      return (
+                        <button
+                          key={p.id}
+                          type="button"
+                          onClick={() => setSelectedPlanId(picked ? undefined : p.id)}
+                          className={`rounded-xl border px-3 py-2 text-left transition ${
+                            picked
+                              ? "border-gold bg-gold/10"
+                              : "border-border bg-background/60 hover:border-gold/40"
+                          }`}
+                        >
+                          <span className="font-medium text-foreground">{p.name}</span>
+                          <span className="ml-2 text-muted-foreground">
+                            R$ {formatBrl(Number(p.price ?? 0))}/mês
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                {!plansQuery.isLoading && selectedPlan && (
+                  <p className="mt-2 text-muted-foreground">
+                    {selectedPlan.name} · R$ {formatBrl(Number(selectedPlan.price ?? 0))}/mês
+                  </p>
+                )}
+                {!plansQuery.isLoading && effectivePlanId && !selectedPlan && (
+                  <p className="mt-2 text-muted-foreground">
+                    Plano não encontrado. Você poderá escolher um plano depois.
+                  </p>
+                )}
+                {!plansQuery.isLoading && !effectivePlanId && activePlans.length === 0 && (
+                  <p className="mt-2 text-muted-foreground">
+                    Você pode criar a conta agora e escolher o plano no painel depois.
+                  </p>
+                )}
+              </div>
 
               {error && (
                 <p
@@ -332,7 +432,7 @@ function Cadastro() {
                 <GoogleOAuthButton
                   label="Continuar com Google"
                   pending={googlePending}
-                  disabled={pending || authLoading}
+                  disabled={pending || isLoading}
                   onClick={() => void onGoogle()}
                 />
                 <div className="relative my-6">
@@ -429,10 +529,10 @@ function Cadastro() {
 
                 <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                   <Button type="submit" className="h-11 flex-1 rounded-full sm:min-w-[12rem]" disabled={pending || googlePending}>
-                    {pending ? "Criando…" : "Criar conta e continuar"}
+                    {pending ? "Criando…" : "Criar conta"}
                   </Button>
                   <Button variant="outline" className="h-11 rounded-full" type="button" asChild>
-                    <Link to="/login" search={planId ? { planId } : {}} className="inline-flex items-center justify-center">
+                    <Link to="/login" search={loginSearch} className="inline-flex items-center justify-center">
                       Já tenho conta
                     </Link>
                   </Button>
@@ -447,17 +547,24 @@ function Cadastro() {
               <p className="mt-1 text-sm text-muted-foreground">
                 Enviamos um link de confirmação para{" "}
                 <span className="font-medium text-foreground">{email.trim()}</span>. Confirme sua conta e depois faça
-                login para continuar.
+                login para entrar no painel.
               </p>
 
               <div className="mt-6 rounded-2xl border border-border bg-secondary/40 p-4 text-sm text-muted-foreground">
-                Seu studio será criado como <span className="font-medium text-foreground">{companyName.trim()}</span>{" "}
-                no primeiro acesso ao painel.
+                Seu studio <span className="font-medium text-foreground">{companyName.trim()}</span> será criado
+                automaticamente no primeiro login
+                {effectivePlanId && selectedPlan ? (
+                  <>
+                    {" "}
+                    com o plano <span className="font-medium text-foreground">{selectedPlan.name}</span>
+                  </>
+                ) : null}
+                .
               </div>
 
               <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                 <Button className="h-11 rounded-full" type="button" asChild>
-                  <Link to="/login" search={planId ? { planId } : {}} className="inline-flex items-center justify-center">
+                  <Link to="/login" search={loginSearch} className="inline-flex items-center justify-center">
                     Já confirmei, quero entrar
                   </Link>
                 </Button>

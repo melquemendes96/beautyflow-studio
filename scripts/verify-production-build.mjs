@@ -3,8 +3,8 @@
  * Valida saída do `npm run build` antes do PM2 subir em produção.
  * Não use `vite preview` na VPS — use `npm run start` (srvx).
  */
-import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, readFileSync, readdirSync, statSync } from "node:fs";
+import { join, resolve } from "node:path";
 
 const root = resolve(import.meta.dirname, "..");
 const required = [
@@ -29,4 +29,48 @@ if (failed) {
   process.exit(1);
 }
 
-console.log("[verify-production-build] OK — dist/server/server.js + dist/client prontos para srvx.");
+function walk(dir, out = []) {
+  for (const name of readdirSync(dir)) {
+    const p = join(dir, name);
+    if (statSync(p).isDirectory()) walk(p, out);
+    else out.push(p);
+  }
+  return out;
+}
+
+const distRoot = resolve(root, "dist");
+const bad = [];
+for (const file of walk(distRoot)) {
+  if (!/\.(js|mjs|html|json)$/i.test(file)) continue;
+  const text = readFileSync(file, "utf8");
+  // Chave real no bundle (não mensagens de erro genéricas)
+  if (/sb_publishable_[A-Za-z0-9_-]+/.test(text)) bad.push(file.replace(root + "/", ""));
+}
+
+if (bad.length > 0) {
+  console.error("[verify-production-build] ERRO: sb_publishable encontrado no build:");
+  for (const f of bad.slice(0, 8)) console.error(`  - ${f}`);
+  if (bad.length > 8) console.error(`  ... e mais ${bad.length - 8} arquivo(s)`);
+  console.error(
+    "\nRemova VITE_SUPABASE_PUBLISHABLE_KEY do .env, use só VITE_SUPABASE_ANON_KEY=eyJ..., limpe dist/.vite e rode npm run build de novo.\n",
+  );
+  process.exit(1);
+}
+
+const cadastroChunks = walk(resolve(root, "dist/client/assets")).filter((f) =>
+  /cadastro-[^/]+\.js$/i.test(f),
+);
+for (const file of cadastroChunks) {
+  const text = readFileSync(file, "utf8");
+  if (/\bauthLoading\b/.test(text)) {
+    console.error(
+      `[verify-production-build] ERRO: authLoading no bundle ${file.replace(root + "/", "")}`,
+    );
+    console.error("O cadastro quebra em produção. Use isLoading do useAuth(), não authLoading.");
+    process.exit(1);
+  }
+}
+
+console.log(
+  "[verify-production-build] OK — dist pronto (sem sb_publishable, sem authLoading no cadastro).",
+);

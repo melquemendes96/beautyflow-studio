@@ -2,22 +2,11 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
 
 /**
  * Cliente Supabase — apenas chave anon JWT (eyJ...). Nunca service_role no front.
- * PostgREST rejeita sb_publishable_* com sessão do usuário (401).
+ * Use apenas VITE_SUPABASE_ANON_KEY (JWT eyJ). Chaves publishable novas causam 401 com sessão.
  */
 
 const url = (import.meta.env.VITE_SUPABASE_URL as string | undefined)?.trim();
-
-function resolveSupabaseAnonKey(): string {
-  const anon = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined)?.trim() ?? "";
-  const publishable =
-    (import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY as string | undefined)?.trim() ?? "";
-
-  if (anon.startsWith("eyJ")) return anon;
-  if (publishable.startsWith("eyJ")) return publishable;
-  return "";
-}
-
-const supabaseAnonKey = resolveSupabaseAnonKey();
+const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY as string | undefined)?.trim() ?? "";
 
 export const supabaseProjectId: string =
   (import.meta.env.VITE_SUPABASE_PROJECT_ID as string | undefined) ?? "";
@@ -35,7 +24,7 @@ export function getSupabaseKeyConfigurationError(): string | null {
   if (!supabaseAnonKey.startsWith("eyJ")) {
     return (
       "VITE_SUPABASE_ANON_KEY ausente ou inválida. Use o JWT anon (eyJ...) em Supabase → Settings → API → Legacy → anon. " +
-      "Não use sb_publishable_ no lugar do anon — isso causa erro 401 no login."
+      "Use apenas a chave anon JWT (eyJ...), não a chave publishable do dashboard — isso causa 401."
     );
   }
   return null;

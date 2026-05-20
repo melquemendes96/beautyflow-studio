@@ -90,7 +90,7 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
     setError(null);
     if (!isSupabaseConfigured()) {
       setError(
-        "Configure o Supabase no arquivo .env (VITE_SUPABASE_URL e chave pública) e reinicie o servidor.",
+        "Configure o Supabase no .env (VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY eyJ...) e reinicie o servidor.",
       );
       return;
     }
