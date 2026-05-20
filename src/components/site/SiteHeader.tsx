@@ -46,7 +46,7 @@ export function SiteHeader() {
             to={DEMO_BOOKING_PATH}
             className="hidden rounded-full bg-foreground px-3 py-2 text-xs font-medium text-background shadow-soft transition hover:opacity-90 sm:inline-flex sm:px-4 sm:text-sm"
           >
-            Demo
+            Demonstração
           </Link>
           <button
             type="button"

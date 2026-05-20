@@ -181,6 +181,31 @@
   background: color-mix(in srgb, var(--color-success) 24%, var(--color-background));
 }
 
+/* Vitrine /demo — somente apresentação comercial */
+.demo-showcase-page {
+  background-color: #fdf9f4;
+  width: 100%;
+  max-width: 100%;
+}
+.demo-pill-instagram {
+  background: #fce8ef;
+  color: #333;
+}
+.demo-pill-whatsapp {
+  background: #e3f6ec;
+  color: #1a6b3f;
+}
+.demo-phone-scroll {
+  scrollbar-width: none;
+}
+.demo-phone-scroll::-webkit-scrollbar {
+  display: none;
+}
+.demo-preview--desktop .demo-pill-instagram,
+.demo-preview--desktop .demo-pill-whatsapp {
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
 /* Quantum Lovable - watermark removal */
 #lovable-badge {
   display: none !important;
