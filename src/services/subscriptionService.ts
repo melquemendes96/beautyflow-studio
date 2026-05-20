@@ -4,8 +4,13 @@ import { getSupabase } from "@/lib/supabaseClient";
  * Planos e assinaturas (`plans`, `tenant_subscriptions`, `payment_transactions`).
  */
 export const subscriptionService = {
-  listPlans() {
-    return getSupabase()
+  async listPlans() {
+    const supabase = getSupabase();
+    const rpc = await supabase.rpc("list_public_plans");
+    if (!rpc.error && rpc.data) {
+      return { ...rpc, data: rpc.data };
+    }
+    return supabase
       .from("plans")
       .select("id, name, price, features, active")
       .eq("active", true)

@@ -4,6 +4,7 @@ import { SiteHeader } from "@/components/site/SiteHeader";
 import { DEMO_BOOKING_PATH } from "@/lib/app-constants";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { Logo } from "@/components/brand/Logo";
+import { PUBLIC_PLANS_FALLBACK } from "@/lib/public-plans-fallback";
 import { subscriptionService } from "@/services/subscriptionService";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
@@ -58,8 +59,14 @@ function Landing() {
     queryKey: ["public", "plans"],
     queryFn: async () => {
       const res = await subscriptionService.listPlans();
-      if (res.error) throw res.error;
-      return res.data ?? [];
+      const rows = (res.data ?? []) as PublicPlan[];
+      if (!res.error && rows.length > 0) return rows;
+      return PUBLIC_PLANS_FALLBACK.map((p) => ({
+        id: p.id,
+        name: p.name,
+        price: p.price,
+        features: p.features,
+      }));
     },
     staleTime: 5 * 60_000,
   });
@@ -228,18 +235,9 @@ function Landing() {
             <p className="mt-3 text-muted-foreground">Sem fidelidade. Cancele quando quiser.</p>
           </div>
           <div className="mt-14 grid gap-6 md:grid-cols-3">
-            {plansQuery.isError && (
-              <div
-                role="alert"
-                className="rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive md:col-span-3"
-              >
-                Não foi possível carregar os planos agora. Atualize a página ou tente de novo em instantes.
-              </div>
-            )}
             {plansQuery.isLoading &&
               Array.from({ length: 3 }).map((_, i) => <LandingPlanCardSkeleton key={i} />)}
             {!plansQuery.isLoading &&
-              !plansQuery.isError &&
               plans.map((p, i) => {
                 const isHighlight = i === highlightIndex;
                 return (
@@ -271,10 +269,10 @@ function Landing() {
                     </ul>
                     <Link
                       to="/cadastro"
-                      search={{ planId: String(p.id) }}
+                      search={p.id.startsWith("fallback-") ? {} : { planId: String(p.id) }}
                       className="mt-7 inline-flex w-full items-center justify-center rounded-full bg-foreground py-3 text-sm font-medium text-background transition hover:opacity-90"
                     >
-                      Começar com {p.name}
+                      Começar agora
                     </Link>
                     <Link
                       to="/login"
@@ -286,11 +284,6 @@ function Landing() {
                   </div>
                 );
               })}
-            {!plansQuery.isLoading && !plansQuery.isError && plans.length === 0 && (
-              <div className="rounded-3xl border border-border bg-card p-8 text-sm text-muted-foreground md:col-span-3">
-                Nenhum plano ativo encontrado no Supabase. Crie os planos no painel Master.
-              </div>
-            )}
           </div>
         </div>
       </section>

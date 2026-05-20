@@ -1,7 +1,26 @@
 import { getSupabase } from "@/lib/supabaseClient";
+import { waitForValidSession } from "@/lib/wait-for-auth-session";
 
-async function syncMasterAccess(): Promise<void> {
-  await getSupabase().rpc("ensure_platform_admin");
+async function requireMasterSession() {
+  const session = await waitForValidSession(6);
+  if (!session?.access_token) {
+    return { ok: false as const, error: { message: "Sessão expirada. Faça login novamente.", status: 401 } };
+  }
+
+  const { data, error } = await getSupabase().rpc("ensure_platform_admin");
+  if (error) {
+    return { ok: false as const, error };
+  }
+
+  const payload = data as { ok?: boolean; is_platform_admin?: boolean } | null;
+  if (payload?.ok !== true && payload?.is_platform_admin !== true) {
+    return {
+      ok: false as const,
+      error: { message: "Acesso negado: usuário não é platform_admin.", status: 403 },
+    };
+  }
+
+  return { ok: true as const };
 }
 
 async function syncTenantSubscriptionFromMasterPlan(companyId: string, planId: string | null) {
@@ -33,25 +52,26 @@ async function syncTenantSubscriptionFromMasterPlan(companyId: string, planId: s
 
 /**
  * Painel master — leituras via RPC SECURITY DEFINER (RLS-safe).
- * Escritas usam tabelas com is_platform_admin() após ensure_platform_admin.
+ * Planos: CRUD via RPC master_* (não depende só de policy na tabela).
  */
 export const masterService = {
   async listCompanies() {
-    await syncMasterAccess();
+    const gate = await requireMasterSession();
+    if (!gate.ok) return { data: null, error: gate.error };
     const rpc = await getSupabase().rpc("master_list_companies");
     if (!rpc.error) return rpc;
     return getSupabase().from("companies").select("*").order("created_at", { ascending: false });
   },
 
   async listPlans() {
-    await syncMasterAccess();
-    const rpc = await getSupabase().rpc("master_list_plans");
-    if (!rpc.error) return rpc;
-    return getSupabase().from("plans").select("*").order("price");
+    const gate = await requireMasterSession();
+    if (!gate.ok) return { data: null, error: gate.error };
+    return getSupabase().rpc("master_list_plans");
   },
 
   async createCompany(input: { name: string; slug: string; email?: string; phone?: string; plan_id?: string | null }) {
-    await syncMasterAccess();
+    const gate = await requireMasterSession();
+    if (!gate.ok) return { data: null, error: gate.error };
     const res = await getSupabase()
       .from("companies")
       .insert({
@@ -75,7 +95,8 @@ export const masterService = {
   },
 
   async updateCompany(companyId: string, patch: { status?: string; plan_id?: string | null }) {
-    await syncMasterAccess();
+    const gate = await requireMasterSession();
+    if (!gate.ok) return { data: null, error: gate.error };
     const res = await getSupabase().from("companies").update(patch).eq("id", companyId).select("*").single();
     if (res.error) return res;
     if (Object.prototype.hasOwnProperty.call(patch, "plan_id")) {
@@ -86,31 +107,37 @@ export const masterService = {
   },
 
   async createPlan(input: { name: string; price: number; features: string[]; active: boolean }) {
-    await syncMasterAccess();
-    return getSupabase()
-      .from("plans")
-      .insert({
-        name: input.name,
-        price: input.price,
-        features: input.features,
-        active: input.active,
-      })
-      .select("*")
-      .single();
+    const gate = await requireMasterSession();
+    if (!gate.ok) return { data: null, error: gate.error };
+    return getSupabase().rpc("master_create_plan", {
+      p_name: input.name,
+      p_price: input.price,
+      p_features: input.features,
+      p_active: input.active,
+    });
   },
 
   async updatePlan(planId: string, patch: { name?: string; price?: number; features?: string[]; active?: boolean }) {
-    await syncMasterAccess();
-    return getSupabase().from("plans").update(patch).eq("id", planId).select("*").single();
+    const gate = await requireMasterSession();
+    if (!gate.ok) return { data: null, error: gate.error };
+    return getSupabase().rpc("master_update_plan", {
+      p_plan_id: planId,
+      p_name: patch.name ?? null,
+      p_price: patch.price ?? null,
+      p_features: patch.features ?? null,
+      p_active: patch.active ?? null,
+    });
   },
 
   async deletePlan(planId: string) {
-    await syncMasterAccess();
-    return getSupabase().from("plans").delete().eq("id", planId);
+    const gate = await requireMasterSession();
+    if (!gate.ok) return { data: null, error: gate.error };
+    return getSupabase().rpc("master_delete_plan", { p_plan_id: planId });
   },
 
   async listRecentPaidPayments(limit = 40) {
-    await syncMasterAccess();
+    const gate = await requireMasterSession();
+    if (!gate.ok) return { data: null, error: gate.error };
     return getSupabase()
       .from("payment_transactions")
       .select("id, amount, paid_at, created_at, status, companies(name, slug)")
@@ -121,7 +148,8 @@ export const masterService = {
   },
 
   async listRecentSupportTicketsWithCompany(limit = 40) {
-    await syncMasterAccess();
+    const gate = await requireMasterSession();
+    if (!gate.ok) return { data: null, error: gate.error };
     return getSupabase()
       .from("support_tickets")
       .select("id, subject, status, created_at, companies(name, slug)")
@@ -136,7 +164,8 @@ export const masterService = {
     active: boolean;
     expires_at?: string | null;
   }) {
-    await syncMasterAccess();
+    const gate = await requireMasterSession();
+    if (!gate.ok) return { data: null, error: gate.error };
     return getSupabase()
       .from("coupons")
       .insert({
@@ -154,12 +183,14 @@ export const masterService = {
     couponId: string,
     patch: { discount_type?: "percent" | "fixed"; discount_value?: number; active?: boolean; expires_at?: string | null },
   ) {
-    await syncMasterAccess();
+    const gate = await requireMasterSession();
+    if (!gate.ok) return { data: null, error: gate.error };
     return getSupabase().from("coupons").update(patch).eq("id", couponId).select("*").single();
   },
 
   async listSubscriptions() {
-    await syncMasterAccess();
+    const gate = await requireMasterSession();
+    if (!gate.ok) return { data: null, error: gate.error };
     const rpc = await getSupabase().rpc("master_list_subscriptions");
     if (!rpc.error && rpc.data) {
       const rows = (rpc.data as Record<string, unknown>[]).map((row) => ({
@@ -190,12 +221,14 @@ export const masterService = {
       current_period_end?: string | null;
     },
   ) {
-    await syncMasterAccess();
+    const gate = await requireMasterSession();
+    if (!gate.ok) return { data: null, error: gate.error };
     return getSupabase().from("tenant_subscriptions").update(patch).eq("id", subscriptionId).select("*").single();
   },
 
   async listPayments() {
-    await syncMasterAccess();
+    const gate = await requireMasterSession();
+    if (!gate.ok) return { data: null, error: gate.error };
     return getSupabase()
       .from("payment_transactions")
       .select("*, companies(name, slug), tenant_subscriptions(status, current_period_end, plan_id)")
@@ -212,7 +245,8 @@ export const masterService = {
     paid_at?: string | null;
     gateway_provider?: string;
   }) {
-    await syncMasterAccess();
+    const gate = await requireMasterSession();
+    if (!gate.ok) return { data: null, error: gate.error };
     return getSupabase()
       .from("payment_transactions")
       .insert({
@@ -233,7 +267,8 @@ export const masterService = {
     paymentId: string,
     patch: { status?: string; paid_at?: string | null; due_date?: string | null; payment_method?: string | null },
   ) {
-    await syncMasterAccess();
+    const gate = await requireMasterSession();
+    if (!gate.ok) return { data: null, error: gate.error };
     return getSupabase().from("payment_transactions").update(patch).eq("id", paymentId).select("*").single();
   },
 
@@ -260,7 +295,8 @@ export const masterService = {
   },
 
   async listSupportTickets() {
-    await syncMasterAccess();
+    const gate = await requireMasterSession();
+    if (!gate.ok) return { data: null, error: gate.error };
     return getSupabase()
       .from("support_tickets")
       .select("*")
@@ -268,7 +304,8 @@ export const masterService = {
   },
 
   async listCoupons() {
-    await syncMasterAccess();
+    const gate = await requireMasterSession();
+    if (!gate.ok) return { data: null, error: gate.error };
     return getSupabase().from("coupons").select("*").order("created_at", { ascending: false });
   },
 };
