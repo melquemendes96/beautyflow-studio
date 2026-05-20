@@ -1,4 +1,5 @@
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
+import { getAuthCallbackUrl } from "@/lib/auth-url";
 import { getSupabase } from "@/lib/supabaseClient";
 
 /**
@@ -28,11 +29,12 @@ export const authService = {
     });
   },
 
-  signInWithGoogle(redirectTo: string) {
+  signInWithGoogle(redirectTo?: string) {
+    const target = redirectTo?.trim() || getAuthCallbackUrl();
     return getSupabase().auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo,
+        redirectTo: target,
         queryParams: { access_type: "offline", prompt: "consent" },
       },
     });

@@ -13,7 +13,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthProvider";
 import {
   clearOAuthFlowContext,
-  appendStudioNameToRedirectUrl,
   readOAuthFlowContext,
   readStudioNameFromUrl,
   saveOAuthFlowContext,
@@ -62,7 +61,7 @@ function Cadastro() {
   const navigate = Route.useNavigate();
   const {
     session,
-    isLoading: authLoading,
+    profileReady,
     isPlatformAdmin,
     companyMemberships,
     refresh: refreshAuth,
@@ -94,7 +93,7 @@ function Cadastro() {
   }, []);
 
   useEffect(() => {
-    if (!isSupabaseConfigured() || authLoading || !session) return;
+    if (!isSupabaseConfigured() || !profileReady || !session) return;
     if (isPlatformAdmin || companyMemberships.length > 0) return;
 
     const ctx = readOAuthFlowContext();
@@ -122,7 +121,7 @@ function Cadastro() {
     })();
   }, [
     session,
-    authLoading,
+    profileReady,
     isPlatformAdmin,
     companyMemberships.length,
     planId,
@@ -217,17 +216,12 @@ function Cadastro() {
     }
     setGooglePending(true);
     try {
-      const base = window.location.origin;
-      const cadastroBase = planId
-        ? `${base}/cadastro?planId=${encodeURIComponent(planId)}`
-        : `${base}/cadastro`;
-      const cadastroUrl = appendStudioNameToRedirectUrl(cadastroBase, name);
       saveOAuthFlowContext({
         mode: "signup",
         companyName: name,
         planId,
       });
-      const { data, error: oErr } = await authService.signInWithGoogle(cadastroUrl);
+      const { data, error: oErr } = await authService.signInWithGoogle();
       if (oErr) {
         clearOAuthFlowContext();
         setError(oErr.message || "Não foi possível abrir o Google. Tente de novo.");

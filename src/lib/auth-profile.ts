@@ -129,15 +129,6 @@ async function loadPanelContext(session: Session): Promise<{
     console.warn("[loadAuthProfile] get_auth_panel_context:", rpcError.message);
   }
 
-  if (!isPlatformAdmin) {
-    const { data: ownAdmin } = await supabase
-      .from("platform_admins")
-      .select("id")
-      .eq("user_id", userId)
-      .maybeSingle();
-    if (ownAdmin?.id) isPlatformAdmin = true;
-  }
-
   if (memberships.length === 0 && !isPlatformAdmin) {
     const { data: companyRows } = await supabase
       .from("company_users")

@@ -8,9 +8,12 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useLocation } from "@tanstack/react-router";
 import type { Session, User } from "@supabase/supabase-js";
 import { loadAuthProfile, type CompanyMembership, isMasterAccount } from "@/lib/auth-profile";
 import { getAuthConfigError, readSessionQuick, withAuthTimeout } from "@/lib/auth-bootstrap";
+import { authPerf, authPerfTimed } from "@/lib/auth-perf";
+import { isPublicAuthPath } from "@/lib/public-routes";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabaseClient";
 
 type AuthContextValue = {
@@ -18,12 +21,14 @@ type AuthContextValue = {
   user: User | null;
   isPlatformAdmin: boolean;
   companyMemberships: CompanyMembership[];
-  /** Boot rápido (getSession) — rotas públicas liberam a UI quando false. */
+  /** false = UI pública pode renderizar; não bloqueia /login. */
   isLoading: boolean;
-  /** Perfil completo (RPC/memberships) carregado — use antes de redirect pós-login. */
+  /** RPC/memberships carregados (necessário antes de redirect pós-login). */
   profileReady: boolean;
   authConfigError: string | null;
-  refresh: (opts?: { silent?: boolean; waitForSession?: boolean }) => Promise<void>;
+  refresh: (opts?: { silent?: boolean; waitForSession?: boolean; full?: boolean }) => Promise<void>;
+  /** Carrega perfil completo (painéis protegidos). */
+  ensureFullProfile: () => Promise<void>;
   signOut: () => Promise<void>;
 };
 
@@ -31,20 +36,26 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 const PROFILE_REFRESH_EVENTS = new Set(["SIGNED_IN", "SIGNED_OUT", "USER_UPDATED", "PASSWORD_RECOVERY"]);
 
-const AUTH_BOOT_TIMEOUT_MS = 6000;
+const AUTH_BOOT_TIMEOUT_MS = 5000;
+const DEFERRED_PROFILE_MS = 1500;
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  const { pathname } = useLocation();
+
   const [session, setSession] = useState<Session | null>(null);
   const [user, setUser] = useState<User | null>(null);
   const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
   const [companyMemberships, setCompanyMemberships] = useState<CompanyMembership[]>([]);
   const [authConfigError, setAuthConfigError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState(false);
   const [profileReady, setProfileReady] = useState(false);
 
   const refreshInFlightRef = useRef<Promise<void> | null>(null);
+  const fullProfileLoadedRef = useRef(false);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const bootedRef = useRef(false);
+  const initialSessionHandledRef = useRef(false);
+  const deferredTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const applyQuickSession = useCallback((s: Session | null) => {
     setSession(s);
@@ -54,11 +65,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       setIsPlatformAdmin(false);
       setCompanyMemberships([]);
+      fullProfileLoadedRef.current = false;
     }
   }, []);
 
   const refresh = useCallback(
-    async (opts?: { silent?: boolean; waitForSession?: boolean }) => {
+    async (opts?: { silent?: boolean; waitForSession?: boolean; full?: boolean }) => {
       const configError = getAuthConfigError();
       if (configError) {
         setAuthConfigError(configError);
@@ -81,21 +93,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      const wantFull = opts?.full !== false;
+
       const run = (async () => {
         if (!opts?.silent) setIsLoading(true);
         try {
-          const profile = await withAuthTimeout(
-            loadAuthProfile({
-              waitForSession: opts?.waitForSession ?? false,
-              full: true,
-            }),
-            AUTH_BOOT_TIMEOUT_MS,
+          const profile = await authPerfTimed("loadAuthProfile", () =>
+            withAuthTimeout(
+              loadAuthProfile({
+                waitForSession: opts?.waitForSession ?? false,
+                full: wantFull,
+              }),
+              AUTH_BOOT_TIMEOUT_MS,
+            ),
           );
           setSession(profile.session);
           setUser(profile.user);
           setIsPlatformAdmin(profile.isPlatformAdmin);
           setCompanyMemberships(profile.companyMemberships);
           setAuthConfigError(profile.authConfigError);
+          if (wantFull && profile.session) {
+            fullProfileLoadedRef.current = true;
+          }
         } catch (e) {
           if (import.meta.env.DEV) console.warn("[AuthProvider] refresh timeout/error", e);
           const quick = await readSessionQuick();
@@ -117,8 +136,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [applyQuickSession],
   );
 
+  const ensureFullProfile = useCallback(async () => {
+    if (!session || fullProfileLoadedRef.current) {
+      if (!session) setProfileReady(true);
+      return;
+    }
+    await refresh({ silent: true, waitForSession: false, full: true });
+  }, [refresh, session]);
+
   const scheduleRefresh = useCallback(
-    (opts?: { silent?: boolean; waitForSession?: boolean }) => {
+    (opts?: { silent?: boolean; waitForSession?: boolean; full?: boolean }) => {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       debounceTimerRef.current = setTimeout(() => {
         debounceTimerRef.current = null;
@@ -137,41 +164,61 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setCompanyMemberships([]);
     setIsLoading(false);
     setProfileReady(true);
+    fullProfileLoadedRef.current = false;
   }, [applyQuickSession]);
 
   useEffect(() => {
     if (bootedRef.current) return;
     bootedRef.current = true;
 
+    authPerf("boot início", { path: pathname });
+
     const configError = getAuthConfigError();
     if (configError) {
       setAuthConfigError(configError);
-      setIsLoading(false);
       setProfileReady(true);
+      authPerf("boot fim — config error");
       return;
     }
 
     if (!isSupabaseConfigured()) {
-      setIsLoading(false);
       setProfileReady(true);
+      authPerf("boot fim — supabase off");
       return;
     }
 
-    const safetyTimer = window.setTimeout(() => {
-      setIsLoading(false);
-      setProfileReady(true);
-    }, AUTH_BOOT_TIMEOUT_MS);
+    const isPublic = isPublicAuthPath(pathname);
+    const isOAuthCallback = pathname === "/auth/callback";
 
     void (async () => {
-      const quick = await readSessionQuick();
+      const quick = await authPerfTimed("getSession", readSessionQuick);
       applyQuickSession(quick);
-      setIsLoading(false);
 
-      if (quick) {
-        await refresh({ silent: true, waitForSession: false });
-      } else {
+      if (!quick) {
         setProfileReady(true);
+        authPerf("boot fim — sem sessão");
+        return;
       }
+
+      if (isOAuthCallback) {
+        await refresh({ silent: true, waitForSession: false, full: true });
+        authPerf("boot fim — auth/callback");
+        return;
+      }
+
+      if (isPublic) {
+        setProfileReady(true);
+        authPerf("boot fim — rota pública com sessão (perfil completo adiado)");
+        deferredTimerRef.current = window.setTimeout(() => {
+          if (!fullProfileLoadedRef.current) {
+            void refresh({ silent: true, full: true });
+          }
+        }, DEFERRED_PROFILE_MS);
+        return;
+      }
+
+      await refresh({ silent: true, waitForSession: false, full: true });
+      authPerf("boot fim — rota protegida");
     })();
 
     const supabase = getSupabase();
@@ -179,21 +226,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((event) => {
       if (event === "TOKEN_REFRESHED") return;
+
       if (event === "INITIAL_SESSION") {
-        void refresh({ silent: true, waitForSession: false });
+        if (initialSessionHandledRef.current) return;
+        initialSessionHandledRef.current = true;
         return;
       }
+
       if (PROFILE_REFRESH_EVENTS.has(event)) {
-        scheduleRefresh({ silent: true, waitForSession: event === "SIGNED_IN" });
+        fullProfileLoadedRef.current = false;
+        scheduleRefresh({
+          silent: true,
+          waitForSession: event === "SIGNED_IN",
+          full: true,
+        });
       }
     });
 
     return () => {
-      window.clearTimeout(safetyTimer);
       subscription.unsubscribe();
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      if (deferredTimerRef.current) clearTimeout(deferredTimerRef.current);
     };
-  }, [applyQuickSession, refresh, scheduleRefresh]);
+  }, [applyQuickSession, pathname, refresh, scheduleRefresh]);
+
+  useEffect(() => {
+    if (!session || isPublicAuthPath(pathname) || fullProfileLoadedRef.current) return;
+    void ensureFullProfile();
+  }, [pathname, session, ensureFullProfile]);
 
   const value = useMemo(
     () => ({
@@ -205,6 +265,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profileReady,
       authConfigError,
       refresh,
+      ensureFullProfile,
       signOut,
     }),
     [
@@ -216,6 +277,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       profileReady,
       authConfigError,
       refresh,
+      ensureFullProfile,
       signOut,
     ],
   );

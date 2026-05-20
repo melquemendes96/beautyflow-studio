@@ -167,5 +167,27 @@ export async function guardPublicAuthRoute(_planId?: string): Promise<void> {
 }
 
 export const PublicRoute = guardPublicAuthRoute;
+export const ProtectedRoute = guardCompanyAdminRoute;
 export const CompanyAdminRoute = guardCompanyAdminRoute;
 export const MasterRoute = guardMasterRoute;
+
+/** Usuário autenticado sem empresa — onboarding. */
+export async function OnboardingGuard(): Promise<void> {
+  if (skipGuardOnServer()) return;
+  if (!isSupabaseConfigured()) {
+    throw redirect({ to: "/login" });
+  }
+  const profile = await loadAuthProfile({ full: true });
+  if (!profile.session) {
+    throw redirect({ to: "/login" });
+  }
+  if (profile.isPlatformAdmin || isMasterAccount(profile.session)) {
+    throw redirect({ to: "/master" });
+  }
+  if (profile.companyMemberships.length > 0) {
+    throw redirect({ to: "/admin" });
+  }
+}
+
+/** Exige assinatura ativa (painel empresa). */
+export const BillingGuard = guardCompanyTenantBillingAccess;

@@ -1,20 +1,17 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { OnboardingCompanyScreen } from "@/components/auth/OnboardingCompanyScreen";
-import { loadAuthProfile } from "@/lib/auth-profile";
-import { resolveAuthDestinationFromProfile } from "@/lib/auth-routing";
+import { readSessionQuick } from "@/lib/auth-bootstrap";
+import { isMasterAccount } from "@/lib/auth-profile";
 
+/** Só exige sessão — redirects pesados ficam no componente (evita travar navegação). */
 export const Route = createFileRoute("/onboarding/company")({
   beforeLoad: async () => {
-    const profile = await loadAuthProfile();
-    if (!profile.session) {
-      throw redirect({ to: "/login" });
+    const session = await readSessionQuick();
+    if (!session) {
+      throw redirect({ to: "/login", replace: true });
     }
-    if (profile.isPlatformAdmin) {
-      throw redirect({ to: "/master" });
-    }
-    const dest = resolveAuthDestinationFromProfile(profile);
-    if (dest.kind !== "onboarding_company" && dest.path) {
-      throw redirect({ to: dest.path, search: "search" in dest ? dest.search : undefined });
+    if (isMasterAccount(session)) {
+      throw redirect({ to: "/master/empresas", replace: true });
     }
   },
   component: OnboardingCompanyPage,

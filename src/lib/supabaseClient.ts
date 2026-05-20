@@ -58,9 +58,10 @@ function createSupabaseClient(): SupabaseClient {
 
   return createClient(url, supabaseAnonKey, {
     auth: {
+      flowType: "pkce",
       persistSession: isBrowser,
       autoRefreshToken: isBrowser,
-      detectSessionInUrl: isBrowser,
+      detectSessionInUrl: false,
       storageKey: `bf-${projectRef}-auth`,
     },
   });

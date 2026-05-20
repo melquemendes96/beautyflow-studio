@@ -5,7 +5,11 @@ import { getSupabase } from "@/lib/supabaseClient";
  */
 export const subscriptionService = {
   listPlans() {
-    return getSupabase().from("plans").select("*").eq("active", true).order("price");
+    return getSupabase()
+      .from("plans")
+      .select("id, name, price, features, active")
+      .eq("active", true)
+      .order("price");
   },
 
   getSubscriptionByCompany(companyId: string) {

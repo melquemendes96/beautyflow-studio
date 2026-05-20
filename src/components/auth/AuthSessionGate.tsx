@@ -13,10 +13,13 @@ type AuthSessionGateProps = {
  * Em rotas protegidas, mostra loader curto com botão de retry.
  */
 export function AuthSessionGate({ children }: AuthSessionGateProps) {
-  const { isLoading, authConfigError, refresh } = useAuth();
+  const { isLoading, profileReady, session, authConfigError, refresh } = useAuth();
   const { pathname } = useLocation();
 
-  if (isPublicAuthPath(pathname) || !isLoading) {
+  const isPublic = isPublicAuthPath(pathname);
+  const canRender = isPublic || (!isLoading && (!session || profileReady));
+
+  if (canRender) {
     return <>{children}</>;
   }
 

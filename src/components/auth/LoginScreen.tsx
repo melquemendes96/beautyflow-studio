@@ -1,15 +1,11 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+import { navigateAfterAuthenticatedSession } from "@/lib/complete-auth-onboarding";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Logo } from "@/components/brand/Logo";
 import { GoogleOAuthButton } from "@/components/auth/GoogleOAuthButton";
 import { authService } from "@/services/authService";
 import { getSupabaseKeyConfigurationError, isSupabaseConfigured } from "@/lib/supabaseClient";
-import { navigateAfterAuthenticatedSession } from "@/lib/complete-auth-onboarding";
-import {
-  clearOAuthFlowContext,
-  readOAuthFlowContext,
-  saveOAuthFlowContext,
-} from "@/lib/oauth-signup-intent";
+import { clearOAuthFlowContext, saveOAuthFlowContext } from "@/lib/oauth-signup-intent";
 import { useAuth } from "@/contexts/AuthProvider";
 import { isMasterAccount } from "@/lib/auth-profile";
 import { usePublicAuthRedirect } from "@/lib/use-public-auth-redirect";
@@ -31,7 +27,6 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
     authConfigError,
     refresh: refreshAuth,
   } = useAuth();
-  const oauthHandledRef = useRef(false);
   const [redirecting, setRedirecting] = useState(false);
 
   usePublicAuthRedirect(planId);
@@ -51,36 +46,7 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
     }
   }, [authConfigError]);
 
-  useEffect(() => {
-    if (!profileReady || !session || authConfigError) return;
-
-    const ctx = readOAuthFlowContext();
-    const fromOAuth = ctx?.mode === "login";
-    const alreadyLoggedIn = isPlatformAdmin || isMasterAccount(session);
-
-    if (!fromOAuth && !alreadyLoggedIn) return;
-    if (oauthHandledRef.current) return;
-    oauthHandledRef.current = true;
-    setRedirecting(true);
-    setError(null);
-
-    void (async () => {
-      const res = await navigateAfterAuthenticatedSession({
-        navigate,
-        planId: ctx?.planId ?? planId,
-        refreshAuth,
-      });
-      setRedirecting(false);
-      if (!res.ok) {
-        oauthHandledRef.current = false;
-        if (res.code !== "no_panel_access" || !isMasterAccount(session)) {
-          setError(res.error);
-        }
-        return;
-      }
-      clearOAuthFlowContext();
-    })();
-  }, [profileReady, session, authConfigError, isPlatformAdmin, planId, navigate, refreshAuth]);
+  useEffect(() => () => setRedirecting(false), []);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -92,6 +58,7 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
       return;
     }
     setPending(true);
+    let timeout: ReturnType<typeof window.setTimeout> | undefined;
     try {
       clearOAuthFlowContext();
       const { error: signError } = await authService.signInWithPassword(email.trim(), password);
@@ -100,13 +67,20 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
         return;
       }
       setRedirecting(true);
+      timeout = window.setTimeout(() => {
+        setRedirecting(false);
+        setError("O login demorou demais. Tente novamente.");
+      }, 22_000);
       const res = await navigateAfterAuthenticatedSession({
         navigate,
         planId,
         refreshAuth,
       });
       if (!res.ok) setError(res.error);
+    } catch {
+      setError("Erro inesperado ao entrar. Tente novamente.");
     } finally {
+      if (timeout) window.clearTimeout(timeout);
       setPending(false);
       setRedirecting(false);
     }
@@ -122,14 +96,12 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
     }
     setGooglePending(true);
     try {
-      const base = window.location.origin;
-      const loginUrl = planId ? `${base}/login?planId=${encodeURIComponent(planId)}` : `${base}/login`;
       saveOAuthFlowContext({
         mode: "login",
         companyName: "",
         planId,
       });
-      const { data, error: oErr } = await authService.signInWithGoogle(loginUrl);
+      const { data, error: oErr } = await authService.signInWithGoogle();
       if (oErr) {
         clearOAuthFlowContext();
         setError(oErr.message || "Não foi possível abrir o Google. Tente de novo.");

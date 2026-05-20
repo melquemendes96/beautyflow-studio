@@ -1,30 +1,38 @@
 import { useEffect, useRef } from "react";
-import { useNavigate } from "@tanstack/react-router";
+import { useLocation, useNavigate } from "@tanstack/react-router";
 import { useAuth } from "@/contexts/AuthProvider";
-import { isMasterAccount } from "@/lib/auth-profile";
-import { resolveAuthDestination, navigateToAuthDestination } from "@/lib/auth-routing";
+import { runPostLoginNavigation } from "@/lib/post-login";
+
+const SKIP_REDIRECT_PREFIXES = ["/onboarding", "/auth/callback", "/admin", "/master", "/billing"];
+
+function shouldSkipPublicRedirect(pathname: string): boolean {
+  return SKIP_REDIRECT_PREFIXES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+}
 
 /**
- * Se já autenticado com perfil carregado, redireciona (login/cadastro).
- * Não roda enquanto profileReady=false — evita redirect com sessão incompleta.
+ * Redireciona usuário já logado que abre /login ou /cadastro.
+ * Não roda em onboarding/admin/master (evita loop).
  */
 export function usePublicAuthRedirect(planId?: string) {
   const navigate = useNavigate();
-  const { session, profileReady, isPlatformAdmin, companyMemberships } = useAuth();
+  const { pathname } = useLocation();
+  const { session, profileReady, authConfigError, refresh } = useAuth();
   const handledRef = useRef(false);
 
   useEffect(() => {
-    if (!profileReady || !session) return;
+    if (shouldSkipPublicRedirect(pathname)) return;
+    if (!profileReady || !session || authConfigError) return;
     if (handledRef.current) return;
     handledRef.current = true;
 
-    void (async () => {
-      if (isMasterAccount(session) || isPlatformAdmin) {
-        await navigateToAuthDestination(navigate, { kind: "master", path: "/master" });
-        return;
+    void runPostLoginNavigation({
+      navigate,
+      planId,
+      refreshAuth: () => refresh({ silent: true, full: true }),
+    }).then((res) => {
+      if (!res.ok && import.meta.env.DEV) {
+        console.warn("[usePublicAuthRedirect]", res.error);
       }
-      const dest = await resolveAuthDestination({ planId });
-      await navigateToAuthDestination(navigate, dest);
-    })();
-  }, [profileReady, session, isPlatformAdmin, companyMemberships.length, planId, navigate]);
+    });
+  }, [pathname, profileReady, session, authConfigError, planId, navigate, refresh]);
 }

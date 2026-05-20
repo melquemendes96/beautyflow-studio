@@ -5,6 +5,7 @@ import {
   type AuthProfile,
   type CompanyMembership,
 } from "@/lib/auth-profile";
+import { resolvePostLoginDestination } from "@/lib/post-login";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabaseClient";
 import {
   getSubscriptionAccessReason,
@@ -13,11 +14,11 @@ import {
 } from "@/lib/subscription-access";
 
 export type AuthDestination =
-  | { kind: "master"; path: "/master" }
+  | { kind: "master"; path: "/master" | "/master/empresas" }
   | { kind: "onboarding_company"; path: "/onboarding/company" }
   | { kind: "billing"; path: "/billing/plans"; search?: Record<string, string> }
   | { kind: "billing_checkout"; path: "/billing/checkout"; search: { planId: string; trial?: string } }
-  | { kind: "dashboard"; path: "/dashboard" }
+  | { kind: "dashboard"; path: "/dashboard" | "/admin" }
   | { kind: "login"; path: "/login" }
   | { kind: "stay"; path: null };
 
@@ -66,7 +67,7 @@ export function resolveAuthDestinationFromProfile(
   }
 
   if (profile.isPlatformAdmin || isMasterAccount(profile.session)) {
-    return { kind: "master", path: "/master" };
+    return { kind: "master", path: "/master/empresas" };
   }
 
   const memberships = profile.companyMemberships;
@@ -121,23 +122,20 @@ export function resolveAuthDestinationFromProfile(
     };
   }
 
-  return { kind: "dashboard", path: "/dashboard" };
+  return { kind: "dashboard", path: "/admin" };
 }
 
-export async function resolveAuthDestination(
-  opts?: ResolveAuthDestinationOpts & { session?: Session | null },
+/** Resolve destino usando perfil já em memória (evita reload em rotas públicas). */
+export async function resolveAuthDestinationFromContext(
+  profile: Pick<AuthProfile, "session" | "isPlatformAdmin" | "companyMemberships" | "authConfigError">,
+  opts?: ResolveAuthDestinationOpts,
 ): Promise<AuthDestination> {
-  const profile = await loadAuthProfile({ waitForSession: true });
-  if (opts?.session && profile.session?.user.id !== opts.session.user.id) {
-    // profile já carregou sessão atual
-  }
-
   if (!profile.session) {
     return { kind: "login", path: "/login" };
   }
 
   if (profile.isPlatformAdmin || isMasterAccount(profile.session)) {
-    return { kind: "master", path: "/master" };
+    return { kind: "master", path: "/master/empresas" };
   }
 
   const companyId = profile.companyMemberships[0]?.company_id;
@@ -150,11 +148,18 @@ export async function resolveAuthDestination(
     fetchCompanyStatus(companyId),
   ]);
 
-  return resolveAuthDestinationFromProfile(profile, {
+  return resolveAuthDestinationFromProfile(profile as AuthProfile, {
     ...opts,
     subscription,
     companyStatus,
   });
+}
+
+/** Pós-login explícito — delega para post-login (sem polling). */
+export async function resolveAuthDestination(
+  opts?: ResolveAuthDestinationOpts & { session?: Session | null },
+): Promise<AuthDestination> {
+  return resolvePostLoginDestination(opts);
 }
 
 export type NavigateFn = (opts: {

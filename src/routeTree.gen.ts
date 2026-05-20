@@ -41,6 +41,7 @@ import { Route as BillingSuccessRouteImport } from './routes/billing.success'
 import { Route as BillingPlansRouteImport } from './routes/billing.plans'
 import { Route as BillingCheckoutRouteImport } from './routes/billing.checkout'
 import { Route as BillingCancelRouteImport } from './routes/billing.cancel'
+import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AgendarSlugRouteImport } from './routes/agendar.$slug'
 import { Route as AdminWhatsappRouteImport } from './routes/admin.whatsapp'
 import { Route as AdminServicosRouteImport } from './routes/admin.servicos'
@@ -213,6 +214,11 @@ const BillingCancelRoute = BillingCancelRouteImport.update({
   path: '/billing/cancel',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AuthCallbackRoute = AuthCallbackRouteImport.update({
+  id: '/auth/callback',
+  path: '/auth/callback',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AgendarSlugRoute = AgendarSlugRouteImport.update({
   id: '/agendar/$slug',
   path: '/agendar/$slug',
@@ -296,6 +302,7 @@ export interface FileRoutesByFullPath {
   '/admin/servicos': typeof AdminServicosRoute
   '/admin/whatsapp': typeof AdminWhatsappRoute
   '/agendar/$slug': typeof AgendarSlugRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/billing/cancel': typeof BillingCancelRoute
   '/billing/checkout': typeof BillingCheckoutRoute
   '/billing/plans': typeof BillingPlansRoute
@@ -339,6 +346,7 @@ export interface FileRoutesByTo {
   '/admin/servicos': typeof AdminServicosRoute
   '/admin/whatsapp': typeof AdminWhatsappRoute
   '/agendar/$slug': typeof AgendarSlugRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/billing/cancel': typeof BillingCancelRoute
   '/billing/checkout': typeof BillingCheckoutRoute
   '/billing/plans': typeof BillingPlansRoute
@@ -385,6 +393,7 @@ export interface FileRoutesById {
   '/admin/servicos': typeof AdminServicosRoute
   '/admin/whatsapp': typeof AdminWhatsappRoute
   '/agendar/$slug': typeof AgendarSlugRoute
+  '/auth/callback': typeof AuthCallbackRoute
   '/billing/cancel': typeof BillingCancelRoute
   '/billing/checkout': typeof BillingCheckoutRoute
   '/billing/plans': typeof BillingPlansRoute
@@ -432,6 +441,7 @@ export interface FileRouteTypes {
     | '/admin/servicos'
     | '/admin/whatsapp'
     | '/agendar/$slug'
+    | '/auth/callback'
     | '/billing/cancel'
     | '/billing/checkout'
     | '/billing/plans'
@@ -475,6 +485,7 @@ export interface FileRouteTypes {
     | '/admin/servicos'
     | '/admin/whatsapp'
     | '/agendar/$slug'
+    | '/auth/callback'
     | '/billing/cancel'
     | '/billing/checkout'
     | '/billing/plans'
@@ -520,6 +531,7 @@ export interface FileRouteTypes {
     | '/admin/servicos'
     | '/admin/whatsapp'
     | '/agendar/$slug'
+    | '/auth/callback'
     | '/billing/cancel'
     | '/billing/checkout'
     | '/billing/plans'
@@ -557,6 +569,7 @@ export interface RootRouteChildren {
   PlansRoute: typeof PlansRoute
   RegisterRoute: typeof RegisterRoute
   AgendarSlugRoute: typeof AgendarSlugRoute
+  AuthCallbackRoute: typeof AuthCallbackRoute
   BillingCancelRoute: typeof BillingCancelRoute
   BillingCheckoutRoute: typeof BillingCheckoutRoute
   BillingPlansRoute: typeof BillingPlansRoute
@@ -789,6 +802,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BillingCancelRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/auth/callback': {
+      id: '/auth/callback'
+      path: '/auth/callback'
+      fullPath: '/auth/callback'
+      preLoaderRoute: typeof AuthCallbackRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/agendar/$slug': {
       id: '/agendar/$slug'
       path: '/agendar/$slug'
@@ -968,6 +988,7 @@ const rootRouteChildren: RootRouteChildren = {
   PlansRoute: PlansRoute,
   RegisterRoute: RegisterRoute,
   AgendarSlugRoute: AgendarSlugRoute,
+  AuthCallbackRoute: AuthCallbackRoute,
   BillingCancelRoute: BillingCancelRoute,
   BillingCheckoutRoute: BillingCheckoutRoute,
   BillingPlansRoute: BillingPlansRoute,

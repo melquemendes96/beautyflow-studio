@@ -1,16 +1,13 @@
-import { resolveAuthDestination } from "@/lib/auth-routing";
+import { resolvePostLoginDestination } from "@/lib/post-login";
 
 export type PostLoginResult =
-  | { ok: true; href: "/dashboard" | "/master" | "/billing/plans" | "/onboarding/company" }
+  | { ok: true; href: "/admin" | "/master/empresas" | "/billing/plans" | "/onboarding/company" }
   | { ok: false; reason: "no_panel_access" | "auth_config" };
 
-/** Destino após login — delega para auth-routing (fonte única). */
+/** @deprecated use resolvePostLoginDestination / runPostLoginNavigation */
 export async function getPostLoginDestination(planId?: string): Promise<PostLoginResult> {
-  const dest = await resolveAuthDestination({ planId });
-  if (dest.kind === "stay") {
-    return { ok: false, reason: "no_panel_access" };
-  }
-  if (dest.kind === "login") {
+  const dest = await resolvePostLoginDestination({ planId });
+  if (dest.kind === "stay" || dest.kind === "login") {
     return { ok: false, reason: "no_panel_access" };
   }
   return { ok: true, href: dest.path };

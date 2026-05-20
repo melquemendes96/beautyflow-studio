@@ -11,6 +11,7 @@ import {
 import appCss from "../styles.css?url";
 import { AuthProvider } from "@/contexts/AuthProvider";
 import { AuthSessionGate } from "@/components/auth/AuthSessionGate";
+import { OAuthUrlRecovery } from "@/components/auth/OAuthUrlRecovery";
 import { Toaster } from "@/components/ui/sonner";
 
 function NotFoundComponent() {
@@ -120,6 +121,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <AuthProvider>
+        <OAuthUrlRecovery />
         <AuthSessionGate>
           <Outlet />
         </AuthSessionGate>

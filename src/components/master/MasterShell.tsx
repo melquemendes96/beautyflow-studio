@@ -38,12 +38,17 @@ export function MasterShell() {
   const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const { user, session, isPlatformAdmin, isLoading, signOut, refresh } = useAuth();
+  const { user, session, isPlatformAdmin, isLoading, profileReady, signOut, refresh, ensureFullProfile } =
+    useAuth();
   const masterRetryRef = useRef(0);
   const [masterAccessOk, setMasterAccessOk] = useState(false);
 
   useEffect(() => {
-    if (isLoading) return;
+    void ensureFullProfile();
+  }, [ensureFullProfile]);
+
+  useEffect(() => {
+    if (!profileReady || isLoading) return;
 
     if (!session) {
       masterRetryRef.current = 0;
@@ -67,9 +72,9 @@ export function MasterShell() {
 
     masterRetryRef.current = 0;
     void navigate({ to: "/login", replace: true });
-  }, [isLoading, isPlatformAdmin, navigate, refresh, session]);
+  }, [isLoading, isPlatformAdmin, navigate, profileReady, refresh, session]);
 
-  if (isLoading || !session || !masterAccessOk) {
+  if (!profileReady || isLoading || !session || !masterAccessOk) {
     return (
       <div className="min-h-screen bg-secondary/30">
         <div className="mx-auto flex min-h-screen max-w-md items-center justify-center px-6 text-center">

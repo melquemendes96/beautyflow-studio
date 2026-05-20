@@ -32,7 +32,17 @@ export function AdminShell() {
   const [open, setOpen] = useState(false);
   const { pathname } = useLocation();
   const navigate = useNavigate();
-  const { user, session, isPlatformAdmin, companyMemberships, isLoading, signOut, refresh } = useAuth();
+  const {
+    user,
+    session,
+    isPlatformAdmin,
+    companyMemberships,
+    isLoading,
+    profileReady,
+    signOut,
+    refresh,
+    ensureFullProfile,
+  } = useAuth();
   const { companyId, hasCompany } = useCurrentCompany();
   const membershipSyncRef = useRef(0);
 
@@ -96,9 +106,12 @@ export function AdminShell() {
     };
   }, [subscriptionQuery.data]);
 
-  // Trava de segurança: não renderiza painel antes de validar a sessão no client.
   useEffect(() => {
-    if (isLoading) return;
+    void ensureFullProfile();
+  }, [ensureFullProfile]);
+
+  useEffect(() => {
+    if (!profileReady || isLoading) return;
 
     if (!session) {
       membershipSyncRef.current = 0;
@@ -126,9 +139,9 @@ export function AdminShell() {
 
     membershipSyncRef.current = 0;
     void navigate({ to: "/onboarding/company", replace: true });
-  }, [companyMemberships.length, isLoading, isPlatformAdmin, navigate, refresh, session]);
+  }, [companyMemberships.length, isLoading, isPlatformAdmin, navigate, profileReady, refresh, session]);
 
-  if (isLoading || !session) {
+  if (!profileReady || isLoading || !session) {
     return (
       <div className="min-h-screen bg-secondary/30">
         <div className="mx-auto flex min-h-screen max-w-md items-center justify-center px-6 text-center">

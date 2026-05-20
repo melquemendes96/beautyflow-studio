@@ -35,6 +35,7 @@ function PublicPlansPage() {
       if (res.error) throw res.error;
       return res.data ?? [];
     },
+    staleTime: 5 * 60_000,
   });
 
   const plans = (plansQuery.data ?? []) as PublicPlan[];
