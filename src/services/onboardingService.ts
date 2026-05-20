@@ -11,14 +11,15 @@ export type CompanyOnboardingInput = {
 };
 
 export const onboardingService = {
-  bootstrapCompany(params?: { companyName?: string | null }) {
-    return getSupabase().rpc("user_bootstrap_company", {
+  async bootstrapCompany(params?: { companyName?: string | null }) {
+    const { data, error } = await getSupabase().rpc("user_bootstrap_company", {
       p_company_name: params?.companyName ?? null,
     });
+    return { data, error };
   },
 
-  completeCompanyOnboarding(input: CompanyOnboardingInput) {
-    return getSupabase().rpc("complete_company_onboarding", {
+  async completeCompanyOnboarding(input: CompanyOnboardingInput) {
+    const { data, error } = await getSupabase().rpc("complete_company_onboarding", {
       p_company_name: input.companyName,
       p_owner_name: input.ownerName ?? null,
       p_whatsapp: input.whatsapp ?? null,
@@ -27,10 +28,11 @@ export const onboardingService = {
       p_city: input.city ?? null,
       p_state: input.state ?? null,
     });
+    return { data, error };
   },
 
-  markOnboardingComplete() {
-    return getSupabase().rpc("company_mark_onboarding_complete");
+  async markOnboardingComplete() {
+    const { data, error } = await getSupabase().rpc("company_mark_onboarding_complete");
+    return { data, error };
   },
 };
-

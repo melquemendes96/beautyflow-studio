@@ -16,6 +16,17 @@ const BOOTSTRAP_TIMEOUT_MS = 25_000;
 
 let bootstrapInFlight: Promise<BootstrapResult> | null = null;
 
+/** Não bloqueia login se ensure_user_profile falhar. */
+async function safeEnsureProfile(): Promise<void> {
+  try {
+    await profileService.ensureProfile();
+  } catch (e) {
+    if (import.meta.env.DEV) {
+      console.warn("[post-login] ensureProfile ignorado:", e);
+    }
+  }
+}
+
 export type PostLoginRoute =
   | "/master/empresas"
   | "/admin"
@@ -95,7 +106,7 @@ export async function ensureUserCompanyBootstrap(opts: {
       };
     }
 
-    await profileService.ensureProfile().catch(() => undefined);
+    await safeEnsureProfile();
 
     const boot = await withAuthTimeout(
       onboardingService.bootstrapCompany({ companyName: name }),
@@ -145,9 +156,13 @@ export async function runPostLoginNavigation(opts: {
   refreshAuth?: () => Promise<void>;
 }): Promise<{ ok: true } | { ok: false; error: string; code?: string }> {
   try {
-    await profileService.ensureProfile().catch(() => undefined);
+    await safeEnsureProfile();
 
     let profile = await loadPostLoginProfile();
+
+    if (!profile.session) {
+      return { ok: false, error: "Sessão não encontrada. Faça login novamente.", code: "unauthorized" };
+    }
 
     if (profile.isPlatformAdmin || isMasterAccount(profile.session)) {
       await opts.refreshAuth?.();
