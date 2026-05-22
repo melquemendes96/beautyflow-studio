@@ -9,6 +9,7 @@ const PUBLIC_PATH_PREFIXES = [
   "/planos",
   "/demo",
   "/forgot-password",
+  "/reset-password",
   "/auth/callback",
 ] as const;
 

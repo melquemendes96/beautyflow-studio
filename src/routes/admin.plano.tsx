@@ -5,6 +5,7 @@ import { Check, CreditCard } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AdminEmptyState, AdminServiceCardSkeleton, AdminTableRowSkeleton } from "@/components/admin/AdminPageStates";
 import { useCurrentCompany } from "@/lib/current-company";
+import { useAuth } from "@/contexts/AuthProvider";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { subscriptionService } from "@/services/subscriptionService";
 import { paymentService } from "@/services/paymentService";
@@ -38,6 +39,7 @@ function Plano() {
     pathname === "/admin/plano/checkout" || pathname.startsWith("/admin/plano/checkout/");
 
   const { companyId, hasCompany } = useCurrentCompany();
+  const { isPlatformAdmin } = useAuth();
   const { checkout, billing, need } = Route.useSearch();
   const navigate = Route.useNavigate();
   const queryClient = useQueryClient();
@@ -46,16 +48,16 @@ function Plano() {
     if (isCheckoutChild) return;
     if (!checkout) return;
     if (checkout === "success") {
-      toast.success("Pagamento confirmado. Sua assinatura foi atualizada.");
+      toast.success("Plano ativado. Sua assinatura foi atualizada com sucesso.");
       void queryClient.invalidateQueries({ queryKey: ["admin", "subscription"] });
       void queryClient.invalidateQueries({ queryKey: ["admin", "payments"] });
       if (companyId) {
         void queryClient.invalidateQueries({ queryKey: ["admin", "notification_feed", companyId] });
       }
     } else if (checkout === "failure") {
-      toast.error("O pagamento não foi concluído no Mercado Pago. Tente novamente ou escolha outro método.");
+      toast.error("O pagamento não foi concluído. Tente novamente ou escolha outro método.");
     } else if (checkout === "pending") {
-      toast.message("Pagamento pendente (ex.: PIX). Assim que o Mercado Pago confirmar, sua assinatura será atualizada automaticamente.");
+      toast.message("Pagamento pendente. Estamos aguardando a confirmação — sua assinatura será ativada em instantes.");
     } else if (checkout === "cancel") {
       toast.message("Checkout encerrado sem pagamento. Você pode tentar de novo quando quiser.");
     }
@@ -130,7 +132,13 @@ function Plano() {
       const res = await paymentService.simulateCompanyPaymentOutcome(pendingPayment.id, outcome);
       if (res.error) throw res.error;
       const payload = res.data as { ok?: boolean; error?: string; outcome?: string };
-      if (payload?.ok === false) throw new Error(payload.error ?? "Não foi possível simular o pagamento.");
+      if (payload?.ok === false) {
+        const code = String(payload.error ?? "");
+        if (code === "simulacao_nao_disponivel") {
+          throw new Error("Simulação indisponível para contas de empresa.");
+        }
+        throw new Error("Não foi possível concluir a simulação.");
+      }
       return payload;
     },
     onSuccess: async (payload) => {
@@ -447,7 +455,7 @@ function Plano() {
           </div>
         )}
 
-      {import.meta.env.DEV && hasCompany && pendingPayment && (
+      {import.meta.env.DEV && isPlatformAdmin && hasCompany && pendingPayment && (
         <div className="mb-8 rounded-2xl border border-dashed border-gold/40 bg-gold-soft/10 p-6 shadow-soft">
           <h2 className="font-display text-lg text-foreground">Pagamento simulado (demonstração)</h2>
           <p className="mt-2 text-sm text-muted-foreground">

@@ -1,5 +1,5 @@
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
-import { getAuthCallbackUrl } from "@/lib/auth-url";
+import { getAuthCallbackUrl, getPasswordResetRedirectUrl } from "@/lib/auth-url";
 import { getSupabase } from "@/lib/supabaseClient";
 
 /**
@@ -42,6 +42,16 @@ export const authService = {
 
   signInWithPassword(email: string, password: string) {
     return getSupabase().auth.signInWithPassword({ email, password });
+  },
+
+  resetPasswordForEmail(email: string) {
+    return getSupabase().auth.resetPasswordForEmail(email.trim(), {
+      redirectTo: getPasswordResetRedirectUrl(),
+    });
+  },
+
+  updatePassword(newPassword: string) {
+    return getSupabase().auth.updateUser({ password: newPassword });
   },
 
   signOut() {

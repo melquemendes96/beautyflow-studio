@@ -9,6 +9,7 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as ResetPasswordRouteImport } from './routes/reset-password'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as PlansRouteImport } from './routes/plans'
 import { Route as PlanosRouteImport } from './routes/planos'
@@ -54,6 +55,11 @@ import { Route as AdminBrandingRouteImport } from './routes/admin.branding'
 import { Route as AdminAgendaRouteImport } from './routes/admin.agenda'
 import { Route as AdminPlanoCheckoutRouteImport } from './routes/admin.plano.checkout'
 
+const ResetPasswordRoute = ResetPasswordRouteImport.update({
+  id: '/reset-password',
+  path: '/reset-password',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const RegisterRoute = RegisterRouteImport.update({
   id: '/register',
   path: '/register',
@@ -292,6 +298,7 @@ export interface FileRoutesByFullPath {
   '/planos': typeof PlanosRoute
   '/plans': typeof PlansRoute
   '/register': typeof RegisterRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/admin/agenda': typeof AdminAgendaRoute
   '/admin/branding': typeof AdminBrandingRoute
   '/admin/clientes': typeof AdminClientesRoute
@@ -336,6 +343,7 @@ export interface FileRoutesByTo {
   '/planos': typeof PlanosRoute
   '/plans': typeof PlansRoute
   '/register': typeof RegisterRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/admin/agenda': typeof AdminAgendaRoute
   '/admin/branding': typeof AdminBrandingRoute
   '/admin/clientes': typeof AdminClientesRoute
@@ -383,6 +391,7 @@ export interface FileRoutesById {
   '/planos': typeof PlanosRoute
   '/plans': typeof PlansRoute
   '/register': typeof RegisterRoute
+  '/reset-password': typeof ResetPasswordRoute
   '/admin/agenda': typeof AdminAgendaRoute
   '/admin/branding': typeof AdminBrandingRoute
   '/admin/clientes': typeof AdminClientesRoute
@@ -431,6 +440,7 @@ export interface FileRouteTypes {
     | '/planos'
     | '/plans'
     | '/register'
+    | '/reset-password'
     | '/admin/agenda'
     | '/admin/branding'
     | '/admin/clientes'
@@ -475,6 +485,7 @@ export interface FileRouteTypes {
     | '/planos'
     | '/plans'
     | '/register'
+    | '/reset-password'
     | '/admin/agenda'
     | '/admin/branding'
     | '/admin/clientes'
@@ -521,6 +532,7 @@ export interface FileRouteTypes {
     | '/planos'
     | '/plans'
     | '/register'
+    | '/reset-password'
     | '/admin/agenda'
     | '/admin/branding'
     | '/admin/clientes'
@@ -568,6 +580,7 @@ export interface RootRouteChildren {
   PlanosRoute: typeof PlanosRoute
   PlansRoute: typeof PlansRoute
   RegisterRoute: typeof RegisterRoute
+  ResetPasswordRoute: typeof ResetPasswordRoute
   AgendarSlugRoute: typeof AgendarSlugRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   BillingCancelRoute: typeof BillingCancelRoute
@@ -578,6 +591,13 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/reset-password': {
+      id: '/reset-password'
+      path: '/reset-password'
+      fullPath: '/reset-password'
+      preLoaderRoute: typeof ResetPasswordRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/register': {
       id: '/register'
       path: '/register'
@@ -987,6 +1007,7 @@ const rootRouteChildren: RootRouteChildren = {
   PlanosRoute: PlanosRoute,
   PlansRoute: PlansRoute,
   RegisterRoute: RegisterRoute,
+  ResetPasswordRoute: ResetPasswordRoute,
   AgendarSlugRoute: AgendarSlugRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   BillingCancelRoute: BillingCancelRoute,

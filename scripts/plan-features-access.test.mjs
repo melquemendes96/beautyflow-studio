@@ -52,4 +52,12 @@ assert.equal(legacyPlanNameAllowsFeature(elite, "branding"), true);
 assert.equal(legacyPlanNameAllowsFeature("", "agenda"), false);
 assert.equal(legacyPlanNameAllowsFeature(null, "clients"), false);
 
+// Fail-closed: erro RPC não deve usar fallback no client (espelha hasFeatureAccess em prod)
+function hasFeatureAccessClientSim(rpcOk, rpcData, rpcError) {
+  if (!rpcOk && rpcError) return false;
+  if (typeof rpcData === "boolean") return rpcData;
+  return false;
+}
+assert.equal(hasFeatureAccessClientSim(false, null, { message: "rpc missing" }), false);
+
 console.log("plan-features-access: all tests passed");

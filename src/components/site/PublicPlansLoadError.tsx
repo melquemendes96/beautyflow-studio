@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 
-const MESSAGE = "Não foi possível carregar os planos agora. Tente novamente.";
+const MESSAGE = "Erro ao carregar os planos. Tente novamente em instantes.";
 
 type Props = {
   onRetry: () => void;

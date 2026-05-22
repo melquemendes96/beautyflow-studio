@@ -193,15 +193,23 @@ async function insertPaymentLog(
     company_id?: string | null;
     event: string;
     status?: string | null;
+    payment_id?: string | null;
     payload?: unknown;
   },
 ): Promise<void> {
   try {
+    const basePayload =
+      row.payload && typeof row.payload === "object" && !Array.isArray(row.payload)
+        ? { ...(row.payload as Record<string, unknown>) }
+        : {};
+    if (row.payment_id) {
+      basePayload.payment_id = row.payment_id;
+    }
     const { error } = await admin.from("payment_logs").insert({
       company_id: row.company_id ?? null,
       event: row.event,
       status: row.status ?? null,
-      payload: sanitizePaymentLogPayload(row.payload ?? {}),
+      payload: sanitizePaymentLogPayload(basePayload),
     });
     if (error) console.error("[mercado-pago-webhook] payment_logs:", error.message);
   } catch (e) {
@@ -460,9 +468,29 @@ Deno.serve(async (req) => {
 
   const paymentResourceId = parsePaymentIdFromRequest(req, bodyUnknown);
 
-  if (webhookSecret) {
-    const sigErr = await assertMercadoPagoSignature(req, url, bodyUnknown, paymentResourceId, webhookSecret);
-    if (sigErr) return sigErr;
+  if (!webhookSecret) {
+    console.error("[mercado-pago-webhook] MERCADO_PAGO_WEBHOOK_SECRET ausente — POST rejeitado");
+    await insertPaymentLog(admin, {
+      event: "webhook_unauthorized",
+      status: "401",
+      payment_id: paymentResourceId,
+      payload: { reason: "missing_webhook_secret" },
+    });
+    return new Response(JSON.stringify({ error: "Unauthorized" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  const sigErr = await assertMercadoPagoSignature(req, url, bodyUnknown, paymentResourceId, webhookSecret);
+  if (sigErr) {
+    await insertPaymentLog(admin, {
+      event: "webhook_unauthorized",
+      status: String(sigErr.status),
+      payment_id: paymentResourceId,
+      payload: { reason: "invalid_or_missing_x_signature" },
+    });
+    return sigErr;
   }
 
   if (!paymentResourceId) {
