@@ -3,6 +3,7 @@ import { PageTitle } from "@/components/admin/AdminShell";
 import { Calendar, Users, Wallet, TrendingUp, Sparkles, AlertTriangle, CheckCircle2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AdminAgendaRowSkeleton, AdminKpiCardSkeleton } from "@/components/admin/AdminPageStates";
+import { compareAppointmentTime, formatAppointmentTimeHm } from "@/lib/appointment-time";
 import { useCurrentCompany } from "@/lib/current-company";
 import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -193,11 +194,7 @@ function Dashboard() {
   );
 
   const agendaHoje = useMemo(() => {
-    const list = (todayAppointmentsQuery.data ?? []).slice().sort((a: any, b: any) => {
-      const ta = String(a.appointment_time ?? "");
-      const tb = String(b.appointment_time ?? "");
-      return ta.localeCompare(tb);
-    });
+    const list = (todayAppointmentsQuery.data ?? []).slice().sort((a: any, b: any) => compareAppointmentTime(a.appointment_time, b.appointment_time));
     return list.slice(0, 5);
   }, [todayAppointmentsQuery.data]);
 
@@ -292,7 +289,7 @@ function Dashboard() {
             ) : (
               agendaHoje.map((a: any) => (
                 <div key={a.id} className="flex items-center gap-4 py-3">
-                  <div className="w-14 text-sm font-medium">{String(a.appointment_time ?? "").slice(0, 5)}</div>
+                  <div className="w-14 text-sm font-medium">{formatAppointmentTimeHm(a.appointment_time)}</div>
                   <div className="flex-1">
                     <div className="text-sm font-medium">{a.client?.name ?? "Cliente"}</div>
                     <div className="text-xs text-muted-foreground">{a.service?.name ?? "Serviço"}</div>

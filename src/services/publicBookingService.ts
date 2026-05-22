@@ -1,4 +1,5 @@
 import { getSupabase } from "@/lib/supabaseClient";
+import { parsePublicBookingRpcResult, type PublicBookingRpcResult } from "@/lib/appointment-time";
 import { normalizePublicBookingSlug } from "@/lib/public-booking-slug";
 
 /**
@@ -19,7 +20,7 @@ export const publicBookingService = {
     });
   },
 
-  createBooking(params: {
+  async createBooking(params: {
     slug: string;
     serviceId: string;
     appointmentDate: string;
@@ -29,15 +30,19 @@ export const publicBookingService = {
     clientWhatsapp: string;
     notes?: string | null;
   }) {
-    return getSupabase().rpc("create_public_booking", {
+    const timeHm = params.appointmentTime.trim().slice(0, 5);
+    const res = await getSupabase().rpc("create_public_booking", {
       p_slug: normalizePublicBookingSlug(params.slug),
       p_service_id: params.serviceId,
       p_appointment_date: params.appointmentDate,
-      p_appointment_time: params.appointmentTime,
+      p_appointment_time: timeHm,
       p_client_name: params.clientName,
       p_client_email: params.clientEmail,
       p_client_whatsapp: params.clientWhatsapp,
       p_notes: params.notes ?? null,
     });
+    if (res.error) return res;
+    const parsed = parsePublicBookingRpcResult(res.data);
+    return { ...res, data: parsed as PublicBookingRpcResult };
   },
 };

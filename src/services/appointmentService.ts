@@ -53,6 +53,15 @@ export const appointmentService = {
       .single();
   },
 
+  listRecentByCompany(companyId: string, limit = 40) {
+    return getSupabase()
+      .from("appointments")
+      .select("id,created_at,appointment_date,appointment_time,status,client:clients(name,whatsapp,email),service:services(name)")
+      .eq("company_id", companyId)
+      .order("created_at", { ascending: false })
+      .limit(limit);
+  },
+
   updateStatus(companyId: string, appointmentId: string, status: string) {
     return getSupabase()
       .from("appointments")

@@ -95,12 +95,13 @@ function Agendar() {
         notes: form.notes || null,
       });
       if (res.error) throw res.error;
-      return res.data as { ok?: boolean; error?: string };
+      return res.data;
     },
     onSuccess: (d) => {
-      if (d?.ok === false) {
+      if (!d?.ok || !d.appointment_id) {
         if (d?.error === "horario_indisponivel") {
           toast.error("Esse horário acabou de ficar indisponível. Escolha outro horário.");
+          setHora(null);
           return;
         }
         toast.error("Não foi possível criar o agendamento. Verifique os dados.");

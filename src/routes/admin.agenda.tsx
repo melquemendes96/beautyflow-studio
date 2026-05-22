@@ -23,6 +23,12 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AdminAgendaDaySlotSkeleton, AdminAgendaWeekGridSkeleton } from "@/components/admin/AdminPageStates";
+import {
+  clientContactLine,
+  compareAppointmentTime,
+  formatAppointmentDateYmd,
+  formatAppointmentTimeHm,
+} from "@/lib/appointment-time";
 
 export const Route = createFileRoute("/admin/agenda")({
   component: Agenda,
@@ -116,6 +122,8 @@ function Agenda() {
       if (res.error) throw res.error;
       return res.data ?? [];
     },
+    refetchInterval: 30_000,
+    staleTime: 10_000,
   });
 
   const dayBlocksQuery = useQuery({
@@ -141,7 +149,19 @@ function Agenda() {
       if (res.error) throw res.error;
       return res.data ?? [];
     },
+    refetchInterval: 30_000,
+    staleTime: 10_000,
   });
+
+  const weekTimeSlots = useMemo(() => {
+    const base = ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"];
+    const times = new Set(base);
+    for (const a of weekAppointmentsQuery.data ?? []) {
+      const t = formatAppointmentTimeHm(a.appointment_time);
+      if (t) times.add(t);
+    }
+    return Array.from(times).sort();
+  }, [weekAppointmentsQuery.data]);
 
   const createAppointmentMutation = useMutation({
     mutationFn: async () => {
@@ -201,11 +221,27 @@ function Agenda() {
     },
   });
 
+  const dayTimeSlots = useMemo(() => {
+    const times = new Set<string>();
+    for (let h = 8; h <= 18; h++) times.add(`${String(h).padStart(2, "0")}:00`);
+    for (const a of dayAppointmentsQuery.data ?? []) {
+      const t = formatAppointmentTimeHm(a.appointment_time);
+      if (t) times.add(t);
+    }
+    return Array.from(times).sort();
+  }, [dayAppointmentsQuery.data]);
+
   const dayEventsByTime = useMemo(() => {
-    const list = dayAppointmentsQuery.data ?? [];
-    const map = new Map<string, any>();
-    for (const a of list) {
-      map.set(String(a.appointment_time ?? "").slice(0, 5), a);
+    const map = new Map<string, any[]>();
+    for (const a of dayAppointmentsQuery.data ?? []) {
+      const key = formatAppointmentTimeHm(a.appointment_time);
+      if (!key) continue;
+      const list = map.get(key) ?? [];
+      list.push(a);
+      map.set(key, list);
+    }
+    for (const [, list] of map) {
+      list.sort((x, y) => compareAppointmentTime(x.appointment_time, y.appointment_time));
     }
     return map;
   }, [dayAppointmentsQuery.data]);
@@ -340,53 +376,61 @@ function Agenda() {
 
       {view === "dia" ? (
         <div className="rounded-2xl border border-border bg-card p-2 shadow-soft">
-          {dayAppointmentsQuery.isLoading || dayBlocksQuery.isLoading ? (
+          {dayAppointmentsQuery.isError ? (
+            <p className="px-3 py-6 text-center text-sm text-destructive">Não foi possível carregar os agendamentos deste dia.</p>
+          ) : dayAppointmentsQuery.isLoading || dayBlocksQuery.isLoading ? (
             Array.from({ length: 11 }).map((_, i) => <AdminAgendaDaySlotSkeleton key={`day-sk-${i}`} />)
+          ) : dayTimeSlots.length === 0 ? (
+            <p className="px-3 py-6 text-center text-sm text-muted-foreground">Nenhum horário para exibir.</p>
           ) : (
-            Array.from({ length: 11 }).map((_, i) => {
-              const hora = `${String(8 + i).padStart(2, "0")}:00`;
-              const evento = dayEventsByTime.get(hora);
+            dayTimeSlots.map((hora) => {
+              const eventos = dayEventsByTime.get(hora) ?? [];
               const blocked = isBlockedAt(hora);
               return (
                 <div key={hora} className="flex gap-4 border-b border-border last:border-0 px-3 py-3">
                   <div className="w-14 pt-1 text-xs text-muted-foreground">{hora}</div>
-                  <div className="flex-1">
-                    {evento ? (
-                      <div className="rounded-xl bg-secondary/60 p-3">
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="text-sm font-medium">{evento.client?.name ?? "Cliente"}</div>
-                          <span className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] ${statusClass[evento.status] ?? statusClass.scheduled}`}>
-                            {statusLabel[evento.status] ?? "Agendado"}
-                          </span>
+                  <div className="flex-1 space-y-2">
+                    {eventos.length > 0 ? (
+                      eventos.map((evento) => (
+                        <div key={evento.id} className="rounded-xl bg-secondary/60 p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <div className="text-sm font-medium">{evento.client?.name ?? "Cliente"}</div>
+                            <span
+                              className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] ${statusClass[evento.status] ?? statusClass.scheduled}`}
+                            >
+                              {statusLabel[evento.status] ?? "Agendado"}
+                            </span>
+                          </div>
+                          <div className="text-xs text-muted-foreground">{evento.service?.name ?? "Serviço"}</div>
+                          <div className="mt-0.5 text-xs text-muted-foreground">{clientContactLine(evento.client)}</div>
+                          <div className="mt-2 flex flex-wrap gap-1.5 text-[11px]">
+                            <button
+                              type="button"
+                              className="rounded-full border border-border bg-background px-2.5 py-1 hover:bg-accent"
+                              onClick={() => updateStatusMutation.mutate({ id: evento.id, status: "completed" })}
+                            >
+                              Concluir
+                            </button>
+                            <button type="button" className="rounded-full border border-border bg-background px-2.5 py-1 hover:bg-accent" disabled>
+                              Reagendar
+                            </button>
+                            <button
+                              type="button"
+                              className="rounded-full border border-border bg-background px-2.5 py-1 hover:bg-accent"
+                              onClick={() => updateStatusMutation.mutate({ id: evento.id, status: "cancelled" })}
+                            >
+                              Cancelar
+                            </button>
+                            <button
+                              type="button"
+                              className="rounded-full border border-border bg-background px-2.5 py-1 hover:bg-accent"
+                              onClick={() => updateStatusMutation.mutate({ id: evento.id, status: "no_show" })}
+                            >
+                              Não compareceu
+                            </button>
+                          </div>
                         </div>
-                        <div className="text-xs text-muted-foreground">{evento.service?.name ?? "Serviço"}</div>
-                        <div className="mt-2 flex flex-wrap gap-1.5 text-[11px]">
-                          <button
-                            type="button"
-                            className="rounded-full border border-border bg-background px-2.5 py-1 hover:bg-accent"
-                            onClick={() => updateStatusMutation.mutate({ id: evento.id, status: "completed" })}
-                          >
-                            Concluir
-                          </button>
-                          <button type="button" className="rounded-full border border-border bg-background px-2.5 py-1 hover:bg-accent" disabled>
-                            Reagendar
-                          </button>
-                          <button
-                            type="button"
-                            className="rounded-full border border-border bg-background px-2.5 py-1 hover:bg-accent"
-                            onClick={() => updateStatusMutation.mutate({ id: evento.id, status: "cancelled" })}
-                          >
-                            Cancelar
-                          </button>
-                          <button
-                            type="button"
-                            className="rounded-full border border-border bg-background px-2.5 py-1 hover:bg-accent"
-                            onClick={() => updateStatusMutation.mutate({ id: evento.id, status: "no_show" })}
-                          >
-                            Não compareceu
-                          </button>
-                        </div>
-                      </div>
+                      ))
                     ) : (
                       <div className="rounded-xl border border-dashed border-border px-3 py-3 text-xs text-muted-foreground">
                         {blocked ? "Bloqueado" : "Horário livre"}
@@ -414,7 +458,7 @@ function Agenda() {
                   </div>
                 );
               })}
-              {["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"].map((h) => (
+              {weekTimeSlots.map((h) => (
                 <FragmentRow key={h} h={h} weekStart={weekStart} weekAppointments={weekAppointmentsQuery.data ?? []} />
               ))}
             </div>
@@ -437,9 +481,9 @@ function FragmentRow({
   const byDay = useMemo(() => {
     const map = new Map<string, any>();
     for (const a of weekAppointments) {
-      const time = String(a.appointment_time ?? "").slice(0, 5);
+      const time = formatAppointmentTimeHm(a.appointment_time);
       if (time !== h) continue;
-      map.set(String(a.appointment_date), a);
+      map.set(formatAppointmentDateYmd(a.appointment_date), a);
     }
     return map;
   }, [weekAppointments, h]);

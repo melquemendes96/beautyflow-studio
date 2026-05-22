@@ -3,6 +3,8 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { Bell } from "lucide-react";
+import { formatAppointmentDateYmd, formatAppointmentTimeHm } from "@/lib/appointment-time";
+import { appointmentService } from "@/services/appointmentService";
 import { paymentService } from "@/services/paymentService";
 import { supportTicketService } from "@/services/supportTicketService";
 import { addReadAdminNotificationIds, getReadAdminNotificationIds } from "@/lib/admin-notification-read";
@@ -13,14 +15,36 @@ import { cn } from "@/lib/utils";
 
 export type AdminFeedItem = {
   id: string;
-  kind: "payment" | "ticket";
+  kind: "payment" | "ticket" | "booking";
   title: string;
   subtitle: string;
   at: string;
+  href?: string;
 };
 
-function buildAdminFeed(payments: unknown[], tickets: unknown[]): AdminFeedItem[] {
+function buildAdminFeed(payments: unknown[], tickets: unknown[], appointments: unknown[]): AdminFeedItem[] {
   const out: AdminFeedItem[] = [];
+
+  for (const raw of appointments) {
+    const a = raw as Record<string, unknown>;
+    const client = a.client as Record<string, unknown> | null | undefined;
+    const service = a.service as Record<string, unknown> | null | undefined;
+    const dateYmd = formatAppointmentDateYmd(a.appointment_date);
+    const timeHm = formatAppointmentTimeHm(a.appointment_time);
+    const clientName = String(client?.name ?? "Cliente");
+    const serviceName = String(service?.name ?? "Serviço");
+    const dateLabel = dateYmd
+      ? new Date(`${dateYmd}T12:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })
+      : "";
+    out.push({
+      id: `appt:${String(a.id ?? "")}`,
+      kind: "booking",
+      title: "Novo agendamento recebido",
+      subtitle: `${clientName} · ${serviceName}${dateLabel && timeHm ? ` · ${dateLabel} ${timeHm}` : ""}`,
+      at: String(a.created_at ?? ""),
+      href: "/admin/agenda",
+    });
+  }
 
   for (const raw of payments) {
     const p = raw as Record<string, unknown>;
@@ -70,15 +94,18 @@ export function AdminNotificationsBell({ companyId, hasCompany }: AdminNotificat
     enabled: hasCompany && Boolean(companyId),
     queryFn: async () => {
       const cid = companyId!;
-      const [payRes, tickRes] = await Promise.all([
+      const [payRes, tickRes, apptRes] = await Promise.all([
         paymentService.listRecentPaidForCompany(cid, 40),
         supportTicketService.listRecentForCompany(cid, 40),
+        appointmentService.listRecentByCompany(cid, 40),
       ]);
       if (payRes.error) throw payRes.error;
       if (tickRes.error) throw tickRes.error;
+      if (apptRes.error) throw apptRes.error;
       return {
         payments: payRes.data ?? [],
         tickets: tickRes.data ?? [],
+        appointments: apptRes.data ?? [],
       };
     },
     refetchInterval: 45_000,
@@ -86,8 +113,13 @@ export function AdminNotificationsBell({ companyId, hasCompany }: AdminNotificat
   });
 
   const items = useMemo(
-    () => buildAdminFeed(feedQuery.data?.payments ?? [], feedQuery.data?.tickets ?? []),
-    [feedQuery.data?.payments, feedQuery.data?.tickets],
+    () =>
+      buildAdminFeed(
+        feedQuery.data?.payments ?? [],
+        feedQuery.data?.tickets ?? [],
+        feedQuery.data?.appointments ?? [],
+      ),
+    [feedQuery.data?.payments, feedQuery.data?.tickets, feedQuery.data?.appointments],
   );
 
   const unreadCount = useMemo(
@@ -193,7 +225,7 @@ export function AdminNotificationsBell({ companyId, hasCompany }: AdminNotificat
                 return (
                   <li key={it.id}>
                     <Link
-                      to="/admin/plano"
+                      to={it.href ?? "/admin/plano"}
                       onClick={() => {
                         markOneRead(it.id);
                         setOpen(false);
