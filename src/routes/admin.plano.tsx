@@ -435,15 +435,19 @@ function Plano() {
         </div>
       </div>
 
-      {hasCompany && subscriptionQuery.data && !pendingPayment && String(subscriptionQuery.data.status ?? "") === "trialing" && (
-        <div className="mb-8 rounded-2xl border border-border bg-secondary/40 p-4 text-sm text-muted-foreground">
-          No período de teste não há cobrança pendente. Para testar a simulação de pagamento, finalize um checkout{" "}
-          <strong className="text-foreground">sem</strong> usar &quot;Iniciar teste&quot; (fluxo pago gera uma cobrança
-          pendente).
-        </div>
-      )}
+      {import.meta.env.DEV &&
+        hasCompany &&
+        subscriptionQuery.data &&
+        !pendingPayment &&
+        String(subscriptionQuery.data.status ?? "") === "trialing" && (
+          <div className="mb-8 rounded-2xl border border-border bg-secondary/40 p-4 text-sm text-muted-foreground">
+            No período de teste não há cobrança pendente. Para testar a simulação de pagamento, finalize um checkout{" "}
+            <strong className="text-foreground">sem</strong> usar &quot;Iniciar teste&quot; (fluxo pago gera uma cobrança
+            pendente).
+          </div>
+        )}
 
-      {hasCompany && pendingPayment && (
+      {import.meta.env.DEV && hasCompany && pendingPayment && (
         <div className="mb-8 rounded-2xl border border-dashed border-gold/40 bg-gold-soft/10 p-6 shadow-soft">
           <h2 className="font-display text-lg text-foreground">Pagamento simulado (demonstração)</h2>
           <p className="mt-2 text-sm text-muted-foreground">

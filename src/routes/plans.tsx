@@ -2,8 +2,8 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { SiteFooter } from "@/components/site/SiteFooter";
-import { subscriptionService } from "@/services/subscriptionService";
-import { PUBLIC_PLANS_FALLBACK } from "@/lib/public-plans-fallback";
+import { fetchPublicPlans } from "@/lib/fetch-public-plans";
+import { PublicPlansLoadError } from "@/components/site/PublicPlansLoadError";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Check } from "lucide-react";
 
@@ -31,17 +31,7 @@ function formatBrl(value: number) {
 function PublicPlansPage() {
   const plansQuery = useQuery({
     queryKey: ["public", "plans", "page"],
-    queryFn: async () => {
-      const res = await subscriptionService.listPlans();
-      const rows = (res.data ?? []) as PublicPlan[];
-      if (!res.error && rows.length > 0) return rows;
-      return PUBLIC_PLANS_FALLBACK.map((p) => ({
-        id: p.id,
-        name: p.name,
-        price: p.price,
-        features: p.features,
-      }));
-    },
+    queryFn: fetchPublicPlans,
     staleTime: 5 * 60_000,
     retry: 1,
   });
@@ -68,7 +58,21 @@ function PublicPlansPage() {
                 <Skeleton className="mt-6 h-32 w-full" />
               </div>
             ))}
-          {plans.map((plan) => (
+          {plansQuery.isError && (
+            <div className="md:col-span-3">
+              <PublicPlansLoadError
+                onRetry={() => void plansQuery.refetch()}
+                isRetrying={plansQuery.isFetching}
+              />
+            </div>
+          )}
+          {!plansQuery.isLoading && !plansQuery.isError && plans.length === 0 && (
+            <p className="md:col-span-3 text-center text-sm text-muted-foreground">
+              Nenhum plano ativo no momento.
+            </p>
+          )}
+          {!plansQuery.isError &&
+            plans.map((plan) => (
             <article
               key={plan.id}
               className="flex flex-col rounded-3xl border border-border bg-card p-8 shadow-soft"
@@ -89,14 +93,14 @@ function PublicPlansPage() {
               <div className="mt-8 flex flex-col gap-2">
                 <Link
                   to="/cadastro"
-                  search={plan.id.startsWith("fallback-") ? {} : { planId: plan.id }}
+                  search={{ planId: plan.id }}
                   className="rounded-full bg-foreground py-3 text-center text-sm font-medium text-background"
                 >
                   Começar teste grátis
                 </Link>
                 <Link
                   to="/cadastro"
-                  search={plan.id.startsWith("fallback-") ? {} : { planId: plan.id }}
+                  search={{ planId: plan.id }}
                   className="rounded-full border border-border py-3 text-center text-sm font-medium"
                 >
                   Assinar agora

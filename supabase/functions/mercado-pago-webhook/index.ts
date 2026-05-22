@@ -137,6 +137,89 @@ async function assertMercadoPagoSignature(
   return null;
 }
 
+const SENSITIVE_PAYLOAD_KEYS = new Set([
+  "email",
+  "payer_email",
+  "card",
+  "card_number",
+  "security_code",
+  "token",
+  "access_token",
+  "authorization",
+  "document",
+  "identification",
+  "cpf",
+  "cnpj",
+  "phone",
+  "password",
+  "secret",
+]);
+
+function sanitizePaymentLogPayload(input: unknown): Record<string, unknown> {
+  if (input == null) return {};
+  if (typeof input !== "object") return { value: String(input).slice(0, 200) };
+
+  const walk = (obj: Record<string, unknown>, depth: number): Record<string, unknown> => {
+    if (depth > 4) return { truncated: true };
+    const out: Record<string, unknown> = {};
+    for (const [key, val] of Object.entries(obj)) {
+      const k = key.toLowerCase();
+      if (SENSITIVE_PAYLOAD_KEYS.has(k) || k.includes("email") || k.includes("document")) {
+        out[key] = "[redacted]";
+        continue;
+      }
+      if (val == null || typeof val === "string" || typeof val === "number" || typeof val === "boolean") {
+        out[key] = typeof val === "string" ? val.slice(0, 500) : val;
+      } else if (Array.isArray(val)) {
+        out[key] = val.slice(0, 8).map((item) =>
+          typeof item === "object" && item !== null
+            ? walk(item as Record<string, unknown>, depth + 1)
+            : item,
+        );
+      } else if (typeof val === "object") {
+        out[key] = walk(val as Record<string, unknown>, depth + 1);
+      }
+    }
+    return out;
+  };
+
+  return walk(input as Record<string, unknown>, 0);
+}
+
+async function insertPaymentLog(
+  admin: SupabaseClient,
+  row: {
+    company_id?: string | null;
+    event: string;
+    status?: string | null;
+    payload?: unknown;
+  },
+): Promise<void> {
+  try {
+    const { error } = await admin.from("payment_logs").insert({
+      company_id: row.company_id ?? null,
+      event: row.event,
+      status: row.status ?? null,
+      payload: sanitizePaymentLogPayload(row.payload ?? {}),
+    });
+    if (error) console.error("[mercado-pago-webhook] payment_logs:", error.message);
+  } catch (e) {
+    console.error("[mercado-pago-webhook] payment_logs insert failed", e);
+  }
+}
+
+async function resolveCompanyIdFromPaymentRow(
+  admin: SupabaseClient,
+  paymentRowId: string,
+): Promise<string | null> {
+  const { data } = await admin
+    .from("payment_transactions")
+    .select("company_id")
+    .eq("id", paymentRowId)
+    .maybeSingle();
+  return data?.company_id ?? null;
+}
+
 async function fetchPayment(accessToken: string, paymentId: string): Promise<MpPayment | null> {
   const res = await fetch(`https://api.mercadopago.com/v1/payments/${paymentId}`, {
     headers: { Authorization: `Bearer ${accessToken}` },
@@ -153,19 +236,40 @@ async function processApprovedOrRejectedPayment(
   accessToken: string,
   paymentResourceId: string,
 ): Promise<Response> {
+  await insertPaymentLog(admin, {
+    event: "webhook_payment_received",
+    status: "processing",
+    payload: { mp_payment_id: paymentResourceId },
+  });
+
   const mpPayment = await fetchPayment(accessToken, paymentResourceId);
   if (!mpPayment) {
+    await insertPaymentLog(admin, {
+      event: "mp_payment_fetch_failed",
+      status: "error",
+      payload: { mp_payment_id: paymentResourceId },
+    });
     return new Response("payment fetch failed", { status: 502 });
   }
 
   const extRef = mpPayment.external_reference?.trim();
   if (!extRef) {
     console.error("mp payment without external_reference", mpPayment.id);
+    await insertPaymentLog(admin, {
+      event: "mp_payment_no_external_reference",
+      status: "skipped",
+      payload: {
+        mp_payment_id: String(mpPayment.id ?? paymentResourceId),
+        mp_status: mpPayment.status ?? null,
+      },
+    });
     return new Response(JSON.stringify({ received: true, skipped: "no_external_reference" }), {
       status: 200,
       headers: { "Content-Type": "application/json" },
     });
   }
+
+  const companyId = await resolveCompanyIdFromPaymentRow(admin, extRef);
 
   const { data: existingRow } = await admin
     .from("payment_transactions")
@@ -204,13 +308,45 @@ async function processApprovedOrRejectedPayment(
     });
     if (error) {
       console.error(error);
+      await insertPaymentLog(admin, {
+        company_id: companyId,
+        event: "payment_renewal_rpc_error",
+        status: "error",
+        payload: {
+          payment_transaction_id: extRef,
+          mp_payment_id: String(mpPayment.id ?? paymentResourceId),
+          mp_status: status,
+          error: error.message,
+        },
+      });
       return new Response("rpc error", { status: 500 });
     }
     const result = data as { ok?: boolean };
     if (result?.ok === false) {
       console.error("service_apply_payment_renewal", data);
+      await insertPaymentLog(admin, {
+        company_id: companyId,
+        event: "payment_renewal_failed",
+        status: "error",
+        payload: {
+          payment_transaction_id: extRef,
+          mp_payment_id: String(mpPayment.id ?? paymentResourceId),
+          mp_status: status,
+          result: data,
+        },
+      });
       return new Response("renewal failed", { status: 500 });
     }
+    await insertPaymentLog(admin, {
+      company_id: companyId,
+      event: "payment_approved",
+      status: "approved",
+      payload: {
+        payment_transaction_id: extRef,
+        mp_payment_id: String(mpPayment.id ?? paymentResourceId),
+        mp_status: status,
+      },
+    });
   } else if (
     status === "rejected" ||
     status === "cancelled" ||
@@ -223,8 +359,40 @@ async function processApprovedOrRejectedPayment(
     });
     if (error) {
       console.error(error);
+      await insertPaymentLog(admin, {
+        company_id: companyId,
+        event: "payment_reject_rpc_error",
+        status: "error",
+        payload: {
+          payment_transaction_id: extRef,
+          mp_payment_id: String(mpPayment.id ?? paymentResourceId),
+          mp_status: status,
+          error: error.message,
+        },
+      });
       return new Response("reject rpc error", { status: 500 });
     }
+    await insertPaymentLog(admin, {
+      company_id: companyId,
+      event: "payment_rejected",
+      status,
+      payload: {
+        payment_transaction_id: extRef,
+        mp_payment_id: String(mpPayment.id ?? paymentResourceId),
+        mp_status: status,
+      },
+    });
+  } else {
+    await insertPaymentLog(admin, {
+      company_id: companyId,
+      event: "payment_status_other",
+      status,
+      payload: {
+        payment_transaction_id: extRef,
+        mp_payment_id: String(mpPayment.id ?? paymentResourceId),
+        mp_status: status,
+      },
+    });
   }
 
   return new Response(JSON.stringify({ received: true, processed: "payment", payment_id: paymentResourceId }), {
@@ -300,6 +468,15 @@ Deno.serve(async (req) => {
       "[mercado-pago-webhook] ignored (not a payment resource — assinatura BeautyFlow usa Checkout Pro + webhook de payment). hint=",
       hint,
     );
+    await insertPaymentLog(admin, {
+      event: "webhook_ignored",
+      status: "ignored",
+      payload: sanitizePaymentLogPayload(
+        bodyUnknown && typeof bodyUnknown === "object"
+          ? { hint, ...(bodyUnknown as Record<string, unknown>) }
+          : { hint },
+      ),
+    });
     return new Response(
       JSON.stringify({
         received: true,

@@ -5,8 +5,8 @@ import { Check, Lock, Mail, Sparkles, Building2 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { GoogleOAuthButton } from "@/components/auth/GoogleOAuthButton";
 import { authService } from "@/services/authService";
-import { subscriptionService } from "@/services/subscriptionService";
-import { PUBLIC_PLANS_FALLBACK } from "@/lib/public-plans-fallback";
+import { fetchPublicPlans } from "@/lib/fetch-public-plans";
+import { PublicPlansLoadError } from "@/components/site/PublicPlansLoadError";
 import { isSupabaseConfigured } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -185,36 +185,14 @@ function Cadastro() {
 
   const plansQuery = useQuery({
     queryKey: ["public", "plans", "cadastro"],
-    queryFn: async () => {
-      const res = await subscriptionService.listPlans();
-      const rows = (res.data ?? []) as PublicPlanRow[];
-      if (!res.error && rows.length > 0) return rows;
-      return PUBLIC_PLANS_FALLBACK.map((p) => ({
-        id: p.id,
-        name: p.name,
-        price: p.price,
-        features: p.features,
-      }));
-    },
+    queryFn: fetchPublicPlans,
     staleTime: 5 * 60_000,
     retry: 1,
   });
 
-  const activePlans = useMemo(() => {
-    const rows = (plansQuery.data ?? []) as PublicPlanRow[];
-    return rows.filter((p) => !String(p.id).startsWith("fallback-"));
-  }, [plansQuery.data]);
+  const activePlans = useMemo(() => (plansQuery.data ?? []) as PublicPlanRow[], [plansQuery.data]);
 
-  const displayPlans = useMemo(() => {
-    const rows = (plansQuery.data ?? []) as PublicPlanRow[];
-    if (rows.length > 0) return rows;
-    return PUBLIC_PLANS_FALLBACK.map((p) => ({
-      id: p.id,
-      name: p.name,
-      price: p.price,
-      features: p.features,
-    }));
-  }, [plansQuery.data]);
+  const displayPlans = activePlans;
 
   const selectedPlan = useMemo(() => {
     if (!effectivePlanId || effectivePlanId.startsWith("fallback-")) return null;
@@ -379,7 +357,15 @@ function Cadastro() {
                     <Skeleton className="h-3 w-28" />
                   </div>
                 )}
-                {!plansQuery.isLoading && !planIdFromUrl && activePlans.length > 0 && (
+                {plansQuery.isError && (
+                  <div className="mt-3">
+                    <PublicPlansLoadError
+                      onRetry={() => void plansQuery.refetch()}
+                      isRetrying={plansQuery.isFetching}
+                    />
+                  </div>
+                )}
+                {!plansQuery.isLoading && !plansQuery.isError && !planIdFromUrl && activePlans.length > 0 && (
                   <div className="mt-3 grid gap-2">
                     {activePlans.slice(0, 3).map((p) => {
                       const picked = effectivePlanId === p.id;

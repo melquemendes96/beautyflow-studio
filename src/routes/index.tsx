@@ -4,8 +4,8 @@ import { SiteHeader } from "@/components/site/SiteHeader";
 import { DEMO_BOOKING_PATH } from "@/lib/app-constants";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { Logo } from "@/components/brand/Logo";
-import { PUBLIC_PLANS_FALLBACK } from "@/lib/public-plans-fallback";
-import { subscriptionService } from "@/services/subscriptionService";
+import { fetchPublicPlans } from "@/lib/fetch-public-plans";
+import { PublicPlansLoadError } from "@/components/site/PublicPlansLoadError";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Sparkles, Calendar, Smartphone, Heart, Star, Check,
@@ -57,18 +57,9 @@ function LandingPlanCardSkeleton() {
 function Landing() {
   const plansQuery = useQuery({
     queryKey: ["public", "plans"],
-    queryFn: async () => {
-      const res = await subscriptionService.listPlans();
-      const rows = (res.data ?? []) as PublicPlan[];
-      if (!res.error && rows.length > 0) return rows;
-      return PUBLIC_PLANS_FALLBACK.map((p) => ({
-        id: p.id,
-        name: p.name,
-        price: p.price,
-        features: p.features,
-      }));
-    },
+    queryFn: fetchPublicPlans,
     staleTime: 5 * 60_000,
+    retry: 1,
   });
 
   const plans = (plansQuery.data ?? []) as PublicPlan[];
@@ -237,7 +228,23 @@ function Landing() {
           <div className="mt-14 grid gap-6 md:grid-cols-3">
             {plansQuery.isLoading &&
               Array.from({ length: 3 }).map((_, i) => <LandingPlanCardSkeleton key={i} />)}
+            {plansQuery.isError && (
+              <div className="md:col-span-3">
+                <PublicPlansLoadError
+                  onRetry={() => void plansQuery.refetch()}
+                  isRetrying={plansQuery.isFetching}
+                />
+              </div>
+            )}
             {!plansQuery.isLoading &&
+              !plansQuery.isError &&
+              plans.length === 0 && (
+                <p className="md:col-span-3 text-center text-sm text-muted-foreground">
+                  Nenhum plano ativo no momento. Entre em contato com o suporte.
+                </p>
+              )}
+            {!plansQuery.isLoading &&
+              !plansQuery.isError &&
               plans.map((p, i) => {
                 const isHighlight = i === highlightIndex;
                 return (
@@ -269,14 +276,14 @@ function Landing() {
                     </ul>
                     <Link
                       to="/cadastro"
-                      search={p.id.startsWith("fallback-") ? {} : { planId: String(p.id) }}
+                      search={{ planId: String(p.id) }}
                       className="mt-7 inline-flex w-full items-center justify-center rounded-full bg-foreground py-3 text-sm font-medium text-background transition hover:opacity-90"
                     >
                       Começar agora
                     </Link>
                     <Link
                       to="/login"
-                      search={p.id.startsWith("fallback-") ? {} : { planId: String(p.id) }}
+                      search={{ planId: String(p.id) }}
                       className="mt-3 block text-center text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
                     >
                       Já tenho conta
