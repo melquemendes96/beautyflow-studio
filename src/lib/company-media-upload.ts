@@ -35,6 +35,7 @@ export async function uploadCompanyImage(
   companyId: string,
   kind: "logo" | "banner" | "service",
   file: File,
+  opts?: { serviceId?: string },
 ): Promise<{ publicUrl: string | null; error: Error | null }> {
   const supabase = getSupabase();
 
@@ -48,7 +49,7 @@ export async function uploadCompanyImage(
   const ext = compressed.type === "image/webp" ? "webp" : safeExt(compressed.name);
   const objectPath =
     kind === "service"
-      ? `${companyId}/services/${crypto.randomUUID()}.${ext}`
+      ? `${companyId}/services/${opts?.serviceId ?? crypto.randomUUID()}.${ext}`
       : `${companyId}/${kind}.${ext}`;
 
   let lastError: Error | null = null;

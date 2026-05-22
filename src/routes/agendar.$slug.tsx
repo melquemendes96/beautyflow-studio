@@ -7,7 +7,9 @@ import {
   publicBookingKeys,
 } from "@/lib/public-booking-queries";
 import { isSupabaseConfigured } from "@/lib/supabaseClient";
-import { Check, ArrowLeft, ArrowRight, Calendar } from "lucide-react";
+import { Calendar, Check, ArrowLeft, ArrowRight } from "lucide-react";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { ptBR } from "date-fns/locale";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { publicBookingService } from "@/services/publicBookingService";
 import { BrandedImage } from "@/components/booking/BrandedImage";
@@ -274,42 +276,65 @@ function Agendar() {
           {step === "data" && (
             <>
               <h2 className="font-display text-xl font-bold md:text-2xl">Escolha a data</h2>
-              <div className="mt-5 grid grid-cols-7 gap-2 text-xs text-muted-foreground">
-                {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d) => (
-                  <div key={d} className="text-center text-[10px] sm:text-xs">
-                    {d}
-                  </div>
-                ))}
-                {Array.from({ length: 35 }).map((_, i) => {
-                  const offset = i - 2;
-                  const base = new Date();
-                  const date = new Date(base.getFullYear(), base.getMonth(), base.getDate() + offset);
-                  const valid = offset >= 0 && offset < 30;
-                  const ymd = toYmd(date);
-                  const sel = data === ymd;
-                  return (
-                    <button
-                      key={i}
-                      type="button"
-                      disabled={!valid}
-                      onClick={() => setData(ymd)}
-                      className={`aspect-square rounded-xl text-sm transition ${
-                        !valid ? "" : sel ? "text-background shadow-soft" : "bg-success/10 text-foreground hover:bg-success/20"
-                      }`}
-                      style={valid && sel ? { backgroundColor: primary } : undefined}
-                    >
-                      {valid ? date.getDate() : ""}
-                    </button>
-                  );
-                })}
+              <div className="mt-5 flex justify-center">
+                <div className="rounded-2xl border border-border bg-card p-2 shadow-soft">
+                  <CalendarPicker
+                    mode="single"
+                    selected={data ? new Date(`${data}T12:00:00`) : undefined}
+                    onSelect={(d) => {
+                      if (!d) return;
+                      setData(toYmd(d));
+                      setHora(null);
+                    }}
+                    locale={ptBR}
+                    disabled={{ before: new Date(new Date().setHours(0, 0, 0, 0)) }}
+                    className="rounded-xl"
+                  />
+                </div>
               </div>
+              {data && (
+                <div className="mt-6">
+                  <h3 className="text-sm font-medium text-muted-foreground">Horários disponíveis</h3>
+                  {slotsQuery.isLoading ? (
+                    <p className="mt-3 text-sm text-muted-foreground">Carregando horários…</p>
+                  ) : (
+                    <>
+                      <div className="-mx-1 mt-3 flex gap-2 overflow-x-auto pb-2 md:mx-0 md:flex-wrap md:overflow-visible">
+                        {(slotsQuery.data ?? []).map((h) => {
+                          const sel = hora === h;
+                          return (
+                            <button
+                              key={h}
+                              type="button"
+                              onClick={() => setHora(h)}
+                              className={`min-h-12 min-w-[5.5rem] shrink-0 rounded-xl border px-4 py-3 text-sm font-medium transition ${
+                                sel
+                                  ? "border-transparent text-background"
+                                  : "border-border bg-success/10 hover:border-foreground/40"
+                              }`}
+                              style={sel ? btnStyle : undefined}
+                            >
+                              {h}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      {!slotsQuery.isLoading && (slotsQuery.data ?? []).length === 0 && (
+                        <p className="mt-3 rounded-2xl border border-border bg-secondary/40 p-4 text-sm text-muted-foreground">
+                          Nenhum horário disponível para esta data.
+                        </p>
+                      )}
+                    </>
+                  )}
+                </div>
+              )}
             </>
           )}
 
           {step === "horario" && (
             <>
               <h2 className="font-display text-xl font-bold md:text-2xl">Escolha o horário</h2>
-              <div className="mt-5 grid grid-cols-3 gap-2 md:grid-cols-5">
+              <div className="-mx-1 mt-5 flex gap-2 overflow-x-auto pb-2 md:mx-0 md:grid md:grid-cols-5 md:overflow-visible">
                 {(slotsQuery.data ?? []).map((h) => {
                   const sel = hora === h;
                   return (
@@ -317,7 +342,7 @@ function Agendar() {
                       key={h}
                       type="button"
                       onClick={() => setHora(h)}
-                      className={`min-h-11 rounded-xl border px-3 py-3 text-sm transition ${
+                      className={`min-h-12 min-w-[5.5rem] shrink-0 rounded-xl border px-4 py-3 text-sm font-medium transition md:min-w-0 ${
                         sel ? "border-transparent text-background" : "border-border bg-success/10 hover:border-foreground/40"
                       }`}
                       style={sel ? btnStyle : undefined}
@@ -329,7 +354,7 @@ function Agendar() {
               </div>
               {!slotsQuery.isLoading && (slotsQuery.data ?? []).length === 0 && (
                 <div className="mt-4 rounded-2xl border border-border bg-secondary/40 p-4 text-sm text-muted-foreground">
-                  Nenhum horário disponível para essa data. Escolha outra data.
+                  Nenhum horário disponível para esta data.
                 </div>
               )}
             </>
@@ -375,6 +400,10 @@ function Agendar() {
             <button
               type="button"
               onClick={() => {
+                if (step === "dados") {
+                  setStep(hora ? "data" : "horario");
+                  return;
+                }
                 const order: Step[] = ["servico", "data", "horario", "dados"];
                 const i = order.indexOf(step);
                 if (i > 0) setStep(order[i - 1]);
@@ -387,11 +416,15 @@ function Agendar() {
               type="button"
               disabled={
                 (step === "servico" && !servico) ||
-                (step === "data" && !data) ||
+                (step === "data" && (!data || !hora)) ||
                 (step === "horario" && !hora) ||
                 (step === "dados" && (!form.nome.trim() || (!form.email.trim() && !form.whatsapp.trim())))
               }
               onClick={() => {
+                if (step === "data" && data && hora) {
+                  setStep("dados");
+                  return;
+                }
                 const order: Step[] = ["servico", "data", "horario", "dados"];
                 const i = order.indexOf(step);
                 if (i < order.length - 1) setStep(order[i + 1]);

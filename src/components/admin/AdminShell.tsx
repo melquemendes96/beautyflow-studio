@@ -10,7 +10,7 @@ import { displayStudioName } from "@/lib/branding-utils";
 import { Logo } from "@/components/brand/Logo";
 import {
   LayoutDashboard, Calendar, Users, Scissors, Clock, BarChart3,
-  Palette, MessageCircle, CreditCard, Settings, Menu, X,
+  Palette, MessageCircle, CreditCard, Settings, Menu, X, LogOut,
 } from "lucide-react";
 import { AdminNotificationsBell } from "@/components/admin/AdminNotificationsBell";
 
@@ -191,7 +191,7 @@ export function AdminShell() {
               <X className="size-5" />
             </button>
           </div>
-          <nav className="flex flex-col gap-1 p-3">
+          <nav className="flex max-h-[calc(100vh-12rem)] flex-col gap-1 overflow-y-auto p-3 pb-36 lg:max-h-none lg:pb-3">
             {nav.map((item) => {
               const active = item.exact ? pathname === item.to : pathname.startsWith(item.to);
               const Icon = item.icon;
@@ -211,6 +211,17 @@ export function AdminShell() {
                 </Link>
               );
             })}
+            <button
+              type="button"
+              onClick={() => {
+                setOpen(false);
+                void signOut();
+              }}
+              className="mt-1 flex items-center gap-3 rounded-xl px-4 py-2.5 text-sm text-destructive transition-colors hover:bg-destructive/10 lg:hidden"
+            >
+              <LogOut className="size-4" />
+              Sair
+            </button>
           </nav>
           <div className="absolute inset-x-3 bottom-3 rounded-2xl bg-gradient-to-br from-foreground to-foreground/80 p-4 text-background">
             <div className="text-xs uppercase tracking-wider text-gold">

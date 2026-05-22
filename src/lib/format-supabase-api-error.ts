@@ -12,6 +12,12 @@ export function formatSupabaseApiError(error: unknown): string {
   if (status === 401 || code === "PGRST301") {
     return "401 — Sessão inválida ou chave errada no build. Use VITE_SUPABASE_ANON_KEY (JWT eyJ...) e refaça npm run build na VPS.";
   }
+  if (msg.includes('role "master" does not exist')) {
+    return (
+      'PostgreSQL: role "master" não existe — não é envio do frontend. ' +
+      "Execute supabase/scripts/fix_master_plans_apply_now.sql no SQL Editor (OWNER das funções = postgres)."
+    );
+  }
   if (status === 403 || code === "42501") {
     return "403 — Sem permissão de platform_admin. Confirme seu e-mail em platform_admins no Supabase.";
   }

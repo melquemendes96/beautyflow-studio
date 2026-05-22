@@ -10,6 +10,7 @@ import { useAuth } from "@/contexts/AuthProvider";
 import { isMasterAccount } from "@/lib/auth-profile";
 import { usePublicAuthRedirect } from "@/lib/use-public-auth-redirect";
 import { Lock, Mail } from "lucide-react";
+import { PasswordInput } from "@/components/ui/password-input";
 
 type LoginScreenProps = {
   /** Rota de voltar no link inferior (padrão: home) */
@@ -225,15 +226,15 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
                 <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Senha</span>
                 <div className="relative">
                   <Lock className="pointer-events-none absolute left-3.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                  <input
-                    type="password"
+                  <PasswordInput
                     name="password"
                     autoComplete="current-password"
                     value={password}
                     onChange={(ev) => setPassword(ev.target.value)}
                     disabled={formDisabled}
                     required
-                    className="relative z-10 w-full rounded-xl border border-input bg-background py-3 pl-10 pr-4 text-sm outline-none transition focus:border-foreground focus:ring-2 focus:ring-gold/30 disabled:opacity-60"
+                    toggleLabel="senha de login"
+                    className="relative z-10 h-auto rounded-xl border border-input bg-background py-3 pl-10 pr-11 text-sm outline-none transition focus:border-foreground focus:ring-2 focus:ring-gold/30 disabled:opacity-60"
                   />
                 </div>
               </label>

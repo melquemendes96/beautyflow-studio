@@ -10,6 +10,7 @@ import { PUBLIC_PLANS_FALLBACK } from "@/lib/public-plans-fallback";
 import { isSupabaseConfigured } from "@/lib/supabaseClient";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordInput } from "@/components/ui/password-input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthProvider";
 import {
@@ -493,8 +494,7 @@ function Cadastro() {
                     <span className="text-xs font-medium text-muted-foreground">Senha</span>
                     <div className="relative">
                       <Lock className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                      <Input
-                        type="password"
+                      <PasswordInput
                         name="password"
                         value={password}
                         onChange={(ev) => {
@@ -504,6 +504,7 @@ function Cadastro() {
                         placeholder="Crie uma senha forte"
                         autoComplete="new-password"
                         required
+                        toggleLabel="senha de cadastro"
                         aria-invalid={fieldErrors.password ? true : undefined}
                         className="h-11 rounded-xl pl-10"
                       />

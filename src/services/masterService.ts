@@ -3,8 +3,8 @@ import { getSupabase } from "@/lib/supabaseClient";
 type GateError = { message: string; status?: number; code?: string };
 
 /**
- * Exige sessão JWT válida. `ensure_platform_admin` é best-effort (sincroniza vínculo).
- * Não bloqueia listagem: RPCs e RLS checam is_platform_admin().
+ * Exige sessão JWT (anon/authenticated) + platform_admin via RPC.
+ * Nunca envia role PostgreSQL "master" — autorização vem de platform_admins.
  */
 async function requireMasterSession(): Promise<
   { ok: true } | { ok: false; error: GateError }
@@ -19,14 +19,49 @@ async function requireMasterSession(): Promise<
     return {
       ok: false,
       error: {
-        message: "Sessão expirada. Faça logout e login novamente.",
+        message: "Sessão expirada. Faça login novamente.",
         status: 401,
         code: "401",
       },
     };
   }
 
-  void supabase.rpc("ensure_platform_admin");
+  const { data, error: adminError } = await supabase.rpc("ensure_platform_admin");
+  if (adminError) {
+    const msg = String(adminError.message ?? "");
+    if (msg.includes('role "master" does not exist')) {
+      return {
+        ok: false,
+        error: {
+          message:
+            'Erro no Supabase: função com OWNER incorreto (role "master"). Execute supabase/scripts/fix_master_plans_apply_now.sql no SQL Editor.',
+          code: adminError.code,
+        },
+      };
+    }
+    return {
+      ok: false,
+      error: {
+        message: adminError.message || "Falha ao validar administrador master.",
+        status: adminError.status,
+        code: adminError.code,
+      },
+    };
+  }
+
+  const payload = data as { ok?: boolean; is_platform_admin?: boolean } | null;
+  const isAdmin = payload?.ok === true || payload?.is_platform_admin === true;
+  if (!isAdmin) {
+    return {
+      ok: false,
+      error: {
+        message: "Usuário não é administrador master.",
+        status: 403,
+        code: "403",
+      },
+    };
+  }
+
   return { ok: true };
 }
 
@@ -306,14 +341,22 @@ export const masterService = {
     return getSupabase().from("payment_transactions").update(patch).eq("id", paymentId).select("*").single();
   },
 
-  applyPaymentAndRenew(input: { payment_id: string; months?: number }) {
+  async applyPaymentAndRenew(input: { payment_id: string; months?: number }) {
+    const gate = await requireMasterSession();
+    if (!gate.ok) return { data: null, error: gate.error };
     return getSupabase().rpc("master_apply_payment", {
       p_payment_id: input.payment_id,
       p_months: input.months ?? 1,
     });
   },
 
-  applyPaymentAndRenewV2(input: { payment_id: string; months?: number; allow_canceled?: boolean }) {
+  async applyPaymentAndRenewV2(input: {
+    payment_id: string;
+    months?: number;
+    allow_canceled?: boolean;
+  }) {
+    const gate = await requireMasterSession();
+    if (!gate.ok) return { data: null, error: gate.error };
     return getSupabase().rpc("master_apply_payment", {
       p_payment_id: input.payment_id,
       p_months: input.months ?? 1,
@@ -321,7 +364,9 @@ export const masterService = {
     });
   },
 
-  createPendingInvoice(input: { subscription_id: string; due_date?: string | null }) {
+  async createPendingInvoice(input: { subscription_id: string; due_date?: string | null }) {
+    const gate = await requireMasterSession();
+    if (!gate.ok) return { data: null, error: gate.error };
     return getSupabase().rpc("master_create_pending_invoice", {
       p_subscription_id: input.subscription_id,
       p_due_date: input.due_date ?? null,

@@ -57,6 +57,11 @@ if (bad.length > 0) {
   process.exit(1);
 }
 
+const roleMasterPatterns = [
+  /role:\s*["']master["']/,
+  /headers:\s*\{[^}]*role:\s*["']master["']/,
+  /"role"\s*:\s*"master"/,
+];
 const cadastroChunks = walk(resolve(root, "dist/client/assets")).filter((f) =>
   /cadastro-[^/]+\.js$/i.test(f),
 );
@@ -71,6 +76,20 @@ for (const file of cadastroChunks) {
   }
 }
 
+const roleMasterHits = [];
+for (const file of walk(distRoot)) {
+  if (!/\.(js|mjs|html)$/i.test(file)) continue;
+  const text = readFileSync(file, "utf8");
+  if (roleMasterPatterns.some((re) => re.test(text))) {
+    roleMasterHits.push(file.replace(root + "/", ""));
+  }
+}
+if (roleMasterHits.length > 0) {
+  console.error("[verify-production-build] ERRO: possível role master no bundle:");
+  for (const f of roleMasterHits.slice(0, 8)) console.error(`  - ${f}`);
+  process.exit(1);
+}
+
 console.log(
-  "[verify-production-build] OK — dist pronto (sem sb_publishable, sem authLoading no cadastro).",
+  "[verify-production-build] OK — dist pronto (sem sb_publishable, sem authLoading, sem role master no client).",
 );

@@ -1,7 +1,9 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { PageTitle } from "@/components/admin/AdminShell";
-import { ChevronLeft, ChevronRight, Lock, Plus } from "lucide-react";
+import { Lock, Plus } from "lucide-react";
+import { Calendar as CalendarPicker } from "@/components/ui/calendar";
+import { ptBR } from "date-fns/locale";
 import { useCurrentCompany } from "@/lib/current-company";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { appointmentService } from "@/services/appointmentService";
@@ -301,23 +303,16 @@ function Agenda() {
         }
       />
 
-      <div className="mb-4 flex flex-wrap items-center gap-2">
-        <button
-          type="button"
-          className="rounded-full border border-border bg-card p-2 hover:bg-accent"
-          onClick={() => setDay((d) => addDays(d, -1))}
-          aria-label="Dia anterior"
-        >
-          <ChevronLeft className="size-4" />
-        </button>
-        <button
-          type="button"
-          className="rounded-full border border-border bg-card p-2 hover:bg-accent"
-          onClick={() => setDay((d) => addDays(d, 1))}
-          aria-label="Próximo dia"
-        >
-          <ChevronRight className="size-4" />
-        </button>
+      <div className="mb-6 grid gap-4 lg:grid-cols-[auto_1fr] lg:items-start">
+        <div className="w-fit rounded-2xl border border-border bg-card p-2 shadow-soft">
+          <CalendarPicker
+            mode="single"
+            selected={day}
+            onSelect={(d) => d && setDay(d)}
+            locale={ptBR}
+            className="rounded-xl"
+          />
+        </div>
         <div className="flex flex-wrap gap-2 text-xs">
           <button
             className="inline-flex items-center gap-1 rounded-full bg-secondary px-3 py-1.5 hover:bg-accent"

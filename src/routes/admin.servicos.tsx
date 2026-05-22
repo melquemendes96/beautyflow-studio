@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { PageTitle } from "@/components/admin/AdminShell";
-import { Plus, Pencil, Power, Scissors } from "lucide-react";
+import { Plus, Pencil, Power, Scissors, Trash2, Upload } from "lucide-react";
 import { AdminEmptyState, AdminServiceCardSkeleton } from "@/components/admin/AdminPageStates";
 import { useCurrentCompany } from "@/lib/current-company";
 import { serviceService } from "@/services/serviceService";
@@ -60,7 +60,9 @@ function Servicos() {
 
       let image_url: string | null = form.image_url.trim() || null;
       if (imageFile) {
-        const { publicUrl, error } = await uploadCompanyImage(companyId, "service", imageFile);
+        const { publicUrl, error } = await uploadCompanyImage(companyId, "service", imageFile, {
+          serviceId: editing?.id,
+        });
         if (error) throw error;
         image_url = publicUrl ?? null;
       }
@@ -247,53 +249,69 @@ function Servicos() {
                   </label>
                 </div>
                 <div className="grid gap-2">
-                  <span className="text-xs font-medium text-muted-foreground">Imagem</span>
-                  <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                    <Input
-                      type="file"
-                      accept="image/jpeg,image/png,image/webp,image/gif"
-                      className="cursor-pointer"
-                      onChange={(e) => {
-                        const f = e.target.files?.[0];
-                        e.target.value = "";
-                        if (!f) return;
-                        if (!f.type.startsWith("image/")) {
-                          toast.error("Selecione um arquivo de imagem.");
-                          return;
-                        }
-                        if (f.size > 5 * 1024 * 1024) {
-                          toast.error("Imagem muito grande (máx. 5 MB).");
-                          return;
-                        }
-                        setImagePreviewBlob((prev) => {
-                          if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
-                          return URL.createObjectURL(f);
-                        });
-                        setImageFile(f);
-                      }}
-                    />
-                    <span className="text-xs text-muted-foreground sm:max-w-[12rem]">
-                      JPG, PNG, WebP ou GIF · até 5 MB. Deixe em branco para manter a imagem atual.
-                    </span>
+                  <span className="text-xs font-medium text-muted-foreground">Imagem do serviço</span>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <label className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border border-border bg-background px-3 py-2 text-xs font-medium hover:bg-accent">
+                      <Upload className="size-3.5" />
+                      Enviar imagem
+                      <input
+                        type="file"
+                        accept="image/jpeg,image/png,image/webp"
+                        className="sr-only"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          e.target.value = "";
+                          if (!f) return;
+                          const okType =
+                            f.type === "image/jpeg" ||
+                            f.type === "image/png" ||
+                            f.type === "image/webp";
+                          if (!okType) {
+                            toast.error("Use JPG, PNG ou WebP.");
+                            return;
+                          }
+                          if (f.size > 5 * 1024 * 1024) {
+                            toast.error("Imagem muito grande (máx. 5 MB).");
+                            return;
+                          }
+                          setImagePreviewBlob((prev) => {
+                            if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+                            return URL.createObjectURL(f);
+                          });
+                          setImageFile(f);
+                        }}
+                      />
+                    </label>
+                    {(imagePreviewBlob || form.image_url) && (
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 rounded-full border border-destructive/40 px-3 py-2 text-xs text-destructive hover:bg-destructive/10"
+                        onClick={() => {
+                          setImagePreviewBlob((prev) => {
+                            if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+                            return null;
+                          });
+                          setImageFile(null);
+                          setForm((s) => ({ ...s, image_url: "" }));
+                        }}
+                      >
+                        <Trash2 className="size-3.5" /> Remover
+                      </button>
+                    )}
                   </div>
+                  <p className="text-xs text-muted-foreground">
+                    JPG, PNG ou WebP · até 5 MB. Imagens antigas por URL continuam válidas até você trocar.
+                  </p>
                   {(imagePreviewBlob || form.image_url) && (
                     <div className="overflow-hidden rounded-xl border border-border">
                       <img
                         src={imagePreviewBlob || form.image_url}
-                        alt=""
+                        alt="Prévia do serviço"
                         className="h-32 w-full object-cover"
                       />
                     </div>
                   )}
                 </div>
-                <label className="grid gap-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">URL da imagem (opcional)</span>
-                  <Input
-                    value={form.image_url}
-                    onChange={(e) => setForm((s) => ({ ...s, image_url: e.target.value }))}
-                    placeholder="https://… (se preferir link externo em vez de arquivo)"
-                  />
-                </label>
               </div>
 
               {saveMutation.error && (
