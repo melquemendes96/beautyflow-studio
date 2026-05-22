@@ -1,12 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { MasterPageTitle } from "@/components/master/MasterShell";
+import { MasterPlanFeaturesEditor } from "@/components/master/MasterPlanFeaturesEditor";
 import { masterService } from "@/services/masterService";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Textarea } from "@/components/ui/textarea";
 import {
   Dialog,
   DialogContent,
@@ -42,7 +42,6 @@ function MasterPlanos() {
   const [form, setForm] = useState({
     name: "",
     price: "",
-    featuresText: "",
     active: true,
   });
 
@@ -55,13 +54,6 @@ function MasterPlanos() {
     },
   });
 
-  const featuresPreview = useMemo(() => {
-    return form.featuresText
-      .split("\n")
-      .map((s) => s.trim())
-      .filter(Boolean);
-  }, [form.featuresText]);
-
   const createPlanMutation = useMutation({
     mutationFn: async () => {
       const name = form.name.trim();
@@ -70,18 +62,16 @@ function MasterPlanos() {
       const res = await masterService.createPlan({
         name,
         price,
-        features: featuresPreview,
+        features: [],
         active: form.active,
       });
       if (res.error) throw res.error;
       return res.data;
     },
-    onSuccess: async () => {
-      setOpen(false);
-      setEditingId(null);
-      setForm({ name: "", price: "", featuresText: "", active: true });
+    onSuccess: async (row: { id?: string }) => {
+      if (row?.id) setEditingId(row.id);
+      toast.success("Plano criado. Ajuste os recursos abaixo.");
       await queryClient.invalidateQueries({ queryKey: ["master", "plans"] });
-      toast.success("Plano criado.");
     },
     onError: (err: unknown) => {
       toast.error(formatSupabaseApiError(err));
@@ -97,16 +87,12 @@ function MasterPlanos() {
       const res = await masterService.updatePlan(editingId, {
         name,
         price,
-        features: featuresPreview,
         active: form.active,
       });
       if (res.error) throw res.error;
       return res.data;
     },
     onSuccess: async () => {
-      setOpen(false);
-      setEditingId(null);
-      setForm({ name: "", price: "", featuresText: "", active: true });
       await queryClient.invalidateQueries({ queryKey: ["master", "plans"] });
       await queryClient.invalidateQueries({ queryKey: ["master", "companies"] });
       await queryClient.invalidateQueries({ queryKey: ["master", "subscriptions"] });
@@ -119,7 +105,7 @@ function MasterPlanos() {
 
   const beginCreate = () => {
     setEditingId(null);
-    setForm({ name: "", price: "", featuresText: "", active: true });
+    setForm({ name: "", price: "", active: true });
     setOpen(true);
   };
 
@@ -153,34 +139,45 @@ function MasterPlanos() {
     },
   });
 
-  const beginEdit = (p: any) => {
+  const beginEdit = (p: { id: string; name?: string; price?: number; active?: boolean }) => {
     setEditingId(p.id);
     setForm({
       name: p.name ?? "",
       price: p.price != null ? String(p.price) : "",
-      featuresText: Array.isArray(p.features) ? p.features.map((x: unknown) => String(x)).join("\n") : "",
       active: Boolean(p.active),
     });
     setOpen(true);
+  };
+
+  const closeDialog = () => {
+    setOpen(false);
+    setEditingId(null);
+    setForm({ name: "", price: "", active: true });
   };
 
   return (
     <div>
       <MasterPageTitle
         title="Planos"
-        subtitle="Catálogo de planos disponíveis para as empresas na plataforma."
+        subtitle="Catálogo de planos e feature flags por recurso (ON/OFF)."
         action={
-          <Dialog open={open} onOpenChange={setOpen}>
+          <Dialog
+            open={open}
+            onOpenChange={(o) => {
+              if (!o) closeDialog();
+              else setOpen(true);
+            }}
+          >
             <DialogTrigger asChild>
               <Button className="rounded-full bg-foreground text-background hover:opacity-90" onClick={beginCreate}>
                 Novo plano
               </Button>
             </DialogTrigger>
-            <DialogContent className="rounded-3xl">
+            <DialogContent className="max-h-[90vh] overflow-y-auto rounded-3xl sm:max-w-lg">
               <DialogHeader>
                 <DialogTitle>{editingId ? "Editar plano" : "Criar plano"}</DialogTitle>
                 <DialogDescription>
-                  Defina nome, preço e recursos. A lista de recursos usa uma linha por item.
+                  Nome, preço e recursos do catálogo. A lista na home usa os recursos com toggle ON.
                 </DialogDescription>
               </DialogHeader>
 
@@ -199,16 +196,6 @@ function MasterPlanos() {
                   />
                 </label>
 
-                <label className="grid gap-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">Recursos (1 por linha)</span>
-                  <Textarea
-                    value={form.featuresText}
-                    onChange={(e) => setForm((s) => ({ ...s, featuresText: e.target.value }))}
-                    placeholder={"Agenda online\nCadastro de clientes\nRelatórios"}
-                    className="min-h-[140px]"
-                  />
-                </label>
-
                 <label className="flex items-center justify-between rounded-xl border border-border bg-background px-3 py-2 text-sm">
                   <span>Plano ativo</span>
                   <button
@@ -221,6 +208,8 @@ function MasterPlanos() {
                     />
                   </button>
                 </label>
+
+                <MasterPlanFeaturesEditor planId={editingId} planName={form.name.trim() || undefined} />
               </div>
 
               {(createPlanMutation.error || updatePlanMutation.error) && (
@@ -229,13 +218,13 @@ function MasterPlanos() {
                 </div>
               )}
 
-              <DialogFooter>
+              <DialogFooter className="gap-2 sm:gap-0">
                 <Button
                   variant="outline"
-                  onClick={() => setOpen(false)}
+                  onClick={closeDialog}
                   disabled={createPlanMutation.isPending || updatePlanMutation.isPending}
                 >
-                  Cancelar
+                  {editingId ? "Fechar" : "Cancelar"}
                 </Button>
                 <Button
                   onClick={() => (editingId ? updatePlanMutation.mutate() : createPlanMutation.mutate())}
@@ -244,7 +233,7 @@ function MasterPlanos() {
                   {editingId
                     ? updatePlanMutation.isPending
                       ? "Salvando…"
-                      : "Salvar alterações"
+                      : "Salvar dados"
                     : createPlanMutation.isPending
                       ? "Criando…"
                       : "Criar plano"}
@@ -308,47 +297,48 @@ function MasterPlanos() {
         {isLoading &&
           Array.from({ length: 3 }).map((_, i) => <AdminServiceCardSkeleton key={`pl-sk-${i}`} />)}
         {!isLoading &&
-          (data ?? []).map((p) => (
-          <div key={p.id} className="relative rounded-2xl border border-border bg-card p-6 shadow-soft">
-            <button
-              type="button"
-              className="absolute right-3 top-3 rounded-full p-1.5 text-muted-foreground transition hover:bg-destructive/15 hover:text-destructive"
-              aria-label={`Excluir plano ${p.name}`}
-              onClick={() => setDeleteTarget({ id: p.id, name: String(p.name ?? "") })}
-            >
-              <X className="size-4" />
-            </button>
-            <div className="flex items-start justify-between gap-3 pr-8">
-              <div>
-                <div className="font-display text-xl">{p.name}</div>
-                <div className="mt-1 text-sm text-muted-foreground">R$ {Number(p.price).toFixed(2)}/mês</div>
+          (data ?? []).map((p: { id: string; name?: string; price?: number; active?: boolean; features?: unknown }) => (
+            <div key={p.id} className="relative rounded-2xl border border-border bg-card p-6 shadow-soft">
+              <button
+                type="button"
+                className="absolute right-3 top-3 rounded-full p-1.5 text-muted-foreground transition hover:bg-destructive/15 hover:text-destructive"
+                aria-label={`Excluir plano ${p.name}`}
+                onClick={() => setDeleteTarget({ id: p.id, name: String(p.name ?? "") })}
+              >
+                <X className="size-4" />
+              </button>
+              <div className="flex items-center gap-2">
+                <CreditCard className="size-5 text-gold" />
+                <h3 className="font-display text-xl">{p.name}</h3>
               </div>
-              <Badge variant={p.active ? "default" : "secondary"}>{p.active ? "Ativo" : "Inativo"}</Badge>
-            </div>
-            <div className="mt-4 space-y-2 text-sm text-muted-foreground">
-              {(Array.isArray(p.features) ? p.features : []).slice(0, 8).map((f: unknown, idx: number) => (
-                <div key={idx}>• {String(f)}</div>
-              ))}
-              {(Array.isArray(p.features) ? p.features : []).length === 0 && <div>Sem recursos cadastrados.</div>}
-            </div>
-            <div className="mt-5 flex items-center justify-between gap-2">
-              <Button variant="outline" className="w-full" onClick={() => beginEdit(p)}>
-                Editar
+              <p className="mt-2 text-2xl font-semibold">
+                R$ {Number(p.price ?? 0).toFixed(2).replace(".", ",")}
+                <span className="text-sm font-normal text-muted-foreground">/mês</span>
+              </p>
+              <Badge className="mt-3" variant={p.active ? "default" : "secondary"}>
+                {p.active ? "Ativo" : "Inativo"}
+              </Badge>
+              <ul className="mt-4 space-y-1 text-sm text-muted-foreground">
+                {(Array.isArray(p.features) ? p.features : []).slice(0, 5).map((f: unknown) => (
+                  <li key={String(f)}>· {String(f)}</li>
+                ))}
+                {Array.isArray(p.features) && p.features.length > 5 && (
+                  <li className="text-xs">+ {p.features.length - 5} recursos</li>
+                )}
+              </ul>
+              <Button variant="outline" className="mt-4 w-full rounded-full" onClick={() => beginEdit(p)}>
+                Editar plano e recursos
               </Button>
             </div>
-          </div>
-        ))}
-        {!isLoading && !error && (data?.length ?? 0) === 0 && (
+          ))}
+        {!isLoading && !error && (data ?? []).length === 0 && (
           <div className="lg:col-span-3">
             <AdminEmptyState
               icon={CreditCard}
               title="Nenhum plano cadastrado"
-              description="Crie os planos que aparecerão no site e no checkout. Cada plano pode ter lista de benefícios e preço mensal."
+              description="Crie planos com recursos ON/OFF para as empresas assinarem."
               action={
-                <Button
-                  className="rounded-full bg-foreground text-background hover:opacity-90"
-                  onClick={beginCreate}
-                >
+                <Button className="rounded-full" onClick={beginCreate}>
                   Novo plano
                 </Button>
               }
@@ -356,8 +346,6 @@ function MasterPlanos() {
           </div>
         )}
       </div>
-
     </div>
   );
 }
-

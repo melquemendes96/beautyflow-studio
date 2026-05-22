@@ -6,11 +6,7 @@ import {
   isSubscriptionDashboardAllowed,
   type SubscriptionSnapshot,
 } from "@/lib/subscription-access";
-import {
-  type PlanGatedFeature,
-  featureToPortugueseLabel,
-  planNameAllowsFeature,
-} from "@/lib/plan-access";
+import { type FeatureKey, featureToPortugueseLabel, hasFeatureAccess } from "@/lib/plan-access";
 
 const isBrowser = typeof document !== "undefined";
 
@@ -31,7 +27,7 @@ function isBillingExemptPath(pathname: string): boolean {
   ];
   if (exempt.some((e) => p === e || p.startsWith(`${e}/`))) return true;
   if (p === "/admin") return true;
-  const prefixes = ["/admin/branding", "/admin/configuracoes", "/admin/servicos"];
+  const prefixes = ["/admin/configuracoes", "/admin/servicos"];
   return prefixes.some((pre) => p === pre || p.startsWith(`${pre}/`));
 }
 
@@ -103,7 +99,8 @@ export async function guardCompanyTenantBillingAccess(pathname: string): Promise
   }
 }
 
-const PLAN_GATED_ADMIN_ROUTES: { prefix: string; feature: PlanGatedFeature }[] = [
+const PLAN_GATED_ADMIN_ROUTES: { prefix: string; feature: FeatureKey }[] = [
+  { prefix: "/admin/branding", feature: "branding" },
   { prefix: "/admin/lista-espera", feature: "waitlist" },
   { prefix: "/admin/relatorios", feature: "reports" },
   { prefix: "/admin/whatsapp", feature: "whatsapp" },
@@ -127,15 +124,8 @@ export async function guardCompanyPlanFeatureAccess(pathname: string): Promise<v
     throw redirect({ to: "/billing/plans", search: { billing: "renew" } });
   }
 
-  const supabase = getSupabase();
-  const { data: subPlan } = await supabase
-    .from("tenant_subscriptions")
-    .select("plans(name)")
-    .eq("company_id", companyId)
-    .maybeSingle();
-
-  const planName = (subPlan?.plans as { name?: string | null } | null)?.name;
-  if (!planNameAllowsFeature(planName, hit.feature)) {
+  const allowed = await hasFeatureAccess(companyId, hit.feature);
+  if (!allowed) {
     throw redirect({
       to: "/billing/plans",
       search: { billing: "upgrade", need: featureToPortugueseLabel(hit.feature) },

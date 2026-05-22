@@ -204,6 +204,39 @@ export const masterService = {
     return supabase.from("plans").delete().eq("id", planId);
   },
 
+  async listFeaturesCatalog() {
+    const gate = await requireMasterSession();
+    if (!gate.ok) return { data: null, error: gate.error };
+    return getSupabase().rpc("master_list_features_catalog");
+  },
+
+  async listPlanFeatures(planId: string) {
+    const gate = await requireMasterSession();
+    if (!gate.ok) return { data: null, error: gate.error };
+    const rpc = await getSupabase().rpc("master_list_plan_features", { p_plan_id: planId });
+    if (rpc.error) return { data: null, error: rpc.error };
+    return { data: rpc.data ?? [], error: null };
+  },
+
+  async setPlanFeature(planId: string, featureKey: string, enabled: boolean) {
+    const gate = await requireMasterSession();
+    if (!gate.ok) return { data: null, error: gate.error };
+    return getSupabase().rpc("master_set_plan_feature", {
+      p_plan_id: planId,
+      p_feature_key: featureKey,
+      p_enabled: enabled,
+    });
+  },
+
+  async removePlanFeature(planId: string, featureKey: string) {
+    const gate = await requireMasterSession();
+    if (!gate.ok) return { data: null, error: gate.error };
+    return getSupabase().rpc("master_remove_plan_feature", {
+      p_plan_id: planId,
+      p_feature_key: featureKey,
+    });
+  },
+
   async listRecentPaidPayments(limit = 40) {
     const gate = await requireMasterSession();
     if (!gate.ok) return { data: null, error: gate.error };
