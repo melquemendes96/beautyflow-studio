@@ -8,7 +8,8 @@ Confirme `.env`: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (JWT `eyJ...`), s
 
 - [ ] Migration `20260518000000_payment_logs.sql` aplicada no SQL Editor
 - [ ] Edge Function `mercado-pago-webhook` redeployada (`npm run supabase:deploy:mercado-pago-webhook`)
-- [ ] Secrets: `MERCADO_PAGO_ACCESS_TOKEN`, `MERCADO_PAGO_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`
+- [ ] Secrets: `MERCADO_PAGO_ACCESS_TOKEN` = **APP_USR-...** (produção, não `TEST-`), `MERCADO_PAGO_WEBHOOK_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`
+- [ ] Redeploy `create-mercado-pago-preference` após correção init_point (checkout real → `init_point`, não `sandbox_init_point`)
 
 ## Smoke test (produção)
 

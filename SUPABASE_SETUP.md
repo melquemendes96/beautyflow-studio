@@ -65,7 +65,7 @@ on conflict do nothing;
   1. **Supabase → Edge Functions → mercado-pago-webhook → Logs:** deve aparecer `processing payment id=...` (não só `ignored`).
   2. Confira `payment_transactions` e `tenant_subscriptions` no SQL Editor.
   3. No app, atualize `/admin/plano`.
-- **Secrets:** `MERCADO_PAGO_ACCESS_TOKEN` na Edge Function deve ser o token do **mesmo modo** do pagamento (teste vs produção). Token de produção + pagamento sandbox (ou o inverso) faz o fetch do pagamento falhar ou não bater com o esperado.
+- **Secrets:** `MERCADO_PAGO_ACCESS_TOKEN` na Edge Function deve ser o token do **mesmo modo** do pagamento. **Produção:** `APP_USR-...` → redirect `init_point`. **Teste:** `TEST-...` → redirect `sandbox_init_point` (só localhost / sem `ALLOWED_APP_ORIGINS` de produção). A function `create-mercado-pago-preference` **não** faz mais fallback `init_point ?? sandbox_init_point` (evita sandbox em produção).
 - **`ALLOWED_APP_ORIGINS`:** para criar a preferência a partir de `http://localhost:8080`, o código da function já aceita `localhost` / `127.0.0.1` em HTTP; em produção defina a origem real do app.
 
 ### Login com Google (OAuth)

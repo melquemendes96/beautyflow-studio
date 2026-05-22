@@ -1,4 +1,5 @@
 import { createClient, type SupabaseClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import { tokenModeLabel } from "../_shared/mercado-pago-env.ts";
 
 type MpPayment = {
   id?: number | string;
@@ -409,6 +410,13 @@ Deno.serve(async (req) => {
 
   if (!accessToken || !supabaseUrl || !serviceKey) {
     return new Response("misconfigured", { status: 500 });
+  }
+
+  const mpTokenMode = tokenModeLabel(accessToken);
+  if (mpTokenMode === "test") {
+    console.warn(
+      "[mercado-pago-webhook] MERCADO_PAGO_ACCESS_TOKEN is TEST- (sandbox). Use APP_USR in production Supabase secrets.",
+    );
   }
 
   const admin = createClient(supabaseUrl, serviceKey);

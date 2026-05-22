@@ -1,4 +1,10 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
+import {
+  getMercadoPagoTokenDeploymentError,
+  looksLikeSandboxCheckoutUrl,
+  resolveMercadoPagoCheckoutUrl,
+  tokenModeLabel,
+} from "../_shared/mercado-pago-env.ts";
 
 const defaultCorsHeaders: Record<string, string> = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -79,6 +85,15 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
     if (!accessToken || !supabaseUrl || !supabaseAnonKey || !supabaseServiceKey) {
       return new Response(JSON.stringify({ error: "server_misconfigured" }), {
+        status: 500,
+        headers: { ...corsHeadersFor(headerOrigin), "Content-Type": "application/json" },
+      });
+    }
+
+    const tokenDeployErr = getMercadoPagoTokenDeploymentError(accessToken, allowedOrigins);
+    if (tokenDeployErr) {
+      console.error("[create-mercado-pago-preference]", tokenDeployErr);
+      return new Response(JSON.stringify({ error: "mercado_pago_misconfigured" }), {
         status: 500,
         headers: { ...corsHeadersFor(headerOrigin), "Content-Type": "application/json" },
       });
@@ -217,10 +232,29 @@ Deno.serve(async (req) => {
     };
 
     const prefId = preference.id;
-    const redirectUrl = preference.init_point ?? preference.sandbox_init_point;
+    const { url: redirectUrl, mode: mpMode, usedField } = resolveMercadoPagoCheckoutUrl(
+      preference,
+      accessToken,
+    );
+
+    console.log(
+      `[create-mercado-pago-preference] token_mode=${tokenModeLabel(accessToken)} redirect_field=${usedField} preference_id=${prefId ?? "?"}`,
+    );
+
     if (!prefId || !redirectUrl) {
-      console.error("mercado pago missing init_point", preference);
+      console.error(
+        "mercado pago missing checkout url",
+        { mpMode, usedField, has_init: Boolean(preference.init_point), has_sandbox: Boolean(preference.sandbox_init_point) },
+      );
       return new Response(JSON.stringify({ error: "mercado_pago_invalid_response" }), {
+        status: 502,
+        headers: { ...corsHeadersFor(headerOrigin), "Content-Type": "application/json" },
+      });
+    }
+
+    if (mpMode === "production" && looksLikeSandboxCheckoutUrl(redirectUrl)) {
+      console.error("[create-mercado-pago-preference] production token but sandbox checkout URL", redirectUrl);
+      return new Response(JSON.stringify({ error: "mercado_pago_sandbox_url_in_production" }), {
         status: 502,
         headers: { ...corsHeadersFor(headerOrigin), "Content-Type": "application/json" },
       });
