@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { isValidPublicBookingSlug, normalizePublicBookingSlug } from "@/lib/public-booking-slug";
 import {
   PUBLIC_BOOKING_STALE_MS,
@@ -11,13 +11,24 @@ import { Calendar, Check, ArrowLeft, ArrowRight } from "lucide-react";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { ptBR } from "date-fns/locale";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { buildAppointmentIcs, downloadAppointmentIcs } from "@/lib/calendar-ics";
+import {
+  clearRescheduleIntent,
+  readRescheduleIntent,
+  saveClientPortalSession,
+} from "@/lib/client-portal-session";
 import { publicBookingService } from "@/services/publicBookingService";
+import { clientPortalService } from "@/services/clientPortalService";
 import { BrandedImage } from "@/components/booking/BrandedImage";
 import { PublicStudioHero, getBrandingButtonStyle } from "@/components/booking/PublicStudioHero";
 import { displayStudioName, normalizeHexColor, studioInitials } from "@/lib/branding-utils";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/agendar/$slug")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    reagendar:
+      typeof search.reagendar === "string" && search.reagendar.length > 0 ? search.reagendar : undefined,
+  }),
   component: Agendar,
 });
 
@@ -25,12 +36,32 @@ type Step = "servico" | "data" | "horario" | "dados" | "confirmado";
 
 function Agendar() {
   const { slug: slugParam } = Route.useParams();
+  const { reagendar: reagendarAppointmentId } = Route.useSearch();
   const slug = useMemo(() => normalizePublicBookingSlug(slugParam), [slugParam]);
+  const rescheduleIntent = useMemo(() => {
+    const intent = readRescheduleIntent();
+    if (!intent || intent.slug !== slug) return null;
+    if (!reagendarAppointmentId || intent.appointmentId !== reagendarAppointmentId) return null;
+    return intent;
+  }, [slug, reagendarAppointmentId]);
+  const isRescheduleMode = Boolean(rescheduleIntent);
   const [step, setStep] = useState<Step>("servico");
   const [servico, setServico] = useState<string | null>(null);
   const [data, setData] = useState<string | null>(null);
   const [hora, setHora] = useState<string | null>(null);
   const [form, setForm] = useState({ nome: "", email: "", whatsapp: "", notes: "" });
+
+  useEffect(() => {
+    if (!rescheduleIntent) return;
+    setServico(rescheduleIntent.serviceId);
+    setForm((f) => ({
+      ...f,
+      nome: rescheduleIntent.clientName ?? f.nome,
+      email: rescheduleIntent.email || f.email,
+      whatsapp: rescheduleIntent.whatsapp || f.whatsapp,
+    }));
+    setStep("data");
+  }, [rescheduleIntent]);
 
   const slugValid = isValidPublicBookingSlug(slug);
 
@@ -46,7 +77,7 @@ function Agendar() {
       const res = await publicBookingService.getPageData(slug);
       if (res.error) throw res.error;
       const payload = res.data as {
-        company?: { id: string; name: string; slug: string } | null;
+        company?: { id: string; name: string; slug: string; phone?: string; email?: string } | null;
         branding?: Record<string, unknown> | null;
         services?: Array<{
           id: string;
@@ -84,6 +115,20 @@ function Agendar() {
   const createMutation = useMutation({
     mutationFn: async () => {
       if (!servico || !data || !hora) throw new Error("Dados incompletos");
+
+      if (rescheduleIntent) {
+        const res = await clientPortalService.rescheduleAppointment({
+          slug,
+          email: rescheduleIntent.email,
+          whatsapp: rescheduleIntent.whatsapp,
+          appointmentId: rescheduleIntent.appointmentId,
+          newDate: data,
+          newTime: hora,
+        });
+        if (res.error) throw res.error;
+        return { mode: "reschedule" as const, data: res.data as Record<string, unknown> };
+      }
+
       const res = await publicBookingService.createBooking({
         slug,
         serviceId: servico,
@@ -95,18 +140,38 @@ function Agendar() {
         notes: form.notes || null,
       });
       if (res.error) throw res.error;
-      return res.data;
+      return { mode: "create" as const, data: res.data };
     },
-    onSuccess: (d) => {
-      if (!d?.ok || !d.appointment_id) {
+    onSuccess: (result) => {
+      const d = result.data as { ok?: boolean; error?: string; appointment_id?: string };
+      if (!d?.ok) {
         if (d?.error === "horario_indisponivel") {
           toast.error("Esse horário acabou de ficar indisponível. Escolha outro horário.");
           setHora(null);
           return;
         }
+        if (d?.error === "prazo_minimo") {
+          toast.error("Esse horário não respeita o prazo mínimo de agendamento.");
+          return;
+        }
+        toast.error(
+          result.mode === "reschedule"
+            ? "Não foi possível reagendar. Verifique os dados."
+            : "Não foi possível criar o agendamento. Verifique os dados.",
+        );
+        return;
+      }
+      if (result.mode === "create" && !d.appointment_id) {
         toast.error("Não foi possível criar o agendamento. Verifique os dados.");
         return;
       }
+      saveClientPortalSession({
+        slug,
+        nome: form.nome,
+        email: form.email,
+        whatsapp: form.whatsapp,
+      });
+      if (result.mode === "reschedule") clearRescheduleIntent();
       setStep("confirmado");
     },
     onError: () => {
@@ -128,6 +193,11 @@ function Agendar() {
   }, [data]);
 
   if (step === "confirmado") {
+    const brandingRecord = branding as Record<string, unknown> | null;
+    const location =
+      (typeof brandingRecord?.public_address === "string" && brandingRecord.public_address) ||
+      (typeof brandingRecord?.address === "string" && brandingRecord.address) ||
+      undefined;
     return (
       <Confirmado
         slug={slug}
@@ -136,6 +206,13 @@ function Agendar() {
         data={data!}
         hora={hora!}
         primaryColor={primary}
+        durationMinutes={servicoSel?.duration_minutes}
+        studioPhone={company?.phone ?? undefined}
+        studioEmail={company?.email ?? undefined}
+        location={location}
+        clientEmail={form.email}
+        clientWhatsapp={form.whatsapp}
+        wasReschedule={isRescheduleMode}
       />
     );
   }
@@ -198,7 +275,12 @@ function Agendar() {
       <PublicStudioHero company={company} branding={branding as Parameters<typeof PublicStudioHero>[0]["branding"]} />
 
       <div className="mx-auto w-full max-w-[1400px] px-4 pb-16 md:px-6">
-        <div className="mt-6 flex items-center justify-center gap-2 text-xs md:mt-8">
+        {isRescheduleMode ? (
+          <div className="mt-6 rounded-2xl border border-gold/40 bg-gold-soft/30 px-4 py-3 text-center text-sm text-foreground md:mt-8">
+            Reagendando seu atendimento — escolha uma nova data e horário disponíveis.
+          </div>
+        ) : null}
+        <div className={`flex items-center justify-center gap-2 text-xs ${isRescheduleMode ? "mt-4" : "mt-6 md:mt-8"}`}>
           {(["servico", "data", "horario", "dados"] as Step[]).map((s, i) => {
             const idx = ["servico", "data", "horario", "dados"].indexOf(step);
             const active = i <= idx;
@@ -434,14 +516,24 @@ function Agendar() {
               className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-medium shadow-[0_4px_20px_-6px_rgba(0,0,0,0.25)] transition hover:opacity-90 disabled:opacity-30 sm:w-auto"
               style={btnStyle}
             >
-              {step === "dados" ? (createMutation.isPending ? "Confirmando…" : "Confirmar agendamento") : "Continuar"}
+              {step === "dados"
+                ? createMutation.isPending
+                  ? "Confirmando…"
+                  : isRescheduleMode
+                    ? "Confirmar reagendamento"
+                    : "Confirmar agendamento"
+                : "Continuar"}
               <ArrowRight className="size-4" />
             </button>
           </div>
         </div>
 
         <div className="mt-8 text-center">
-          <Link to="/cliente" className="text-sm text-muted-foreground transition hover:text-foreground">
+          <Link
+            to="/cliente"
+            search={{ slug, auto: "1" }}
+            className="text-sm text-muted-foreground transition hover:text-foreground"
+          >
             Já é cliente? Ver meus atendimentos →
           </Link>
         </div>
@@ -484,6 +576,13 @@ function Confirmado({
   data,
   hora,
   primaryColor,
+  durationMinutes,
+  studioPhone,
+  studioEmail,
+  location,
+  clientEmail,
+  clientWhatsapp,
+  wasReschedule,
 }: {
   slug: string;
   studioName: string;
@@ -491,15 +590,47 @@ function Confirmado({
   data: string;
   hora: string;
   primaryColor: string;
+  durationMinutes?: number;
+  studioPhone?: string;
+  studioEmail?: string;
+  location?: string;
+  clientEmail?: string;
+  clientWhatsapp?: string;
+  wasReschedule?: boolean;
 }) {
   const btnStyle = getBrandingButtonStyle(primaryColor);
+  const publicPageHref = `/agendar/${encodeURIComponent(slug)}`;
+
+  const onAddToCalendar = () => {
+    const descriptionLines = [
+      `Estúdio: ${studioName}`,
+      studioPhone ? `WhatsApp/telefone: ${studioPhone}` : null,
+      studioEmail ? `E-mail: ${studioEmail}` : null,
+      `Serviço: ${servico}`,
+    ].filter((line): line is string => Boolean(line));
+
+    const ics = buildAppointmentIcs({
+      title: `${servico} — ${studioName}`,
+      studioName,
+      dateYmd: data,
+      timeHm: hora.slice(0, 5),
+      durationMinutes,
+      location,
+      descriptionLines,
+    });
+    downloadAppointmentIcs(`agendamento-${slug}-${data}`, ics);
+    toast.success("Arquivo de calendário gerado.");
+  };
+
   return (
     <div className="grid min-h-screen place-items-center bg-secondary/30 px-4">
       <div className="w-full max-w-md rounded-3xl border border-border bg-card p-8 text-center shadow-elegant">
         <div className="mx-auto grid size-16 place-items-center rounded-full bg-success/15">
           <Check className="size-8 text-success" />
         </div>
-        <h1 className="mt-5 font-display text-2xl">Agendamento confirmado!</h1>
+        <h1 className="mt-5 font-display text-2xl">
+          {wasReschedule ? "Reagendamento confirmado!" : "Agendamento confirmado!"}
+        </h1>
         <p className="mt-1 text-sm text-muted-foreground">Você receberá uma mensagem no WhatsApp.</p>
 
         <div className="mt-6 space-y-2 rounded-2xl bg-secondary/60 p-5 text-left text-sm">
@@ -521,15 +652,32 @@ function Confirmado({
           </div>
         </div>
 
-        <button type="button" className="mt-6 inline-flex w-full min-h-11 items-center justify-center gap-2 rounded-full px-5 py-3 text-sm" style={btnStyle}>
+        <button
+          type="button"
+          onClick={onAddToCalendar}
+          className="mt-6 inline-flex w-full min-h-11 items-center justify-center gap-2 rounded-full px-5 py-3 text-sm"
+          style={btnStyle}
+        >
           <Calendar className="size-4" /> Adicionar ao calendário
         </button>
-        <Link to="/cliente" className="mt-3 inline-block w-full rounded-full border border-border bg-background px-5 py-3 text-sm">
+        <Link
+          to="/cliente"
+          search={{
+            slug,
+            auto: "1",
+            ...(clientEmail ? { email: clientEmail } : {}),
+            ...(clientWhatsapp ? { whatsapp: clientWhatsapp } : {}),
+          }}
+          className="mt-3 inline-block w-full rounded-full border border-border bg-background px-5 py-3 text-sm"
+        >
           Ver meus atendimentos
         </Link>
-        <Link to="/agendar/$slug" params={{ slug }} className="mt-2 inline-block text-xs text-muted-foreground hover:text-foreground">
+        <a
+          href={publicPageHref}
+          className="mt-2 inline-block text-xs text-muted-foreground hover:text-foreground underline-offset-4 hover:underline"
+        >
           Voltar à página
-        </Link>
+        </a>
       </div>
     </div>
   );

@@ -1,12 +1,16 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Logo } from "@/components/brand/Logo";
 import { Calendar, Star, ArrowRight, LogOut } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { clientPortalService } from "@/services/clientPortalService";
-import { normalizePublicBookingSlug } from "@/lib/public-booking-slug";
+import { normalizePublicBookingSlug, isValidPublicBookingSlug } from "@/lib/public-booking-slug";
+import {
+  readClientPortalSession,
+  saveClientPortalSession,
+  saveRescheduleIntent,
+} from "@/lib/client-portal-session";
 import { toast } from "sonner";
-import { publicBookingService } from "@/services/publicBookingService";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +26,12 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AdminEmptyState } from "@/components/admin/AdminPageStates";
 
 export const Route = createFileRoute("/cliente")({
+  validateSearch: (search: Record<string, unknown>) => ({
+    slug: typeof search.slug === "string" ? normalizePublicBookingSlug(search.slug) : undefined,
+    auto: search.auto === "1" || search.auto === true,
+    email: typeof search.email === "string" ? search.email.trim() : undefined,
+    whatsapp: typeof search.whatsapp === "string" ? search.whatsapp.trim() : undefined,
+  }),
   component: Cliente,
 });
 
@@ -73,12 +83,40 @@ function ClienteHistoryRowSkeleton() {
 }
 
 function Cliente() {
+  const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const [auth, setAuth] = useState({ slug: "", email: "", whatsapp: "" });
+  const search = Route.useSearch();
+  const session = useMemo(() => readClientPortalSession(), []);
+
+  const resolvedSlug = useMemo(() => {
+    const fromUrl = search.slug;
+    if (fromUrl && isValidPublicBookingSlug(fromUrl)) return fromUrl;
+    if (session?.slug && isValidPublicBookingSlug(session.slug)) return session.slug;
+    return "";
+  }, [search.slug, session?.slug]);
+
+  const [auth, setAuth] = useState({
+    slug: resolvedSlug,
+    email: search.email ?? session?.email ?? "",
+    whatsapp: search.whatsapp ?? session?.whatsapp ?? "",
+  });
   const [isAuthed, setIsAuthed] = useState(false);
   const [accessError, setAccessError] = useState<string | null>(null);
-  const [rescheduleOpen, setRescheduleOpen] = useState(false);
-  const [reschedule, setReschedule] = useState({ date: "", time: "" });
+
+  useEffect(() => {
+    if (resolvedSlug) {
+      setAuth((s) => ({ ...s, slug: resolvedSlug }));
+    }
+  }, [resolvedSlug]);
+
+  useEffect(() => {
+    if (!search.auto || !resolvedSlug) return;
+    const email = search.email ?? session?.email ?? "";
+    const whatsapp = search.whatsapp ?? session?.whatsapp ?? "";
+    if (!email && !whatsapp) return;
+    setAuth({ slug: resolvedSlug, email, whatsapp });
+    setIsAuthed(true);
+  }, [search.auto, resolvedSlug, search.email, search.whatsapp, session?.email, session?.whatsapp]);
 
   const portalQuery = useQuery({
     queryKey: ["client_portal", auth.slug, auth.email, auth.whatsapp],
@@ -95,21 +133,33 @@ function Cliente() {
 
   const proximo = useMemo(() => (upcoming[0] ?? null) as Record<string, unknown> | null, [upcoming]);
 
-  const serviceIdForReschedule = (proximo?.service_id ?? null) as string | null;
+  const startReschedule = (appt: Record<string, unknown>) => {
+    const serviceId = String(appt.service_id ?? "");
+    if (!serviceId) {
+      toast.error("Não foi possível iniciar o reagendamento.");
+      return;
+    }
+    saveRescheduleIntent({
+      appointmentId: String(appt.id),
+      slug: auth.slug,
+      email: auth.email,
+      whatsapp: auth.whatsapp,
+      clientName: String((portalQuery.data as { client?: { name?: string } })?.client?.name ?? ""),
+    });
+    void navigate({
+      to: "/agendar/$slug",
+      params: { slug: auth.slug },
+      search: { reagendar: String(appt.id) },
+    });
+  };
 
-  const slotsQuery = useQuery({
-    queryKey: ["client_portal", "slots", auth.slug, serviceIdForReschedule, reschedule.date],
-    enabled: Boolean(isAuthed && serviceIdForReschedule && reschedule.date),
-    queryFn: async () => {
-      const res = await publicBookingService.getAvailableSlots({
-        slug: auth.slug,
-        serviceId: serviceIdForReschedule!,
-        date: reschedule.date,
-      });
-      if (res.error) throw res.error;
-      return (res.data ?? []) as string[];
-    },
-  });
+  const canReschedule = (a: Record<string, unknown>) => {
+    const st = String(a.status ?? "");
+    if (st === "cancelled" || st === "completed" || st === "no_show") return false;
+    const dateStr = String(a.date ?? "");
+    if (!dateStr) return false;
+    return new Date(`${dateStr}T23:59:59`).getTime() >= Date.now();
+  };
 
   const cancelMutation = useMutation({
     mutationFn: async (appointmentId: string) => {
@@ -128,43 +178,6 @@ function Cliente() {
     },
     onError: () => {
       toast.error("Não foi possível cancelar. Verifique seus dados.");
-    },
-  });
-
-  const rescheduleMutation = useMutation({
-    mutationFn: async () => {
-      if (!proximo?.id) throw new Error("Sem agendamento");
-      const res = await clientPortalService.rescheduleAppointment({
-        slug: auth.slug,
-        email: auth.email,
-        whatsapp: auth.whatsapp,
-        appointmentId: String(proximo.id),
-        newDate: reschedule.date,
-        newTime: reschedule.time,
-      });
-      if (res.error) throw res.error;
-      return res.data as Record<string, unknown>;
-    },
-    onSuccess: (d) => {
-      if (d?.ok === false) {
-        if (d?.error === "horario_indisponivel") {
-          toast.error("Esse horário acabou de ficar indisponível. Escolha outro.");
-          return;
-        }
-        if (d?.error === "prazo_minimo") {
-          toast.error("Esse horário não respeita o prazo mínimo de agendamento.");
-          return;
-        }
-        toast.error("Não foi possível reagendar. Verifique os dados.");
-        return;
-      }
-      toast.success("Agendamento reagendado");
-      setRescheduleOpen(false);
-      setReschedule({ date: "", time: "" });
-      void portalQuery.refetch();
-    },
-    onError: () => {
-      toast.error("Não foi possível reagendar. Tente novamente.");
     },
   });
 
@@ -212,20 +225,25 @@ function Cliente() {
   const onAccessSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setAccessError(null);
-    if (!auth.slug.trim()) {
-      setAccessError("Informe o slug do studio (link público).");
+    if (!resolvedSlug) {
+      setAccessError("Abra esta página pelo link do seu estúdio (após agendar ou pelo botão na confirmação).");
       return;
     }
     if (!auth.email.trim() && !auth.whatsapp.trim()) {
       setAccessError("Informe pelo menos e-mail ou WhatsApp usados no agendamento.");
       return;
     }
-    setAuth((s) => ({
-      ...s,
-      slug: normalizePublicBookingSlug(s.slug),
-      email: s.email.trim(),
-      whatsapp: s.whatsapp.trim(),
-    }));
+    const next = {
+      slug: resolvedSlug,
+      email: auth.email.trim(),
+      whatsapp: auth.whatsapp.trim(),
+    };
+    setAuth(next);
+    saveClientPortalSession({
+      slug: next.slug,
+      email: next.email,
+      whatsapp: next.whatsapp,
+    });
     setIsAuthed(true);
   };
 
@@ -283,16 +301,13 @@ function Cliente() {
                 {accessError}
               </p>
             ) : null}
+            {!resolvedSlug ? (
+              <p className="mt-4 rounded-xl border border-border bg-secondary/40 px-3 py-3 text-sm text-muted-foreground">
+                Use o link enviado pelo seu estúdio ou o botão &quot;Ver meus atendimentos&quot; na tela de confirmação do
+                agendamento.
+              </p>
+            ) : null}
             <div className="mt-5 grid gap-3">
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-medium text-muted-foreground">Seu studio (slug)</span>
-                <input
-                  value={auth.slug}
-                  onChange={(e) => setAuth((s) => ({ ...s, slug: e.target.value }))}
-                  autoComplete="off"
-                  className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm outline-none transition focus:border-foreground focus:ring-2 focus:ring-gold/30"
-                />
-              </label>
               <label className="block">
                 <span className="mb-1.5 block text-xs font-medium text-muted-foreground">E-mail</span>
                 <input
@@ -317,7 +332,7 @@ function Cliente() {
             <button
               type="submit"
               className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 py-3.5 text-sm text-background disabled:opacity-30"
-              disabled={!auth.slug.trim() || (!auth.email.trim() && !auth.whatsapp.trim())}
+              disabled={!resolvedSlug || (!auth.email.trim() && !auth.whatsapp.trim())}
             >
               Ver meus atendimentos <ArrowRight className="size-4" aria-hidden />
             </button>
@@ -329,7 +344,7 @@ function Cliente() {
             role="alert"
             className="mt-6 rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
           >
-            Não foi possível carregar seus agendamentos. Verifique o slug e os dados ou tente de novo.
+            Não foi possível carregar seus agendamentos. Verifique e-mail/WhatsApp ou tente de novo.
             <button
               type="button"
               className="mt-3 block w-full rounded-full border border-destructive/40 bg-background px-4 py-2 text-center text-xs font-medium text-destructive hover:bg-destructive/5 sm:w-auto"
@@ -366,89 +381,13 @@ function Cliente() {
               {String((portalQuery.data as { company?: { name?: string } })?.company?.name ?? "")}
             </div>
             <div className="mt-5 flex flex-wrap gap-2">
-              <Dialog open={rescheduleOpen} onOpenChange={setRescheduleOpen}>
-                <DialogTrigger asChild>
-                  <button
-                    type="button"
-                    className="rounded-full bg-gold px-5 py-2.5 text-sm text-foreground hover:opacity-90"
-                  >
-                    Reagendar
-                  </button>
-                </DialogTrigger>
-                <DialogContent className="rounded-3xl">
-                  <DialogHeader>
-                    <DialogTitle>Reagendar</DialogTitle>
-                    <DialogDescription>Escolha uma nova data e horário.</DialogDescription>
-                  </DialogHeader>
-
-                  <div className="grid gap-3">
-                    <label className="grid gap-1.5">
-                      <span className="text-xs font-medium text-muted-foreground">Data (YYYY-MM-DD)</span>
-                      <Input
-                        value={reschedule.date}
-                        onChange={(e) => setReschedule((s) => ({ ...s, date: e.target.value, time: "" }))}
-                        placeholder="Ex.: 2026-05-10"
-                      />
-                    </label>
-
-                    <div className="grid gap-2">
-                      <div className="text-xs font-medium text-muted-foreground">Horários disponíveis</div>
-                      {slotsQuery.isLoading ? (
-                        <div className="grid grid-cols-3 gap-2 md:grid-cols-5">
-                          {Array.from({ length: 6 }).map((_, i) => (
-                            <Skeleton key={i} className="h-12 rounded-xl" />
-                          ))}
-                        </div>
-                      ) : (
-                        <div className="-mx-1 max-h-48 overflow-y-auto px-1">
-                          <div className="grid grid-cols-3 gap-2 md:grid-cols-5">
-                            {(slotsQuery.data ?? []).map((t) => {
-                              const sel = reschedule.time === t;
-                              return (
-                                <button
-                                  key={t}
-                                  type="button"
-                                  onClick={() => setReschedule((s) => ({ ...s, time: t }))}
-                                  className={`rounded-xl border px-3 py-3 text-sm transition ${
-                                    sel
-                                      ? "border-foreground bg-foreground text-background"
-                                      : "border-border bg-success/10 hover:border-foreground/40"
-                                  }`}
-                                >
-                                  {t}
-                                </button>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      )}
-                      {!slotsQuery.isLoading && reschedule.date && (slotsQuery.data ?? []).length === 0 && (
-                        <div className="rounded-2xl border border-border bg-secondary/40 p-4 text-sm text-muted-foreground">
-                          Sem horários disponíveis para essa data.
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  <DialogFooter>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() => setRescheduleOpen(false)}
-                      disabled={rescheduleMutation.isPending}
-                    >
-                      Fechar
-                    </Button>
-                    <Button
-                      type="button"
-                      onClick={() => rescheduleMutation.mutate()}
-                      disabled={!reschedule.date || !reschedule.time || rescheduleMutation.isPending}
-                    >
-                      {rescheduleMutation.isPending ? "Reagendando…" : "Confirmar"}
-                    </Button>
-                  </DialogFooter>
-                </DialogContent>
-              </Dialog>
+              <button
+                type="button"
+                className="rounded-full bg-gold px-5 py-2.5 text-sm text-foreground hover:opacity-90"
+                onClick={() => startReschedule(proximo)}
+              >
+                Reagendar
+              </button>
               <button
                 type="button"
                 onClick={() => cancelMutation.mutate(String(proximo.id))}
@@ -518,6 +457,26 @@ function Cliente() {
                         />
                       ))}
                     </div>
+                  ) : canReschedule(a) ? (
+                    <div className="mt-4 flex flex-wrap gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-full"
+                        onClick={() => startReschedule(a)}
+                      >
+                        Reagendar
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="rounded-full"
+                        onClick={() => cancelMutation.mutate(String(a.id))}
+                        disabled={cancelMutation.isPending}
+                      >
+                        Cancelar
+                      </Button>
+                    </div>
                   ) : a.status === "completed" ? (
                     <div className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                       <div className="text-sm text-muted-foreground">Como foi seu atendimento?</div>
@@ -576,7 +535,7 @@ function Cliente() {
                 <AdminEmptyState
                   icon={Calendar}
                   title="Nenhum atendimento encontrado"
-                  description="Não há histórico com e-mail ou WhatsApp informados. Confira o slug do studio e os dados usados na reserva."
+                  description="Não há histórico com e-mail ou WhatsApp informados. Confira os dados usados na reserva."
                   action={
                     <Link
                       to="/agendar/$slug"
