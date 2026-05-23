@@ -1,3 +1,4 @@
+import { fixPlanFeatureLabel, sanitizePlanList } from "@/lib/plan-feature-labels";
 import { getSupabase } from "@/lib/supabaseClient";
 
 type GateError = { message: string; status?: number; code?: string };
@@ -111,11 +112,15 @@ export const masterService = {
     const supabase = getSupabase();
 
     const rpc = await supabase.rpc("master_list_plans");
-    if (!rpc.error) return rpc;
+    if (!rpc.error && rpc.data) {
+      return { ...rpc, data: sanitizePlanList(rpc.data as { features?: string[] | null }[]) };
+    }
 
     // Fallback: RLS com EXISTS em platform_admins (após migration 20260517030000)
     const table = await supabase.from("plans").select("*").order("price", { ascending: true });
-    if (!table.error) return table;
+    if (!table.error && table.data) {
+      return { ...table, data: sanitizePlanList(table.data) };
+    }
 
     return rpc;
   },
@@ -207,7 +212,16 @@ export const masterService = {
   async listFeaturesCatalog() {
     const gate = await requireMasterSession();
     if (!gate.ok) return { data: null, error: gate.error };
-    return getSupabase().rpc("master_list_features_catalog");
+    const rpc = await getSupabase().rpc("master_list_features_catalog");
+    if (rpc.error) return rpc;
+    const rows = (rpc.data ?? []) as { name?: string }[];
+    return {
+      ...rpc,
+      data: rows.map((row) => ({
+        ...row,
+        name: fixPlanFeatureLabel(String(row.name ?? "")),
+      })),
+    };
   },
 
   async listPlanFeatures(planId: string) {
@@ -215,7 +229,14 @@ export const masterService = {
     if (!gate.ok) return { data: null, error: gate.error };
     const rpc = await getSupabase().rpc("master_list_plan_features", { p_plan_id: planId });
     if (rpc.error) return { data: null, error: rpc.error };
-    return { data: rpc.data ?? [], error: null };
+    const rows = (rpc.data ?? []) as { name?: string }[];
+    return {
+      data: rows.map((row) => ({
+        ...row,
+        name: fixPlanFeatureLabel(String(row.name ?? "")),
+      })),
+      error: null,
+    };
   },
 
   async setPlanFeature(planId: string, featureKey: string, enabled: boolean) {

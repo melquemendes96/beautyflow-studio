@@ -7,7 +7,6 @@ import { masterService } from "@/services/masterService";
 import { addReadNotificationIds, getReadNotificationIds } from "@/lib/master-notification-read";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import { cn } from "@/lib/utils";
 
 export type MasterFeedItem = {
@@ -143,8 +142,11 @@ export function MasterNotificationsBell() {
           ) : null}
         </button>
       </PopoverTrigger>
-      <PopoverContent align="end" className="w-[min(100vw-2rem,22rem)] p-0">
-        <div className="flex items-center justify-between border-b border-border px-3 py-2">
+      <PopoverContent
+        align="end"
+        className="flex w-[min(100vw-2rem,22rem)] max-h-[min(24rem,85vh)] flex-col overflow-hidden p-0"
+      >
+        <div className="flex shrink-0 items-center justify-between border-b border-border px-3 py-2">
           <span className="text-sm font-medium">Notificações</span>
           {items.length > 0 ? (
             <Button type="button" variant="ghost" size="sm" className="h-8 text-xs" onClick={markAllRead}>
@@ -152,7 +154,7 @@ export function MasterNotificationsBell() {
             </Button>
           ) : null}
         </div>
-        <ScrollArea className="max-h-72">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {feedQuery.isLoading ? (
             <div className="px-3 py-6 text-center text-sm text-muted-foreground">Carregando…</div>
           ) : items.length === 0 ? (
@@ -193,9 +195,11 @@ export function MasterNotificationsBell() {
               })}
             </ul>
           )}
-        </ScrollArea>
+        </div>
         {feedQuery.isError ? (
-          <div className="border-t border-border px-3 py-2 text-xs text-destructive">Não foi possível atualizar.</div>
+          <div className="shrink-0 border-t border-border px-3 py-2 text-xs text-destructive">
+            Não foi possível atualizar.
+          </div>
         ) : null}
       </PopoverContent>
     </Popover>

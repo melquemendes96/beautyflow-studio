@@ -1,3 +1,4 @@
+import { sanitizePlanList } from "@/lib/plan-feature-labels";
 import { getSupabase } from "@/lib/supabaseClient";
 
 /**
@@ -8,13 +9,17 @@ export const subscriptionService = {
     const supabase = getSupabase();
     const rpc = await supabase.rpc("list_public_plans");
     if (!rpc.error && rpc.data) {
-      return { ...rpc, data: rpc.data };
+      return { ...rpc, data: sanitizePlanList(rpc.data as { features?: string[] | null }[]) };
     }
-    return supabase
+    const table = await supabase
       .from("plans")
       .select("id, name, price, features, active")
       .eq("active", true)
       .order("price");
+    if (!table.error && table.data) {
+      return { ...table, data: sanitizePlanList(table.data) };
+    }
+    return table;
   },
 
   getSubscriptionByCompany(companyId: string) {
