@@ -2,8 +2,8 @@
 
 **Tag Git:** `pre-whatsapp-2026-05-22`  
 **Branch de referência:** `pre-whatsapp-integration`  
-**Commit:** `0200a9efd5afbbd36cea52896ea41a99d49886ec`  
-**Mensagem:** `fix: corrigir ensureProfile no login` (inclui planos, notificações, agenda, encoding)
+**Commit:** `701f8ac` (tag aponta aqui; inclui este guia + scripts de restore)  
+**Código SaaS base:** `0200a9e` — planos, notificações, agenda, encoding, MP validado
 
 Use este ponto para **voltar o código** ou **recomeçar** a Fase WhatsApp sem perder o SaaS estável de go-live.
 
