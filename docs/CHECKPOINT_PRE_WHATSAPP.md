@@ -2,7 +2,7 @@
 
 **Tag Git:** `pre-whatsapp-2026-05-22`  
 **Branch de referência:** `pre-whatsapp-integration`  
-**Commit:** `6acf15a` (tag aponta aqui; inclui este guia + scripts de restore)  
+**Commit:** `a9135e7` (tag `pre-whatsapp-2026-05-22` aponta aqui)  
 **Código SaaS base:** `0200a9e` — planos, notificações, agenda, encoding, MP validado
 
 Use este ponto para **voltar o código** ou **recomeçar** a Fase WhatsApp sem perder o SaaS estável de go-live.
