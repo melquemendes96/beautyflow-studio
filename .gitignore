@@ -41,3 +41,7 @@ logs/
 
 # Supabase CLI local cache (do not commit)
 supabase/.temp/
+
+# Database dumps locais (checkpoint pré-WhatsApp etc.)
+backups/
+*.dump.sql
