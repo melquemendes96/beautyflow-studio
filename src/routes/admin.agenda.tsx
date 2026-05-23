@@ -29,6 +29,15 @@ import {
   formatAppointmentDateYmd,
   formatAppointmentTimeHm,
 } from "@/lib/appointment-time";
+import {
+  findManualBlockForHour,
+  hasBlockType,
+  hourSlotEnd,
+  isHourBlocked,
+  type ScheduleBlockRow,
+} from "@/lib/admin-agenda-blocks";
+import { businessSettingsService } from "@/services/businessSettingsService";
+import type { ScheduleBlockType } from "@/services/scheduleBlockService";
 
 export const Route = createFileRoute("/admin/agenda")({
   component: Agenda,
@@ -136,6 +145,25 @@ function Agenda() {
     },
   });
 
+  const businessSettingsQuery = useQuery({
+    queryKey: ["admin", "business_settings", companyId],
+    enabled: hasCompany && view === "dia",
+    queryFn: async () => {
+      const res = await businessSettingsService.getByCompany(companyId!);
+      if (res.error) throw res.error;
+      return res.data;
+    },
+    staleTime: 60_000,
+  });
+
+  const businessHours = useMemo(
+    () => ({
+      opening_time: (businessSettingsQuery.data as { opening_time?: string } | null)?.opening_time,
+      closing_time: (businessSettingsQuery.data as { closing_time?: string } | null)?.closing_time,
+    }),
+    [businessSettingsQuery.data],
+  );
+
   const weekStart = useMemo(() => startOfWeek(day), [day]);
   const weekEnd = useMemo(() => addDays(weekStart, 6), [weekStart]);
   const weekStartYmd = useMemo(() => toYmd(weekStart), [weekStart]);
@@ -197,27 +225,74 @@ function Agenda() {
     },
   });
 
-  const createBlockMutation = useMutation({
-    mutationFn: async (blockType: "morning_full" | "afternoon_full" | "day_full") => {
+  const invalidateBlocks = async () => {
+    await queryClient.invalidateQueries({ queryKey: ["admin", "agenda", "blocks", companyId, dateYmd] });
+  };
+
+  const toggleBulkBlockMutation = useMutation({
+    mutationFn: async (blockType: ScheduleBlockType) => {
       if (!companyId) throw new Error("Sem empresa");
-      const ranges =
-        blockType === "morning_full"
-          ? { time_start: "08:00", time_end: "12:00" }
-          : blockType === "afternoon_full"
-            ? { time_start: "12:00", time_end: "18:00" }
-            : { time_start: "08:00", time_end: "18:00" };
+      const blocks = (dayBlocksQuery.data ?? []) as ScheduleBlockRow[];
+      if (hasBlockType(blocks, blockType)) {
+        const res = await scheduleBlockService.deleteByType(companyId, dateYmd, blockType);
+        if (res.error) throw res.error;
+        return { action: "removed" as const, blockType };
+      }
+      if (blockType === "day_full") {
+        await scheduleBlockService.deleteByType(companyId, dateYmd, "morning_full");
+        await scheduleBlockService.deleteByType(companyId, dateYmd, "afternoon_full");
+      }
       const res = await scheduleBlockService.create(companyId, {
         block_date: dateYmd,
-        time_start: ranges.time_start,
-        time_end: ranges.time_end,
         block_type: blockType,
       });
       if (res.error) throw res.error;
-      return res.data;
+      return { action: "created" as const, blockType };
     },
-    onSuccess: async () => {
-      toast.success("Bloqueio aplicado");
-      await queryClient.invalidateQueries({ queryKey: ["admin", "agenda", "blocks", companyId, dateYmd] });
+    onSuccess: async (result) => {
+      const labels: Record<string, string> = {
+        morning_full: "manhã",
+        afternoon_full: "tarde",
+        day_full: "dia inteiro",
+      };
+      const label = labels[result.blockType] ?? "período";
+      toast.success(result.action === "created" ? `Bloqueio da ${label} ativado` : `Bloqueio da ${label} removido`);
+      await invalidateBlocks();
+    },
+    onError: () => {
+      toast.error("Não foi possível atualizar o bloqueio. Tente novamente.");
+    },
+  });
+
+  const toggleHourBlockMutation = useMutation({
+    mutationFn: async (hourHm: string) => {
+      if (!companyId) throw new Error("Sem empresa");
+      const blocks = (dayBlocksQuery.data ?? []) as ScheduleBlockRow[];
+      const manual = findManualBlockForHour(blocks, hourHm);
+      if (manual?.id) {
+        const res = await scheduleBlockService.delete(companyId, manual.id);
+        if (res.error) throw res.error;
+        return { action: "unblocked" as const, hourHm };
+      }
+      const res = await scheduleBlockService.create(companyId, {
+        block_date: dateYmd,
+        block_type: "manual_block",
+        time_start: hourHm,
+        time_end: hourSlotEnd(hourHm),
+      });
+      if (res.error) throw res.error;
+      return { action: "blocked" as const, hourHm };
+    },
+    onSuccess: async (result) => {
+      toast.success(
+        result.action === "blocked"
+          ? `Horário ${result.hourHm} bloqueado para agendamento online`
+          : `Horário ${result.hourHm} liberado`,
+      );
+      await invalidateBlocks();
+    },
+    onError: () => {
+      toast.error("Não foi possível alterar este horário. Tente novamente.");
     },
   });
 
@@ -246,13 +321,24 @@ function Agenda() {
     return map;
   }, [dayAppointmentsQuery.data]);
 
-  const blocks = useMemo(() => dayBlocksQuery.data ?? [], [dayBlocksQuery.data]);
-  const isBlockedAt = (time: string) => {
-    return blocks.some((b: any) => {
-      const start = String(b.time_start ?? "").slice(0, 5);
-      const end = String(b.time_end ?? "").slice(0, 5);
-      return time >= start && time < end;
-    });
+  const blocks = useMemo(() => (dayBlocksQuery.data ?? []) as ScheduleBlockRow[], [dayBlocksQuery.data]);
+
+  const isBlockedAt = (time: string) => isHourBlocked(time, blocks, businessHours);
+
+  const handleHourSlotClick = (hora: string) => {
+    const eventos = dayEventsByTime.get(hora) ?? [];
+    if (eventos.length > 0) return;
+
+    const manual = findManualBlockForHour(blocks, hora);
+    if (manual) {
+      toggleHourBlockMutation.mutate(hora);
+      return;
+    }
+    if (isBlockedAt(hora)) {
+      toast.message("Horário bloqueado pelo botão manhã/tarde/dia. Clique de novo no mesmo botão para remover o bloqueio em massa.");
+      return;
+    }
+    toggleHourBlockMutation.mutate(hora);
   };
 
   return (
@@ -350,27 +436,29 @@ function Agenda() {
           />
         </div>
         <div className="flex flex-wrap gap-2 text-xs">
-          <button
-            className="inline-flex items-center gap-1 rounded-full bg-secondary px-3 py-1.5 hover:bg-accent"
-            onClick={() => createBlockMutation.mutate("morning_full")}
-            disabled={createBlockMutation.isPending}
-          >
-            <Lock className="size-3" /> Bloquear manhã
-          </button>
-          <button
-            className="inline-flex items-center gap-1 rounded-full bg-secondary px-3 py-1.5 hover:bg-accent"
-            onClick={() => createBlockMutation.mutate("afternoon_full")}
-            disabled={createBlockMutation.isPending}
-          >
-            <Lock className="size-3" /> Bloquear tarde
-          </button>
-          <button
-            className="inline-flex items-center gap-1 rounded-full bg-secondary px-3 py-1.5 hover:bg-accent"
-            onClick={() => createBlockMutation.mutate("day_full")}
-            disabled={createBlockMutation.isPending}
-          >
-            <Lock className="size-3" /> Marcar dia lotado
-          </button>
+          {(
+            [
+              { type: "morning_full" as const, label: "Bloquear manhã" },
+              { type: "afternoon_full" as const, label: "Bloquear tarde" },
+              { type: "day_full" as const, label: "Marcar dia lotado" },
+            ] as const
+          ).map(({ type, label }) => {
+            const active = hasBlockType(blocks, type);
+            return (
+              <button
+                key={type}
+                type="button"
+                className={`inline-flex items-center gap-1 rounded-full px-3 py-1.5 transition ${
+                  active ? "bg-foreground text-background" : "bg-secondary hover:bg-accent"
+                }`}
+                onClick={() => toggleBulkBlockMutation.mutate(type)}
+                disabled={toggleBulkBlockMutation.isPending}
+              >
+                <Lock className="size-3" />
+                {active ? `${label} (ativo)` : label}
+              </button>
+            );
+          })}
         </div>
       </div>
 
@@ -385,12 +473,15 @@ function Agenda() {
           ) : (
             dayTimeSlots.map((hora) => {
               const eventos = dayEventsByTime.get(hora) ?? [];
-              const blocked = isBlockedAt(hora);
+              const occupied = eventos.length > 0;
+              const blocked = !occupied && isBlockedAt(hora);
+              const manualBlock = findManualBlockForHour(blocks, hora);
+              const slotLabel = occupied ? "Ocupado" : blocked ? "Bloqueado" : "Horário livre";
               return (
                 <div key={hora} className="flex gap-4 border-b border-border last:border-0 px-3 py-3">
                   <div className="w-14 pt-1 text-xs text-muted-foreground">{hora}</div>
                   <div className="flex-1 space-y-2">
-                    {eventos.length > 0 ? (
+                    {occupied ? (
                       eventos.map((evento) => (
                         <div key={evento.id} className="rounded-xl bg-secondary/60 p-3">
                           <div className="flex items-center justify-between gap-2">
@@ -432,9 +523,25 @@ function Agenda() {
                         </div>
                       ))
                     ) : (
-                      <div className="rounded-xl border border-dashed border-border px-3 py-3 text-xs text-muted-foreground">
-                        {blocked ? "Bloqueado" : "Horário livre"}
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleHourSlotClick(hora)}
+                        disabled={toggleHourBlockMutation.isPending}
+                        className={`w-full rounded-xl border px-3 py-3 text-left text-xs transition ${
+                          blocked
+                            ? "border-warning/50 bg-warning/10 text-warning"
+                            : "border-dashed border-border bg-transparent text-muted-foreground hover:border-foreground/30 hover:bg-secondary/40"
+                        }`}
+                      >
+                        <span className="font-medium">{slotLabel}</span>
+                        <span className="mt-0.5 block text-[10px] opacity-80">
+                          {blocked
+                            ? manualBlock
+                              ? "Clique para liberar"
+                              : "Bloqueio em massa — use os botões acima para remover"
+                            : "Clique para bloquear este horário"}
+                        </span>
+                      </button>
                     )}
                   </div>
                 </div>
