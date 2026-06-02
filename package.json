@@ -17,6 +17,7 @@
     "test:plan-features": "node scripts/plan-features-access.test.mjs",
     "test:plan-labels": "node scripts/plan-feature-labels.test.mjs",
     "test:mercado-pago-env": "node scripts/mercado-pago-env.test.mjs",
+    "test:subscription-access": "node scripts/subscription-access.test.mjs",
     "lint": "eslint .",
     "format": "prettier --write .",
     "supabase:deploy:mercado-pago-preference": "npx supabase functions deploy create-mercado-pago-preference",

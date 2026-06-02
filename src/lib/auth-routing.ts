@@ -98,7 +98,7 @@ export function resolveAuthDestinationFromProfile(
       };
     }
     const billingFlag =
-      access === "trial_expired"
+      access === "trial_expired" || access === "period_ended"
         ? "expired"
         : access === "no_subscription"
           ? "setup"

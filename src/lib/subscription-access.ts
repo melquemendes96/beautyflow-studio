@@ -24,6 +24,18 @@ function parseTs(value: string | null | undefined): number | null {
   return Number.isNaN(t) ? null : t;
 }
 
+/** Fim de período inclusivo: válido até o fim do dia (evita expirar à meia-noite UTC). */
+function parsePeriodEndInclusive(value: string | null | undefined): number | null {
+  if (!value) return null;
+  const raw = value.trim();
+  const d = new Date(raw);
+  if (Number.isNaN(d.getTime())) return null;
+  if (/^\d{4}-\d{2}-\d{2}$/.test(raw) || /T00:00:00(\.000)?Z?$/i.test(raw)) {
+    d.setUTCHours(23, 59, 59, 999);
+  }
+  return d.getTime();
+}
+
 /** Dashboard liberado apenas com active válido ou trialing dentro do período. */
 export function isSubscriptionDashboardAllowed(
   sub: SubscriptionSnapshot | null | undefined,
@@ -39,16 +51,18 @@ export function getSubscriptionAccessReason(
   if (!sub?.status) return "no_subscription";
 
   const st = String(sub.status);
-  const periodEnd = parseTs(sub.trial_end ?? sub.current_period_end);
-  const periodStarted = parseTs(sub.trial_start ?? sub.current_period_start);
 
   if (st === "active") {
-    if (periodEnd !== null && periodEnd <= now) return "period_ended";
+    // Assinatura paga: só current_period_end (trial_end legado não deve bloquear).
+    const periodEnd = parsePeriodEndInclusive(sub.current_period_end);
+    if (periodEnd !== null && periodEnd < now) return "period_ended";
     return "ok";
   }
 
   if (st === "trialing") {
-    if (periodEnd !== null && periodEnd <= now) return "trial_expired";
+    const periodEnd = parsePeriodEndInclusive(sub.trial_end ?? sub.current_period_end);
+    const periodStarted = parseTs(sub.trial_start ?? sub.current_period_start);
+    if (periodEnd !== null && periodEnd < now) return "trial_expired";
     if (periodStarted !== null && periodStarted > now) return "pending_payment";
     return "ok";
   }
