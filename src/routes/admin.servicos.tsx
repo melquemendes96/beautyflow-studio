@@ -181,12 +181,13 @@ function Servicos() {
                 <Plus className="size-4" /> Novo serviço
               </button>
             </DialogTrigger>
-            <DialogContent className="rounded-3xl">
-              <DialogHeader>
+            <DialogContent className="top-[4dvh] flex max-h-[92dvh] w-[calc(100%-1.5rem)] max-w-lg translate-y-0 flex-col gap-0 overflow-hidden rounded-3xl p-0 sm:top-[50%] sm:translate-y-[-50%]">
+              <DialogHeader className="shrink-0 px-6 pt-6 pr-12">
                 <DialogTitle>{editing ? "Editar serviço" : "Novo serviço"}</DialogTitle>
                 <DialogDescription>Catálogo de serviços da sua empresa.</DialogDescription>
               </DialogHeader>
 
+              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-4">
               <div className="grid gap-3">
                 <label className="grid gap-1.5">
                   <span className="text-xs font-medium text-muted-foreground">Nome</span>
@@ -315,12 +316,13 @@ function Servicos() {
               </div>
 
               {saveMutation.error && (
-                <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                <div className="mt-3 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                   Não foi possível salvar. Verifique os campos e tente novamente.
                 </div>
               )}
+              </div>
 
-              <DialogFooter>
+              <DialogFooter className="shrink-0 gap-2 border-t border-border bg-background px-6 py-4 sm:flex-row sm:justify-end">
                 <Button variant="outline" onClick={() => setOpen(false)} disabled={saveMutation.isPending}>
                   Cancelar
                 </Button>
