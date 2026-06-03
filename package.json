@@ -24,7 +24,9 @@
     "supabase:deploy:mercado-pago-webhook": "npx supabase functions deploy mercado-pago-webhook",
     "supabase:deploy:mercado-pago": "npx supabase functions deploy create-mercado-pago-preference && npx supabase functions deploy mercado-pago-webhook",
     "supabase:deploy:meta-whatsapp-webhook": "npx supabase functions deploy meta-whatsapp-webhook",
-    "supabase:deploy:all-functions": "npx supabase functions deploy create-mercado-pago-preference && npx supabase functions deploy mercado-pago-webhook && npx supabase functions deploy meta-whatsapp-webhook"
+    "supabase:deploy:send-whatsapp-message": "npx supabase functions deploy send-whatsapp-message",
+    "supabase:deploy:whatsapp": "npx supabase functions deploy meta-whatsapp-webhook && npx supabase functions deploy send-whatsapp-message",
+    "supabase:deploy:all-functions": "npx supabase functions deploy create-mercado-pago-preference && npx supabase functions deploy mercado-pago-webhook && npx supabase functions deploy meta-whatsapp-webhook && npx supabase functions deploy send-whatsapp-message"
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.25.5",

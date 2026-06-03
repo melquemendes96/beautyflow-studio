@@ -36,6 +36,9 @@ export type PublicBookingRpcResult = {
   error?: string;
   appointment_id?: string;
   client_id?: string;
+  company_id?: string;
+  whatsapp_queued?: boolean;
+  whatsapp_log_id?: string | null;
 };
 
 export function parsePublicBookingRpcResult(data: unknown): PublicBookingRpcResult {

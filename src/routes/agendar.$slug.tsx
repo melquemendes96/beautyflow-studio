@@ -23,6 +23,7 @@ import { BrandedImage } from "@/components/booking/BrandedImage";
 import { PublicStudioHero, getBrandingButtonStyle } from "@/components/booking/PublicStudioHero";
 import { displayStudioName, normalizeHexColor, studioInitials } from "@/lib/branding-utils";
 import { toast } from "sonner";
+import { triggerWhatsAppBookingConfirmation } from "@/lib/trigger-whatsapp-send";
 
 export const Route = createFileRoute("/agendar/$slug")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -50,6 +51,7 @@ function Agendar() {
   const [data, setData] = useState<string | null>(null);
   const [hora, setHora] = useState<string | null>(null);
   const [form, setForm] = useState({ nome: "", email: "", whatsapp: "", notes: "" });
+  const [whatsappOptIn, setWhatsappOptIn] = useState(true);
 
   useEffect(() => {
     if (!rescheduleIntent) return;
@@ -79,6 +81,7 @@ function Agendar() {
       const payload = res.data as {
         company?: { id: string; name: string; slug: string; phone?: string; email?: string } | null;
         branding?: Record<string, unknown> | null;
+        whatsapp_notifications_available?: boolean;
         services?: Array<{
           id: string;
           name: string;
@@ -94,6 +97,9 @@ function Agendar() {
 
   const company = pageQuery.data?.company ?? null;
   const branding = pageQuery.data?.branding ?? null;
+  const whatsappNotificationsAvailable = Boolean(
+    (pageQuery.data as { whatsapp_notifications_available?: boolean } | null)?.whatsapp_notifications_available,
+  );
   const servicos = pageQuery.data?.services ?? [];
   const servicoSel = servicos.find((s) => s.id === servico);
 
@@ -138,12 +144,20 @@ function Agendar() {
         clientEmail: form.email,
         clientWhatsapp: form.whatsapp,
         notes: form.notes || null,
+        whatsappNotifications:
+          whatsappNotificationsAvailable && whatsappOptIn && Boolean(form.whatsapp.trim()),
       });
       if (res.error) throw res.error;
       return { mode: "create" as const, data: res.data };
     },
-    onSuccess: (result) => {
-      const d = result.data as { ok?: boolean; error?: string; appointment_id?: string };
+    onSuccess: async (result) => {
+      const d = result.data as {
+        ok?: boolean;
+        error?: string;
+        appointment_id?: string;
+        whatsapp_queued?: boolean;
+        whatsapp_log_id?: string | null;
+      };
       if (!d?.ok) {
         if (d?.error === "horario_indisponivel") {
           toast.error("Esse horário acabou de ficar indisponível. Escolha outro horário.");
@@ -172,6 +186,12 @@ function Agendar() {
         whatsapp: form.whatsapp,
       });
       if (result.mode === "reschedule") clearRescheduleIntent();
+      if (result.mode === "create" && d.appointment_id && d.whatsapp_queued) {
+        await triggerWhatsAppBookingConfirmation({
+          appointmentId: d.appointment_id,
+          logId: d.whatsapp_log_id ?? undefined,
+        });
+      }
       setStep("confirmado");
     },
     onError: () => {
@@ -457,6 +477,22 @@ function Agendar() {
                   placeholder="(11) 99999-0000"
                 />
                 <Field label="Observações (opcional)" value={form.notes} onChange={(v) => setForm({ ...form, notes: v })} />
+                {whatsappNotificationsAvailable && form.whatsapp.trim() && (
+                  <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-secondary/30 p-4 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={whatsappOptIn}
+                      onChange={(e) => setWhatsappOptIn(e.target.checked)}
+                      className="mt-1"
+                    />
+                    <span>
+                      <span className="font-medium text-foreground">Receber confirmação no WhatsApp</span>
+                      <span className="mt-1 block text-muted-foreground">
+                        Enviaremos uma mensagem com data, horário e serviço (conforme políticas da Meta).
+                      </span>
+                    </span>
+                  </label>
+                )}
               </div>
               <div className="mt-6 rounded-2xl bg-secondary/60 p-4 text-sm">
                 <div className="flex justify-between">

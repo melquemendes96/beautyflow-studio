@@ -29,6 +29,7 @@ export const publicBookingService = {
     clientEmail: string;
     clientWhatsapp: string;
     notes?: string | null;
+    whatsappNotifications?: boolean;
   }) {
     const timeHm = params.appointmentTime.trim().slice(0, 5);
     const res = await getSupabase().rpc("create_public_booking", {
@@ -40,6 +41,7 @@ export const publicBookingService = {
       p_client_email: params.clientEmail,
       p_client_whatsapp: params.clientWhatsapp,
       p_notes: params.notes ?? null,
+      p_whatsapp_notifications: params.whatsappNotifications ?? false,
     });
     if (res.error) return res;
     const parsed = parsePublicBookingRpcResult(res.data);
