@@ -3,6 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { DEMO_BOOKING_PATH } from "@/lib/app-constants";
 import { SiteFooter } from "@/components/site/SiteFooter";
+import { SocialProofBrands } from "@/components/site/SocialProofBrands";
 import { Logo } from "@/components/brand/Logo";
 import { fetchPublicPlans } from "@/lib/fetch-public-plans";
 import { PublicPlansLoadError } from "@/components/site/PublicPlansLoadError";
@@ -100,19 +101,7 @@ function Landing() {
                 Ver demonstração
               </Link>
             </div>
-            <div className="mt-10 flex items-center gap-6 text-sm text-muted-foreground">
-              <div className="flex -space-x-2">
-                {[1, 2, 3, 4].map((i) => (
-                  <div key={i} className="size-8 rounded-full border-2 border-background bg-gradient-to-br from-gold to-rose" />
-                ))}
-              </div>
-              <div>
-                <div className="flex items-center gap-1 text-gold">
-                  {[...Array(5)].map((_, i) => <Star key={i} className="size-3.5 fill-current" />)}
-                </div>
-                <span className="text-xs">+1.200 profissionais já amam</span>
-              </div>
-            </div>
+            <SocialProofBrands className="mt-10" />
           </div>
 
           {/* Mock device preview */}
