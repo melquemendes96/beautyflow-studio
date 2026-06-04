@@ -389,7 +389,7 @@ function SetupChecklist({
 
   return (
     <section className="mb-6 rounded-2xl border border-gold/25 bg-gold-soft/10 p-5">
-      <h2 className="font-display text-lg">Checklist Meta (Fase 4)</h2>
+      <h2 className="font-display text-lg">Checklist Meta</h2>
       <p className="mt-1 text-sm text-muted-foreground">
         Verificação da empresa na Meta e templates aprovados são feitos no{" "}
         <a
