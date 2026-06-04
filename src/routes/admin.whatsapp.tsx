@@ -7,9 +7,11 @@ import {
   buildMetaWebhookUrl,
   whatsappService,
   type WhatsappConnectionStatus,
+  type WhatsappMessageLogRow,
+  type WhatsappSetupStatus,
   type WhatsappTemplateRow,
 } from "@/services/whatsappService";
-import { BookOpen, Copy, MessageCircle, RefreshCw, Shield } from "lucide-react";
+import { BookOpen, Check, Circle, Copy, MessageCircle, RefreshCw, Shield, Zap } from "lucide-react";
 import { toast } from "sonner";
 
 export const Route = createFileRoute("/admin/whatsapp")({
@@ -45,6 +47,26 @@ function WhatsAppAdmin() {
     enabled: hasCompany && Boolean(companyId),
     queryFn: async () => {
       const res = await whatsappService.listTemplates(companyId!);
+      if (res.error) throw res.error;
+      return res.data;
+    },
+  });
+
+  const setupQuery = useQuery({
+    queryKey: ["admin", "whatsapp", "setup", companyId],
+    enabled: hasCompany && Boolean(companyId),
+    queryFn: async () => {
+      const res = await whatsappService.getSetupStatus(companyId!);
+      if (res.error) throw res.error;
+      return res.data;
+    },
+  });
+
+  const logsQuery = useQuery({
+    queryKey: ["admin", "whatsapp", "logs", companyId],
+    enabled: hasCompany && Boolean(companyId),
+    queryFn: async () => {
+      const res = await whatsappService.listMessageLogs(companyId!, 40);
       if (res.error) throw res.error;
       return res.data;
     },
@@ -113,6 +135,26 @@ function WhatsAppAdmin() {
     onError: () => toast.error("Não foi possível criar templates."),
   });
 
+  const verifyMutation = useMutation({
+    mutationFn: async () => {
+      if (!companyId) throw new Error("sem_empresa");
+      const res = await whatsappService.verifyConnection(companyId);
+      if (res.error) throw res.error;
+      return res.data;
+    },
+    onSuccess: (data) => {
+      const name = data?.verified_name ? String(data.verified_name) : null;
+      toast.success(
+        name
+          ? `Conexão OK — ${name}`
+          : "Conexão com a Meta respondeu corretamente.",
+      );
+    },
+    onError: (e: Error) => {
+      toast.error(e.message || "Falha ao testar conexão com a Meta.");
+    },
+  });
+
   const copyWebhook = async () => {
     if (!webhookUrl) return;
     try {
@@ -125,13 +167,17 @@ function WhatsAppAdmin() {
 
   const stats = statsQuery.data;
   const templates = templatesQuery.data ?? [];
+  const setup = setupQuery.data;
+  const logs = logsQuery.data ?? [];
 
   return (
     <div>
       <PageTitle
         title="WhatsApp Oficial"
-        subtitle="Meta Cloud API — credenciais por empresa, webhook e confirmação de agendamento."
+        subtitle="Meta Cloud API — credenciais, webhook, confirmação e lembretes 24h."
       />
+
+      {setup && <SetupChecklist setup={setup} webhookUrl={webhookUrl} />}
 
       <div className="mb-6 flex items-start gap-3 rounded-2xl border border-border bg-secondary/20 p-5 text-sm">
         <Shield className="mt-0.5 size-5 shrink-0 text-gold" aria-hidden />
@@ -225,6 +271,15 @@ function WhatsAppAdmin() {
             >
               {saveMutation.isPending ? "Salvando…" : "Salvar conexão"}
             </button>
+            <button
+              type="button"
+              disabled={verifyMutation.isPending || !connectionQuery.data?.has_access_token}
+              onClick={() => verifyMutation.mutate()}
+              className="inline-flex items-center gap-2 rounded-full border border-border px-5 py-2.5 text-sm hover:bg-accent disabled:opacity-40"
+            >
+              <Zap className="size-4" />
+              {verifyMutation.isPending ? "Testando…" : "Testar conexão Meta"}
+            </button>
             <a
               href="https://developers.facebook.com/docs/whatsapp/cloud-api/get-started"
               target="_blank"
@@ -255,6 +310,32 @@ function WhatsAppAdmin() {
       </div>
 
       <section className="mt-8 rounded-2xl border border-border bg-card p-6 shadow-soft">
+        <h2 className="font-display text-xl">Histórico de mensagens</h2>
+        <p className="mt-1 text-sm text-muted-foreground">Últimos envios, lembretes e falhas (30 dias nas métricas acima).</p>
+        {logs.length === 0 ? (
+          <p className="mt-4 text-sm text-muted-foreground">Nenhuma mensagem registrada ainda.</p>
+        ) : (
+          <div className="-mx-1 mt-4 overflow-x-auto px-1">
+            <table className="w-full min-w-[640px] text-sm">
+              <thead className="text-xs uppercase tracking-wider text-muted-foreground">
+                <tr>
+                  <th className="py-2 text-left">Data</th>
+                  <th className="py-2 text-left">Tipo</th>
+                  <th className="py-2 text-left">Cliente</th>
+                  <th className="py-2 text-left">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {logs.map((row) => (
+                  <LogRow key={row.id} row={row} />
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </section>
+
+      <section className="mt-8 rounded-2xl border border-border bg-card p-6 shadow-soft">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <h2 className="font-display text-xl">Templates (espelho local)</h2>
           <button
@@ -283,6 +364,97 @@ function WhatsAppAdmin() {
         )}
       </section>
     </div>
+  );
+}
+
+function SetupChecklist({
+  setup,
+  webhookUrl,
+}: {
+  setup: WhatsappSetupStatus;
+  webhookUrl: string | null;
+}) {
+  const c = setup.connection;
+  const items = [
+    { ok: setup.plan_has_whatsapp, label: "Plano com feature WhatsApp (Elite)" },
+    { ok: Boolean(c?.has_business_id && c?.has_phone_number_id), label: "WABA ID e Phone Number ID preenchidos" },
+    { ok: Boolean(c?.has_access_token), label: "Access token salvo no servidor" },
+    { ok: Boolean(c?.has_verify_token), label: "Webhook verify token definido" },
+    { ok: Boolean(webhookUrl), label: "URL do webhook disponível para copiar" },
+    { ok: c?.status === "active", label: "Status da conexão = Ativo" },
+    { ok: setup.template_confirmation_status === "approved", label: "Template booking_confirmation aprovado (local + Meta)" },
+    { ok: setup.template_reminder_status === "approved", label: "Template booking_reminder aprovado (local + Meta)" },
+    { ok: setup.ready_to_send, label: "Pronto para enviar confirmações" },
+  ];
+
+  return (
+    <section className="mb-6 rounded-2xl border border-gold/25 bg-gold-soft/10 p-5">
+      <h2 className="font-display text-lg">Checklist Meta (Fase 4)</h2>
+      <p className="mt-1 text-sm text-muted-foreground">
+        Verificação da empresa na Meta e templates aprovados são feitos no{" "}
+        <a
+          href="https://business.facebook.com/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-foreground underline"
+        >
+          Meta Business Manager
+        </a>
+        . Lembretes 24h rodam via cron — ver <code className="text-xs">docs/WHATSAPP_CRON.md</code>.
+      </p>
+      <ul className="mt-4 space-y-2">
+        {items.map((item) => (
+          <li key={item.label} className="flex items-start gap-2 text-sm">
+            {item.ok ? (
+              <Check className="mt-0.5 size-4 shrink-0 text-success" aria-hidden />
+            ) : (
+              <Circle className="mt-0.5 size-4 shrink-0 text-muted-foreground" aria-hidden />
+            )}
+            <span className={item.ok ? "text-foreground" : "text-muted-foreground"}>{item.label}</span>
+          </li>
+        ))}
+      </ul>
+    </section>
+  );
+}
+
+function LogRow({ row }: { row: WhatsappMessageLogRow }) {
+  const when = row.created_at ? new Date(row.created_at).toLocaleString("pt-BR") : "—";
+  const appt =
+    row.appointment_date && row.appointment_time
+      ? `${new Date(row.appointment_date).toLocaleDateString("pt-BR")} ${row.appointment_time}`
+      : null;
+
+  return (
+    <tr>
+      <td className="py-3 text-muted-foreground">
+        <div>{when}</div>
+        {appt && <div className="text-xs">{appt}</div>}
+      </td>
+      <td className="py-3">{row.message_type}</td>
+      <td className="py-3">
+        <div>{row.client_name ?? "—"}</div>
+        {row.service_name && <div className="text-xs text-muted-foreground">{row.service_name}</div>}
+      </td>
+      <td className="py-3">
+        <span
+          className={`rounded-full px-2 py-0.5 text-xs ${
+            row.status === "failed"
+              ? "bg-destructive/15 text-destructive"
+              : row.status === "pending"
+                ? "bg-secondary text-muted-foreground"
+                : "bg-success/15 text-success"
+          }`}
+        >
+          {row.status}
+        </span>
+        {row.error_message && (
+          <div className="mt-1 max-w-xs truncate text-xs text-destructive" title={row.error_message}>
+            {row.error_message}
+          </div>
+        )}
+      </td>
+    </tr>
   );
 }
 

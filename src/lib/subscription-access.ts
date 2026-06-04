@@ -44,6 +44,16 @@ export function isSubscriptionDashboardAllowed(
   return getSubscriptionAccessReason(sub, now) === "ok";
 }
 
+/** Espelha public.company_eligible_for_public_booking (empresa não suspensa + assinatura ok). */
+export function isCompanyEligibleForPublicBooking(
+  companyStatus: string | null | undefined,
+  subscription: SubscriptionSnapshot | null | undefined,
+  now = Date.now(),
+): boolean {
+  if (String(companyStatus ?? "") === "suspended") return false;
+  return isSubscriptionDashboardAllowed(subscription, now);
+}
+
 export function getSubscriptionAccessReason(
   sub: SubscriptionSnapshot | null | undefined,
   now = Date.now(),

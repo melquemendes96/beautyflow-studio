@@ -33,6 +33,35 @@ export type WhatsappMessageStats = {
   pending: number;
 };
 
+export type WhatsappMessageLogRow = {
+  id: string;
+  message_type: string;
+  status: string;
+  phone: string;
+  error_message: string | null;
+  meta_message_id: string | null;
+  created_at: string;
+  appointment_date: string | null;
+  appointment_time: string | null;
+  client_name: string | null;
+  service_name: string | null;
+};
+
+export type WhatsappSetupStatus = {
+  plan_has_whatsapp: boolean;
+  connection: {
+    status: string;
+    has_business_id: boolean;
+    has_phone_number_id: boolean;
+    has_verify_token: boolean;
+    has_access_token: boolean;
+    display_phone_number: string | null;
+  } | null;
+  template_confirmation_status: string;
+  template_reminder_status: string;
+  ready_to_send: boolean;
+};
+
 function parseRpcJson<T extends { ok?: boolean }>(data: unknown): T | null {
   if (!data || typeof data !== "object") return null;
   return data as T;
@@ -117,6 +146,41 @@ export const whatsappService = {
       p_body_preview: params.bodyPreview ?? null,
       p_status: params.status ?? "draft",
     });
+  },
+
+  async listMessageLogs(companyId: string, limit = 50) {
+    const res = await getSupabase().rpc("list_whatsapp_message_logs", {
+      p_company_id: companyId,
+      p_limit: limit,
+    });
+    if (res.error) return { data: [] as WhatsappMessageLogRow[], error: res.error };
+    const parsed = parseRpcJson<{ ok: boolean; logs: WhatsappMessageLogRow[] }>(res.data);
+    return { data: parsed?.logs ?? [], error: null };
+  },
+
+  async getSetupStatus(companyId: string) {
+    const res = await getSupabase().rpc("get_whatsapp_setup_status", { p_company_id: companyId });
+    if (res.error) return { data: null, error: res.error };
+    const parsed = parseRpcJson<{ ok: boolean } & WhatsappSetupStatus>(res.data);
+    if (!parsed?.ok) return { data: null, error: new Error("setup_status_failed") };
+    return {
+      data: {
+        plan_has_whatsapp: parsed.plan_has_whatsapp,
+        connection: parsed.connection,
+        template_confirmation_status: parsed.template_confirmation_status,
+        template_reminder_status: parsed.template_reminder_status,
+        ready_to_send: parsed.ready_to_send,
+      },
+      error: null,
+    };
+  },
+
+  async verifyConnection(companyId: string) {
+    const { data, error } = await getSupabase().functions.invoke("verify-whatsapp-connection", {
+      body: { company_id: companyId },
+    });
+    if (error) return { data: null, error };
+    return { data: data as Record<string, unknown>, error: null };
   },
 
   isConfigured(): boolean {

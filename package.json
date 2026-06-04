@@ -18,6 +18,7 @@
     "test:plan-labels": "node scripts/plan-feature-labels.test.mjs",
     "test:mercado-pago-env": "node scripts/mercado-pago-env.test.mjs",
     "test:subscription-access": "node scripts/subscription-access.test.mjs",
+    "test:public-booking-eligibility": "node scripts/public-booking-eligibility.test.mjs",
     "lint": "eslint .",
     "format": "prettier --write .",
     "supabase:deploy:mercado-pago-preference": "npx supabase functions deploy create-mercado-pago-preference",
@@ -25,8 +26,10 @@
     "supabase:deploy:mercado-pago": "npx supabase functions deploy create-mercado-pago-preference && npx supabase functions deploy mercado-pago-webhook",
     "supabase:deploy:meta-whatsapp-webhook": "npx supabase functions deploy meta-whatsapp-webhook",
     "supabase:deploy:send-whatsapp-message": "npx supabase functions deploy send-whatsapp-message",
-    "supabase:deploy:whatsapp": "npx supabase functions deploy meta-whatsapp-webhook && npx supabase functions deploy send-whatsapp-message",
-    "supabase:deploy:all-functions": "npx supabase functions deploy create-mercado-pago-preference && npx supabase functions deploy mercado-pago-webhook && npx supabase functions deploy meta-whatsapp-webhook && npx supabase functions deploy send-whatsapp-message"
+    "supabase:deploy:process-whatsapp-reminders": "npx supabase functions deploy process-whatsapp-reminders",
+    "supabase:deploy:verify-whatsapp-connection": "npx supabase functions deploy verify-whatsapp-connection",
+    "supabase:deploy:whatsapp": "npx supabase functions deploy meta-whatsapp-webhook && npx supabase functions deploy send-whatsapp-message && npx supabase functions deploy process-whatsapp-reminders && npx supabase functions deploy verify-whatsapp-connection",
+    "supabase:deploy:all-functions": "npx supabase functions deploy create-mercado-pago-preference && npx supabase functions deploy mercado-pago-webhook && npx supabase functions deploy meta-whatsapp-webhook && npx supabase functions deploy send-whatsapp-message && npx supabase functions deploy process-whatsapp-reminders && npx supabase functions deploy verify-whatsapp-connection"
   },
   "dependencies": {
     "@cloudflare/vite-plugin": "^1.25.5",

@@ -1,6 +1,6 @@
 /**
- * Envio WhatsApp Cloud API (template) — confirmação pós-agendamento (Fase F).
- * Invocado após create_public_booking com whatsapp_queued=true.
+ * Envio WhatsApp Cloud API (templates) — confirmação pós-agendamento e lembrete 24h.
+ * Auth: send_token (público), JWT admin da empresa, ou service role (cron).
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
@@ -10,6 +10,8 @@ const GRAPH_API_VERSION = "v21.0";
 type SendBody = {
   appointment_id?: string;
   log_id?: string;
+  /** Token único retornado por create_public_booking (obrigatório para chamadas públicas). */
+  send_token?: string;
 };
 
 function jsonResponse(body: Record<string, unknown>, status = 200): Response {
@@ -33,6 +35,87 @@ function formatDateBr(isoDate: string): string {
   const [y, m, d] = isoDate.split("-");
   if (!y || !m || !d) return isoDate;
   return `${d}/${m}/${y}`;
+}
+
+function tokensEqual(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let out = 0;
+  for (let i = 0; i < a.length; i++) out |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return out === 0;
+}
+
+/** Admin da empresa ou platform admin podem reenviar sem send_token. */
+async function isCompanyWhatsAppAdmin(
+  req: Request,
+  supabaseUrl: string,
+  serviceKey: string,
+  companyId: string,
+): Promise<boolean> {
+  const authHeader = req.headers.get("Authorization");
+  if (!authHeader?.startsWith("Bearer ")) return false;
+
+  const jwt = authHeader.slice(7).trim();
+  if (!jwt) return false;
+
+  const anonKey = Deno.env.get("SUPABASE_ANON_KEY")?.trim();
+  if (!anonKey) return false;
+
+  const userClient = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: `Bearer ${jwt}` } },
+  });
+
+  const { data: userData, error: userErr } = await userClient.auth.getUser(jwt);
+  if (userErr || !userData.user) return false;
+
+  const userId = userData.user.id;
+  const admin = createClient(supabaseUrl, serviceKey);
+
+  const { data: platformAdmin } = await admin
+    .from("platform_admins")
+    .select("user_id")
+    .eq("user_id", userId)
+    .maybeSingle();
+  if (platformAdmin) return true;
+
+  const { data: membership } = await admin
+    .from("company_users")
+    .select("role")
+    .eq("user_id", userId)
+    .eq("company_id", companyId)
+    .maybeSingle();
+
+  const role = String(membership?.role ?? "");
+  return role === "owner" || role === "admin";
+}
+
+function isServiceRoleRequest(req: Request, serviceKey: string): boolean {
+  const auth = req.headers.get("Authorization")?.replace(/^Bearer\s+/i, "").trim();
+  return Boolean(auth && serviceKey && auth === serviceKey);
+}
+
+function buildTemplateBody(
+  messageType: string,
+  params: { clientName: string; serviceName: string; dateStr: string; timeStr: string },
+): { templateName: string; bodyParameters: { type: string; text: string }[] } {
+  if (messageType === "booking_reminder") {
+    return {
+      templateName: "booking_reminder",
+      bodyParameters: [
+        { type: "text", text: params.clientName },
+        { type: "text", text: params.serviceName },
+        { type: "text", text: params.timeStr },
+      ],
+    };
+  }
+  return {
+    templateName: "booking_confirmation",
+    bodyParameters: [
+      { type: "text", text: params.clientName },
+      { type: "text", text: params.serviceName },
+      { type: "text", text: params.dateStr },
+      { type: "text", text: params.timeStr },
+    ],
+  };
 }
 
 Deno.serve(async (req) => {
@@ -75,13 +158,16 @@ Deno.serve(async (req) => {
 
   let logQuery = admin
     .from("whatsapp_message_logs")
-    .select("id, company_id, appointment_id, client_id, phone, message_type, payload, status, created_at")
-    .eq("message_type", "booking_confirmation");
+    .select("id, company_id, appointment_id, client_id, phone, message_type, payload, status, created_at");
 
   if (logId) {
     logQuery = logQuery.eq("id", logId);
   } else {
-    logQuery = logQuery.eq("appointment_id", appointmentId!).order("created_at", { ascending: false }).limit(1);
+    logQuery = logQuery
+      .eq("appointment_id", appointmentId!)
+      .in("message_type", ["booking_confirmation", "booking_reminder"])
+      .order("created_at", { ascending: false })
+      .limit(1);
   }
 
   const { data: logs, error: logErr } = await logQuery;
@@ -95,6 +181,29 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "log_not_found" }, 404);
   }
 
+  const companyId = String(log.company_id ?? "");
+  const messageType = String(log.message_type ?? "booking_confirmation");
+  const isService = isServiceRoleRequest(req, serviceKey);
+  const isAdmin = isService || (await isCompanyWhatsAppAdmin(req, supabaseUrl, serviceKey, companyId));
+
+  if (!isAdmin) {
+    const sendToken = body.send_token?.trim() ?? "";
+    const payload = (log.payload ?? {}) as Record<string, unknown>;
+    const expectedToken = typeof payload.send_token === "string" ? payload.send_token.trim() : "";
+
+    if (!sendToken || !expectedToken || !tokensEqual(sendToken, expectedToken)) {
+      console.warn(LOG, "unauthorized send attempt", {
+        log_id: log.id,
+        has_token: Boolean(sendToken),
+      });
+      return jsonResponse({ error: "unauthorized" }, 401);
+    }
+
+    if (appointmentId && log.appointment_id && appointmentId !== String(log.appointment_id)) {
+      return jsonResponse({ error: "appointment_mismatch" }, 400);
+    }
+  }
+
   if (log.status !== "pending") {
     return jsonResponse({
       ok: true,
@@ -106,8 +215,9 @@ Deno.serve(async (req) => {
   }
 
   const createdAt = new Date(log.created_at as string).getTime();
-  if (Number.isFinite(createdAt) && Date.now() - createdAt > 2 * 60 * 60 * 1000) {
-    console.warn(LOG, "log too old", { log_id: log.id });
+  const maxAgeMs = messageType === "booking_reminder" ? 24 * 60 * 60 * 1000 : 2 * 60 * 60 * 1000;
+  if (Number.isFinite(createdAt) && Date.now() - createdAt > maxAgeMs) {
+    console.warn(LOG, "log too old", { log_id: log.id, messageType });
     return jsonResponse({ error: "log_expired" }, 410);
   }
 
@@ -169,7 +279,6 @@ Deno.serve(async (req) => {
   ]);
 
   const payload = (log.payload ?? {}) as Record<string, unknown>;
-  const templateName = String(payload.template_name ?? "booking_confirmation");
   const language = String(payload.language ?? "pt_BR");
 
   const clientName = String(client?.name ?? "Cliente").trim() || "Cliente";
@@ -187,6 +296,9 @@ Deno.serve(async (req) => {
     return jsonResponse({ error: "invalid_phone" }, 422);
   }
 
+  const tpl = buildTemplateBody(messageType, { clientName, serviceName, dateStr, timeStr });
+  const templateName = String(payload.template_name ?? tpl.templateName);
+
   const graphBody = {
     messaging_product: "whatsapp",
     to,
@@ -197,12 +309,7 @@ Deno.serve(async (req) => {
       components: [
         {
           type: "body",
-          parameters: [
-            { type: "text", text: clientName },
-            { type: "text", text: serviceName },
-            { type: "text", text: dateStr },
-            { type: "text", text: timeStr },
-          ],
+          parameters: tpl.bodyParameters,
         },
       ],
     },

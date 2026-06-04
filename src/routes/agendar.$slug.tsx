@@ -157,6 +157,7 @@ function Agendar() {
         appointment_id?: string;
         whatsapp_queued?: boolean;
         whatsapp_log_id?: string | null;
+        whatsapp_send_token?: string | null;
       };
       if (!d?.ok) {
         if (d?.error === "horario_indisponivel") {
@@ -190,6 +191,7 @@ function Agendar() {
         await triggerWhatsAppBookingConfirmation({
           appointmentId: d.appointment_id,
           logId: d.whatsapp_log_id ?? undefined,
+          sendToken: d.whatsapp_send_token ?? undefined,
         });
       }
       setStep("confirmado");

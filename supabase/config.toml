@@ -8,3 +8,9 @@ verify_jwt = false
 
 [functions.send-whatsapp-message]
 verify_jwt = false
+
+[functions.process-whatsapp-reminders]
+verify_jwt = false
+
+[functions.verify-whatsapp-connection]
+verify_jwt = true

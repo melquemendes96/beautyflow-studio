@@ -39,6 +39,7 @@ export type PublicBookingRpcResult = {
   company_id?: string;
   whatsapp_queued?: boolean;
   whatsapp_log_id?: string | null;
+  whatsapp_send_token?: string | null;
 };
 
 export function parsePublicBookingRpcResult(data: unknown): PublicBookingRpcResult {
@@ -61,6 +62,20 @@ export function parsePublicBookingRpcResult(data: unknown): PublicBookingRpcResu
     error: typeof raw.error === "string" ? raw.error : undefined,
     appointment_id: typeof raw.appointment_id === "string" ? raw.appointment_id : undefined,
     client_id: typeof raw.client_id === "string" ? raw.client_id : undefined,
+    company_id: typeof raw.company_id === "string" ? raw.company_id : undefined,
+    whatsapp_queued: raw.whatsapp_queued === true,
+    whatsapp_log_id:
+      typeof raw.whatsapp_log_id === "string"
+        ? raw.whatsapp_log_id
+        : raw.whatsapp_log_id === null
+          ? null
+          : undefined,
+    whatsapp_send_token:
+      typeof raw.whatsapp_send_token === "string"
+        ? raw.whatsapp_send_token
+        : raw.whatsapp_send_token === null
+          ? null
+          : undefined,
   };
 }
 

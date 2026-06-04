@@ -7,11 +7,13 @@ import { getSupabase, isSupabaseConfigured } from "@/lib/supabaseClient";
 export async function triggerWhatsAppBookingConfirmation(params: {
   appointmentId: string;
   logId?: string | null;
+  sendToken?: string | null;
 }): Promise<void> {
   if (!isSupabaseConfigured()) return;
 
   const body: Record<string, string> = { appointment_id: params.appointmentId };
   if (params.logId) body.log_id = params.logId;
+  if (params.sendToken) body.send_token = params.sendToken;
 
   const { error } = await getSupabase().functions.invoke("send-whatsapp-message", { body });
 

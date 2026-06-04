@@ -9,6 +9,8 @@ Execute após deploy da branch com Fase D e migrations aplicadas no Supabase.
 - [ ] `20260518200000_fase_d_go_live_hardening.sql`
 - [ ] Secrets: `MERCADO_PAGO_ACCESS_TOKEN` = `APP_USR-…`, `MERCADO_PAGO_WEBHOOK_SECRET` (obrigatório), `ALLOWED_APP_ORIGINS`
 - [ ] Auth → URL Configuration: `https://jmbeautyflow.tech/reset-password` e `/auth/callback` nos Redirect URLs
+- [ ] Auth → Email Templates: recuperação de senha com marca JM BeautyFlow (`docs/SUPABASE_AUTH_EMAIL_BRANDING.md`)
+- [ ] (Opcional) Auth → SMTP: remetente `noreply@jmbeautyflow.tech` / nome **JM BeautyFlow**
 - [ ] Redeploy: `create-mercado-pago-preference`, `mercado-pago-webhook`
 
 ## VPS
