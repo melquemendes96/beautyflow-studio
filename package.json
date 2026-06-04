@@ -11,7 +11,7 @@
     "build": "vite build",
     "postbuild": "node scripts/verify-production-build.mjs",
     "build:dev": "vite build --mode development",
-    "start": "srvx serve --prod --dir ./dist/server --static ../client --host 0.0.0.0",
+    "start": "srvx serve --prod --dir ./dist/server --static ../client --host 0.0.0.0 --port 3000",
     "preview": "vite preview",
     "test:public-booking": "node scripts/public-booking-slug.test.mjs",
     "test:plan-features": "node scripts/plan-features-access.test.mjs",

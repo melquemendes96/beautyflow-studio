@@ -20,6 +20,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  adminMobileDialogBodyClass,
+  adminMobileDialogContentClass,
+  adminMobileDialogFooterClass,
+  adminMobileDialogHeaderClass,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -353,38 +357,40 @@ function Plano() {
               <DialogTrigger asChild>
                 <Button className="rounded-full">Solicitar suporte financeiro</Button>
               </DialogTrigger>
-              <DialogContent className="rounded-3xl">
-                <DialogHeader>
+              <DialogContent className={adminMobileDialogContentClass}>
+                <DialogHeader className={adminMobileDialogHeaderClass}>
                   <DialogTitle>Solicitar suporte financeiro</DialogTitle>
                   <DialogDescription>
                     Envie uma solicitação para o time da plataforma (Master) tratar sua renovação/pagamento.
                   </DialogDescription>
                 </DialogHeader>
 
-                <div className="grid gap-3">
-                  <label className="grid gap-1.5">
-                    <span className="text-xs font-medium text-muted-foreground">Assunto</span>
-                    <Input value={ticket.subject} onChange={(e) => setTicket((s) => ({ ...s, subject: e.target.value }))} />
-                  </label>
-                  <label className="grid gap-1.5">
-                    <span className="text-xs font-medium text-muted-foreground">Mensagem</span>
-                    <Input value={ticket.message} onChange={(e) => setTicket((s) => ({ ...s, message: e.target.value }))} placeholder="Descreva sua solicitação" />
-                  </label>
-                  <label className="grid gap-1.5">
-                    <span className="text-xs font-medium text-muted-foreground">Prioridade</span>
-                    <select
-                      className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                      value={ticket.priority}
-                      onChange={(e) => setTicket((s) => ({ ...s, priority: e.target.value as any }))}
-                    >
-                      <option value="low">Baixa</option>
-                      <option value="normal">Normal</option>
-                      <option value="high">Alta</option>
-                    </select>
-                  </label>
+                <div className={adminMobileDialogBodyClass}>
+                  <div className="grid gap-3">
+                    <label className="grid gap-1.5">
+                      <span className="text-xs font-medium text-muted-foreground">Assunto</span>
+                      <Input value={ticket.subject} onChange={(e) => setTicket((s) => ({ ...s, subject: e.target.value }))} />
+                    </label>
+                    <label className="grid gap-1.5">
+                      <span className="text-xs font-medium text-muted-foreground">Mensagem</span>
+                      <Input value={ticket.message} onChange={(e) => setTicket((s) => ({ ...s, message: e.target.value }))} placeholder="Descreva sua solicitação" />
+                    </label>
+                    <label className="grid gap-1.5">
+                      <span className="text-xs font-medium text-muted-foreground">Prioridade</span>
+                      <select
+                        className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                        value={ticket.priority}
+                        onChange={(e) => setTicket((s) => ({ ...s, priority: e.target.value as any }))}
+                      >
+                        <option value="low">Baixa</option>
+                        <option value="normal">Normal</option>
+                        <option value="high">Alta</option>
+                      </select>
+                    </label>
+                  </div>
                 </div>
 
-                <DialogFooter>
+                <DialogFooter className={adminMobileDialogFooterClass}>
                   <Button variant="outline" onClick={() => setOpenTicket(false)} disabled={createTicketMutation.isPending}>
                     Cancelar
                   </Button>

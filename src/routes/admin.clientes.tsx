@@ -16,6 +16,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  adminMobileDialogBodyClass,
+  adminMobileDialogContentClass,
+  adminMobileDialogFooterClass,
+  adminMobileDialogHeaderClass,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 
@@ -125,40 +129,42 @@ function Clientes() {
                 <Plus className="size-4" /> Nova cliente
               </button>
             </DialogTrigger>
-            <DialogContent className="rounded-3xl">
-              <DialogHeader>
+            <DialogContent className={adminMobileDialogContentClass}>
+              <DialogHeader className={adminMobileDialogHeaderClass}>
                 <DialogTitle>{editing ? "Editar cliente" : "Nova cliente"}</DialogTitle>
                 <DialogDescription>Cadastro de clientes da sua empresa.</DialogDescription>
               </DialogHeader>
 
-              <div className="grid gap-3">
-                <label className="grid gap-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">Nome</span>
-                  <Input value={form.name} onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))} />
-                </label>
-                <div className="grid gap-3 md:grid-cols-2">
+              <div className={adminMobileDialogBodyClass}>
+                <div className="grid gap-3">
                   <label className="grid gap-1.5">
-                    <span className="text-xs font-medium text-muted-foreground">E-mail</span>
-                    <Input value={form.email} onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))} />
+                    <span className="text-xs font-medium text-muted-foreground">Nome</span>
+                    <Input value={form.name} onChange={(e) => setForm((s) => ({ ...s, name: e.target.value }))} />
                   </label>
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <label className="grid gap-1.5">
+                      <span className="text-xs font-medium text-muted-foreground">E-mail</span>
+                      <Input value={form.email} onChange={(e) => setForm((s) => ({ ...s, email: e.target.value }))} />
+                    </label>
+                    <label className="grid gap-1.5">
+                      <span className="text-xs font-medium text-muted-foreground">WhatsApp</span>
+                      <Input value={form.whatsapp} onChange={(e) => setForm((s) => ({ ...s, whatsapp: e.target.value }))} />
+                    </label>
+                  </div>
                   <label className="grid gap-1.5">
-                    <span className="text-xs font-medium text-muted-foreground">WhatsApp</span>
-                    <Input value={form.whatsapp} onChange={(e) => setForm((s) => ({ ...s, whatsapp: e.target.value }))} />
+                    <span className="text-xs font-medium text-muted-foreground">Observações</span>
+                    <Input value={form.notes} onChange={(e) => setForm((s) => ({ ...s, notes: e.target.value }))} />
                   </label>
                 </div>
-                <label className="grid gap-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">Observações</span>
-                  <Input value={form.notes} onChange={(e) => setForm((s) => ({ ...s, notes: e.target.value }))} />
-                </label>
+
+                {saveMutation.error && (
+                  <div className="mt-3 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                    Não foi possível salvar. Verifique os campos e tente novamente.
+                  </div>
+                )}
               </div>
 
-              {saveMutation.error && (
-                <div className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                  Não foi possível salvar. Verifique os campos e tente novamente.
-                </div>
-              )}
-
-              <DialogFooter>
+              <DialogFooter className={adminMobileDialogFooterClass}>
                 <Button variant="outline" onClick={() => setOpen(false)} disabled={saveMutation.isPending}>
                   Cancelar
                 </Button>

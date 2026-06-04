@@ -18,6 +18,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  adminMobileDialogBodyClass,
+  adminMobileDialogContentClass,
+  adminMobileDialogFooterClass,
+  adminMobileDialogHeaderClass,
 } from "@/components/ui/dialog";
 
 export const Route = createFileRoute("/admin/servicos")({
@@ -181,13 +185,13 @@ function Servicos() {
                 <Plus className="size-4" /> Novo serviço
               </button>
             </DialogTrigger>
-            <DialogContent className="top-[4dvh] flex max-h-[92dvh] w-[calc(100%-1.5rem)] max-w-lg translate-y-0 flex-col gap-0 overflow-hidden rounded-3xl p-0 sm:top-[50%] sm:translate-y-[-50%]">
-              <DialogHeader className="shrink-0 px-6 pt-6 pr-12">
+            <DialogContent className={adminMobileDialogContentClass}>
+              <DialogHeader className={adminMobileDialogHeaderClass}>
                 <DialogTitle>{editing ? "Editar serviço" : "Novo serviço"}</DialogTitle>
                 <DialogDescription>Catálogo de serviços da sua empresa.</DialogDescription>
               </DialogHeader>
 
-              <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-4">
+              <div className={adminMobileDialogBodyClass}>
               <div className="grid gap-3">
                 <label className="grid gap-1.5">
                   <span className="text-xs font-medium text-muted-foreground">Nome</span>
@@ -322,7 +326,7 @@ function Servicos() {
               )}
               </div>
 
-              <DialogFooter className="shrink-0 gap-2 border-t border-border bg-background px-6 py-4 sm:flex-row sm:justify-end">
+              <DialogFooter className={adminMobileDialogFooterClass}>
                 <Button variant="outline" onClick={() => setOpen(false)} disabled={saveMutation.isPending}>
                   Cancelar
                 </Button>

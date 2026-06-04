@@ -84,20 +84,13 @@ echo "==> PM2 (srvx na porta 3000)"
 
 mkdir -p logs
 
+# Remove processo legado (evita dois apps na mesma porta / bundles desalinhados)
+pm2 delete beautyflow 2>/dev/null || true
+
 if pm2 describe beautyflow-studio >/dev/null 2>&1; then
-
   pm2 reload ecosystem.config.cjs --update-env
-
-elif pm2 describe beautyflow >/dev/null 2>&1; then
-
-  pm2 reload beautyflow --update-env
-
 else
-
-  pm2 delete all 2>/dev/null || true
-
   pm2 start ecosystem.config.cjs
-
 fi
 
 pm2 save

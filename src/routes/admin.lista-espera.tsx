@@ -16,6 +16,10 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  adminMobileDialogBodyClass,
+  adminMobileDialogContentClass,
+  adminMobileDialogFooterClass,
+  adminMobileDialogHeaderClass,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -140,65 +144,67 @@ function Espera() {
                 Adicionar
               </button>
             </DialogTrigger>
-            <DialogContent className="rounded-3xl">
-              <DialogHeader>
+            <DialogContent className={adminMobileDialogContentClass}>
+              <DialogHeader className={adminMobileDialogHeaderClass}>
                 <DialogTitle>Novo item na lista de espera</DialogTitle>
                 <DialogDescription>Cliente aguardando por um horário.</DialogDescription>
               </DialogHeader>
 
-              <div className="grid gap-3">
-                <label className="grid gap-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">Cliente</span>
-                  <select
-                    className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                    value={form.client_id}
-                    onChange={(e) => setForm((s) => ({ ...s, client_id: e.target.value }))}
-                  >
-                    <option value="">Selecione</option>
-                    {(clientsQuery.data ?? []).map((c: any) => (
-                      <option key={c.id} value={c.id}>
-                        {c.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+              <div className={adminMobileDialogBodyClass}>
+                <div className="grid gap-3">
+                  <label className="grid gap-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">Cliente</span>
+                    <select
+                      className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                      value={form.client_id}
+                      onChange={(e) => setForm((s) => ({ ...s, client_id: e.target.value }))}
+                    >
+                      <option value="">Selecione</option>
+                      {(clientsQuery.data ?? []).map((c: any) => (
+                        <option key={c.id} value={c.id}>
+                          {c.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
 
-                <label className="grid gap-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">Serviço</span>
-                  <select
-                    className="h-10 rounded-md border border-input bg-background px-3 text-sm"
-                    value={form.service_id}
-                    onChange={(e) => setForm((s) => ({ ...s, service_id: e.target.value }))}
-                  >
-                    <option value="">Selecione</option>
-                    {(servicesQuery.data ?? []).map((s: any) => (
-                      <option key={s.id} value={s.id}>
-                        {s.name}
-                      </option>
-                    ))}
-                  </select>
-                </label>
+                  <label className="grid gap-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">Serviço</span>
+                    <select
+                      className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                      value={form.service_id}
+                      onChange={(e) => setForm((s) => ({ ...s, service_id: e.target.value }))}
+                    >
+                      <option value="">Selecione</option>
+                      {(servicesQuery.data ?? []).map((s: any) => (
+                        <option key={s.id} value={s.id}>
+                          {s.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
 
-                <label className="grid gap-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">Data desejada (YYYY-MM-DD)</span>
-                  <Input
-                    value={form.desired_date}
-                    onChange={(e) => setForm((s) => ({ ...s, desired_date: e.target.value }))}
-                    placeholder="Ex.: 2026-05-10"
-                  />
-                </label>
+                  <label className="grid gap-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">Data desejada (YYYY-MM-DD)</span>
+                    <Input
+                      value={form.desired_date}
+                      onChange={(e) => setForm((s) => ({ ...s, desired_date: e.target.value }))}
+                      placeholder="Ex.: 2026-05-10"
+                    />
+                  </label>
 
-                <label className="grid gap-1.5">
-                  <span className="text-xs font-medium text-muted-foreground">Observações</span>
-                  <Input
-                    value={form.notes}
-                    onChange={(e) => setForm((s) => ({ ...s, notes: e.target.value }))}
-                    placeholder="Opcional"
-                  />
-                </label>
+                  <label className="grid gap-1.5">
+                    <span className="text-xs font-medium text-muted-foreground">Observações</span>
+                    <Input
+                      value={form.notes}
+                      onChange={(e) => setForm((s) => ({ ...s, notes: e.target.value }))}
+                      placeholder="Opcional"
+                    />
+                  </label>
+                </div>
               </div>
 
-              <DialogFooter>
+              <DialogFooter className={adminMobileDialogFooterClass}>
                 <Button variant="outline" onClick={() => setOpen(false)} disabled={createMutation.isPending}>
                   Cancelar
                 </Button>
@@ -250,19 +256,21 @@ function Espera() {
                       <Calendar className="size-3.5" /> Converter em agendamento
                     </button>
                   </DialogTrigger>
-                  <DialogContent className="rounded-3xl">
-                    <DialogHeader>
+                  <DialogContent className={adminMobileDialogContentClass}>
+                    <DialogHeader className={adminMobileDialogHeaderClass}>
                       <DialogTitle>Converter em agendamento</DialogTitle>
                       <DialogDescription>Escolha o horário para agendar na data desejada.</DialogDescription>
                     </DialogHeader>
-                    <label className="grid gap-1.5">
-                      <span className="text-xs font-medium text-muted-foreground">Horário</span>
-                      <Input
-                        value={form.convert_time}
-                        onChange={(ev) => setForm((s) => ({ ...s, convert_time: ev.target.value }))}
-                      />
-                    </label>
-                    <DialogFooter>
+                    <div className={adminMobileDialogBodyClass}>
+                      <label className="grid gap-1.5">
+                        <span className="text-xs font-medium text-muted-foreground">Horário</span>
+                        <Input
+                          value={form.convert_time}
+                          onChange={(ev) => setForm((s) => ({ ...s, convert_time: ev.target.value }))}
+                        />
+                      </label>
+                    </div>
+                    <DialogFooter className={adminMobileDialogFooterClass}>
                       <Button variant="outline" onClick={() => setConvertOpenId(null)} disabled={convertMutation.isPending}>
                         Cancelar
                       </Button>

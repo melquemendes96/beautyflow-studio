@@ -90,6 +90,14 @@ const DialogDescription = React.forwardRef<
 ));
 DialogDescription.displayName = DialogPrimitive.Description.displayName;
 
+/** Modal admin longo: corpo rolável + footer fixo (mobile). */
+export const adminMobileDialogContentClass =
+  "top-[4dvh] flex max-h-[92dvh] w-[calc(100%-1.5rem)] max-w-lg translate-y-0 flex-col gap-0 overflow-hidden rounded-3xl p-0 sm:top-[50%] sm:translate-y-[-50%]";
+export const adminMobileDialogHeaderClass = "shrink-0 px-6 pt-6 pr-12";
+export const adminMobileDialogBodyClass = "min-h-0 flex-1 overflow-y-auto overscroll-contain px-6 py-4";
+export const adminMobileDialogFooterClass =
+  "shrink-0 gap-2 border-t border-border bg-background px-6 py-4 sm:flex-row sm:justify-end";
+
 export {
   Dialog,
   DialogPortal,

@@ -31,5 +31,11 @@ echo "OK: sb_publishable removido do build"
 grep -r "supabase.co" dist/ 2>/dev/null | head -3 || true
 
 echo "==> PM2"
-pm2 restart beautyflow --update-env 2>/dev/null || pm2 restart all --update-env
+pm2 delete beautyflow 2>/dev/null || true
+if pm2 describe beautyflow-studio >/dev/null 2>&1; then
+  pm2 reload ecosystem.config.cjs --update-env
+else
+  pm2 start ecosystem.config.cjs
+fi
+pm2 save
 pm2 status
