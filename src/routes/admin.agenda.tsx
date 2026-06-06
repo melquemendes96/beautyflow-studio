@@ -240,7 +240,7 @@ function Agenda() {
         service_id: form.service_id,
         appointment_date: dateYmd,
         appointment_time: form.time,
-        provider_id: isProvider ? providerId : null,
+        provider_id: isProvider ? providerId : providerFilterId || null,
       });
       if (res.error) throw res.error;
       return res.data;
