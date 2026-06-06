@@ -26,8 +26,8 @@ export const publicBookingService = {
     appointmentDate: string;
     appointmentTime: string;
     clientName: string;
-    clientEmail: string;
     clientWhatsapp: string;
+    clientEmail?: string;
     notes?: string | null;
     whatsappNotifications?: boolean;
   }) {
@@ -38,7 +38,7 @@ export const publicBookingService = {
       p_appointment_date: params.appointmentDate,
       p_appointment_time: timeHm,
       p_client_name: params.clientName,
-      p_client_email: params.clientEmail,
+      p_client_email: params.clientEmail?.trim() ?? "",
       p_client_whatsapp: params.clientWhatsapp,
       p_notes: params.notes ?? null,
       p_whatsapp_notifications: params.whatsappNotifications ?? false,

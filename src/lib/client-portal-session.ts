@@ -6,17 +6,17 @@ const RESCHEDULE_KEY = "bf_reschedule_intent_v1";
 export type ClientPortalSession = {
   slug: string;
   nome?: string;
-  email?: string;
   whatsapp?: string;
 };
 
 export type RescheduleIntent = {
   appointmentId: string;
   slug: string;
-  email: string;
   whatsapp: string;
   serviceId: string;
   clientName?: string;
+  /** @deprecated legado — portal usa só WhatsApp */
+  email?: string;
 };
 
 function safeParse<T>(raw: string | null): T | null {
@@ -37,7 +37,6 @@ export function saveClientPortalSession(data: ClientPortalSession) {
     JSON.stringify({
       slug,
       nome: data.nome?.trim() || undefined,
-      email: data.email?.trim() || undefined,
       whatsapp: data.whatsapp?.trim() || undefined,
     }),
   );

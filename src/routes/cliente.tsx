@@ -24,12 +24,13 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AdminEmptyState } from "@/components/admin/AdminPageStates";
+import { formatPhoneBrDisplay } from "@/lib/format-phone-br";
+import { studioInitials } from "@/lib/branding-utils";
 
 export const Route = createFileRoute("/cliente")({
   validateSearch: (search: Record<string, unknown>) => ({
     slug: typeof search.slug === "string" ? normalizePublicBookingSlug(search.slug) : undefined,
     auto: search.auto === "1" || search.auto === true,
-    email: typeof search.email === "string" ? search.email.trim() : undefined,
     whatsapp: typeof search.whatsapp === "string" ? search.whatsapp.trim() : undefined,
   }),
   component: Cliente,
@@ -97,7 +98,6 @@ function Cliente() {
 
   const [auth, setAuth] = useState({
     slug: resolvedSlug,
-    email: search.email ?? session?.email ?? "",
     whatsapp: search.whatsapp ?? session?.whatsapp ?? "",
   });
   const [isAuthed, setIsAuthed] = useState(false);
@@ -111,15 +111,14 @@ function Cliente() {
 
   useEffect(() => {
     if (!search.auto || !resolvedSlug) return;
-    const email = search.email ?? session?.email ?? "";
     const whatsapp = search.whatsapp ?? session?.whatsapp ?? "";
-    if (!email && !whatsapp) return;
-    setAuth({ slug: resolvedSlug, email, whatsapp });
+    if (!whatsapp.trim()) return;
+    setAuth({ slug: resolvedSlug, whatsapp });
     setIsAuthed(true);
-  }, [search.auto, resolvedSlug, search.email, search.whatsapp, session?.email, session?.whatsapp]);
+  }, [search.auto, resolvedSlug, search.whatsapp, session?.whatsapp]);
 
   const portalQuery = useQuery({
-    queryKey: ["client_portal", auth.slug, auth.email, auth.whatsapp],
+    queryKey: ["client_portal", auth.slug, auth.whatsapp],
     enabled: isAuthed,
     queryFn: async () => {
       const res = await clientPortalService.getPortalData(auth);
@@ -133,6 +132,13 @@ function Cliente() {
 
   const proximo = useMemo(() => (upcoming[0] ?? null) as Record<string, unknown> | null, [upcoming]);
 
+  const clientInfo = (portalQuery.data?.client ?? null) as { name?: string; whatsapp?: string } | null;
+  const displayName = clientInfo?.name?.trim() || session?.nome?.trim() || "Cliente";
+  const displayWhatsapp = formatPhoneBrDisplay(
+    clientInfo?.whatsapp?.trim() || auth.whatsapp.trim() || session?.whatsapp?.trim() || "",
+  );
+  const avatarInitial = studioInitials(displayName).slice(0, 1).toUpperCase() || "C";
+
   const startReschedule = (appt: Record<string, unknown>) => {
     const serviceId = String(appt.service_id ?? "");
     if (!serviceId) {
@@ -142,9 +148,9 @@ function Cliente() {
     saveRescheduleIntent({
       appointmentId: String(appt.id),
       slug: auth.slug,
-      email: auth.email,
       whatsapp: auth.whatsapp,
-      clientName: String((portalQuery.data as { client?: { name?: string } })?.client?.name ?? ""),
+      serviceId,
+      clientName: displayName !== "Cliente" ? displayName : undefined,
     });
     void navigate({
       to: "/agendar/$slug",
@@ -165,7 +171,6 @@ function Cliente() {
     mutationFn: async (appointmentId: string) => {
       const res = await clientPortalService.cancelAppointment({
         slug: auth.slug,
-        email: auth.email,
         whatsapp: auth.whatsapp,
         appointmentId,
       });
@@ -189,7 +194,6 @@ function Cliente() {
     mutationFn: async (appointmentId: string) => {
       const res = await clientPortalService.submitRating({
         slug: auth.slug,
-        email: auth.email,
         whatsapp: auth.whatsapp,
         appointmentId,
         rating: ratingValue,
@@ -229,20 +233,19 @@ function Cliente() {
       setAccessError("Abra esta página pelo link do seu estúdio (após agendar ou pelo botão na confirmação).");
       return;
     }
-    if (!auth.email.trim() && !auth.whatsapp.trim()) {
-      setAccessError("Informe pelo menos e-mail ou WhatsApp usados no agendamento.");
+    if (!auth.whatsapp.trim()) {
+      setAccessError("Informe o WhatsApp usado no agendamento.");
       return;
     }
     const next = {
       slug: resolvedSlug,
-      email: auth.email.trim(),
       whatsapp: auth.whatsapp.trim(),
     };
     setAuth(next);
     saveClientPortalSession({
       slug: next.slug,
-      email: next.email,
       whatsapp: next.whatsapp,
+      nome: session?.nome,
     });
     setIsAuthed(true);
   };
@@ -275,7 +278,7 @@ function Cliente() {
               className="grid size-9 shrink-0 place-items-center rounded-full bg-gradient-to-br from-gold to-rose text-sm font-medium text-background"
               aria-hidden
             >
-              M
+              {isAuthed ? avatarInitial : "?"}
             </div>
           </div>
         </div>
@@ -292,7 +295,7 @@ function Cliente() {
             noValidate
           >
             <div className="text-xs uppercase tracking-widest text-muted-foreground">Acesso</div>
-            <p className="mt-2 text-sm text-muted-foreground">Informe os mesmos dados usados no agendamento.</p>
+            <p className="mt-2 text-sm text-muted-foreground">Informe o WhatsApp usado no agendamento.</p>
             {accessError ? (
               <p
                 role="alert"
@@ -307,17 +310,7 @@ function Cliente() {
                 agendamento.
               </p>
             ) : null}
-            <div className="mt-5 grid gap-3">
-              <label className="block">
-                <span className="mb-1.5 block text-xs font-medium text-muted-foreground">E-mail</span>
-                <input
-                  type="email"
-                  value={auth.email}
-                  onChange={(e) => setAuth((s) => ({ ...s, email: e.target.value }))}
-                  autoComplete="email"
-                  className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm outline-none transition focus:border-foreground focus:ring-2 focus:ring-gold/30"
-                />
-              </label>
+            <div className="mt-5">
               <label className="block">
                 <span className="mb-1.5 block text-xs font-medium text-muted-foreground">WhatsApp</span>
                 <input
@@ -325,6 +318,7 @@ function Cliente() {
                   onChange={(e) => setAuth((s) => ({ ...s, whatsapp: e.target.value }))}
                   placeholder="(11) 99999-0000"
                   autoComplete="tel"
+                  inputMode="tel"
                   className="w-full rounded-xl border border-input bg-background px-4 py-3 text-sm outline-none transition focus:border-foreground focus:ring-2 focus:ring-gold/30"
                 />
               </label>
@@ -332,7 +326,7 @@ function Cliente() {
             <button
               type="submit"
               className="mt-5 inline-flex w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 py-3.5 text-sm text-background disabled:opacity-30"
-              disabled={!resolvedSlug || (!auth.email.trim() && !auth.whatsapp.trim())}
+              disabled={!resolvedSlug || !auth.whatsapp.trim()}
             >
               Ver meus atendimentos <ArrowRight className="size-4" aria-hidden />
             </button>
@@ -344,7 +338,7 @@ function Cliente() {
             role="alert"
             className="mt-6 rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive"
           >
-            Não foi possível carregar seus agendamentos. Verifique e-mail/WhatsApp ou tente de novo.
+            Não foi possível carregar seus agendamentos. Verifique o WhatsApp ou tente de novo.
             <button
               type="button"
               className="mt-3 block w-full rounded-full border border-destructive/40 bg-background px-4 py-2 text-center text-xs font-medium text-destructive hover:bg-destructive/5 sm:w-auto"
@@ -367,6 +361,15 @@ function Cliente() {
               ))}
             </div>
           </>
+        )}
+
+        {portalReady && (
+          <div className="mt-6 rounded-2xl border border-border bg-card px-5 py-4 shadow-soft">
+            <div className="font-display text-lg text-foreground">{displayName}</div>
+            {displayWhatsapp ? (
+              <div className="mt-1 text-sm text-muted-foreground">{displayWhatsapp}</div>
+            ) : null}
+          </div>
         )}
 
         {portalReady && proximo && (
@@ -535,7 +538,7 @@ function Cliente() {
                 <AdminEmptyState
                   icon={Calendar}
                   title="Nenhum atendimento encontrado"
-                  description="Não há histórico com e-mail ou WhatsApp informados. Confira os dados usados na reserva."
+                  description="Não há histórico para este WhatsApp. Confira o número usado na reserva."
                   action={
                     <Link
                       to="/agendar/$slug"

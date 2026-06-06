@@ -50,7 +50,7 @@ function Agendar() {
   const [servico, setServico] = useState<string | null>(null);
   const [data, setData] = useState<string | null>(null);
   const [hora, setHora] = useState<string | null>(null);
-  const [form, setForm] = useState({ nome: "", email: "", whatsapp: "", notes: "" });
+  const [form, setForm] = useState({ nome: "", whatsapp: "", notes: "" });
   const [whatsappOptIn, setWhatsappOptIn] = useState(true);
 
   useEffect(() => {
@@ -59,7 +59,6 @@ function Agendar() {
     setForm((f) => ({
       ...f,
       nome: rescheduleIntent.clientName ?? f.nome,
-      email: rescheduleIntent.email || f.email,
       whatsapp: rescheduleIntent.whatsapp || f.whatsapp,
     }));
     setStep("data");
@@ -125,7 +124,6 @@ function Agendar() {
       if (rescheduleIntent) {
         const res = await clientPortalService.rescheduleAppointment({
           slug,
-          email: rescheduleIntent.email,
           whatsapp: rescheduleIntent.whatsapp,
           appointmentId: rescheduleIntent.appointmentId,
           newDate: data,
@@ -141,7 +139,6 @@ function Agendar() {
         appointmentDate: data,
         appointmentTime: hora,
         clientName: form.nome,
-        clientEmail: form.email,
         clientWhatsapp: form.whatsapp,
         notes: form.notes || null,
         whatsappNotifications:
@@ -183,7 +180,6 @@ function Agendar() {
       saveClientPortalSession({
         slug,
         nome: form.nome,
-        email: form.email,
         whatsapp: form.whatsapp,
       });
       if (result.mode === "reschedule") clearRescheduleIntent();
@@ -232,7 +228,6 @@ function Agendar() {
         studioPhone={company?.phone ?? undefined}
         studioEmail={company?.email ?? undefined}
         location={location}
-        clientEmail={form.email}
         clientWhatsapp={form.whatsapp}
         wasReschedule={isRescheduleMode}
       />
@@ -471,7 +466,6 @@ function Agendar() {
               <p className="mt-1 text-sm text-muted-foreground">Para confirmarmos seu agendamento.</p>
               <div className="mt-5 grid gap-4">
                 <Field label="Nome completo" value={form.nome} onChange={(v) => setForm({ ...form, nome: v })} />
-                <Field label="E-mail" type="email" value={form.email} onChange={(v) => setForm({ ...form, email: v })} />
                 <Field
                   label="WhatsApp"
                   value={form.whatsapp}
@@ -539,7 +533,7 @@ function Agendar() {
                 (step === "servico" && !servico) ||
                 (step === "data" && (!data || !hora)) ||
                 (step === "horario" && !hora) ||
-                (step === "dados" && (!form.nome.trim() || (!form.email.trim() && !form.whatsapp.trim())))
+                (step === "dados" && (!form.nome.trim() || !form.whatsapp.trim()))
               }
               onClick={() => {
                 if (step === "data" && data && hora) {
@@ -618,7 +612,6 @@ function Confirmado({
   studioPhone,
   studioEmail,
   location,
-  clientEmail,
   clientWhatsapp,
   wasReschedule,
 }: {
@@ -632,7 +625,6 @@ function Confirmado({
   studioPhone?: string;
   studioEmail?: string;
   location?: string;
-  clientEmail?: string;
   clientWhatsapp?: string;
   wasReschedule?: boolean;
 }) {
@@ -703,7 +695,6 @@ function Confirmado({
           search={{
             slug,
             auto: "1",
-            ...(clientEmail ? { email: clientEmail } : {}),
             ...(clientWhatsapp ? { whatsapp: clientWhatsapp } : {}),
           }}
           className="mt-3 inline-block w-full rounded-full border border-border bg-background px-5 py-3 text-sm"
