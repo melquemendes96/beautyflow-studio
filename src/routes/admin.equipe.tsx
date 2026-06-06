@@ -30,6 +30,32 @@ export const Route = createFileRoute("/admin/equipe")({
 
 const PRESET_COLORS = ["#1a1a1a", "#c9a960", "#7c3aed", "#2563eb", "#059669", "#dc2626"];
 
+function isAllowedProviderImage(file: File): boolean {
+  if (
+    file.type === "image/jpeg" ||
+    file.type === "image/png" ||
+    file.type === "image/webp" ||
+    file.type === "image/gif"
+  ) {
+    return true;
+  }
+  if (file.type && !file.type.startsWith("image/")) return false;
+  const ext = file.name.split(".").pop()?.toLowerCase();
+  return ext === "jpg" || ext === "jpeg" || ext === "png" || ext === "webp" || ext === "gif";
+}
+
+function readImagePreviewDataUrl(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") resolve(reader.result);
+      else reject(new Error("preview_invalid"));
+    };
+    reader.onerror = () => reject(new Error("preview_read_failed"));
+    reader.readAsDataURL(file);
+  });
+}
+
 function Equipe() {
   const queryClient = useQueryClient();
   const { companyId, hasCompany } = useCurrentCompany();
@@ -80,10 +106,7 @@ function Equipe() {
   const resetForm = () => {
     setEditing(null);
     setImageFile(null);
-    setImagePreviewBlob((prev) => {
-      if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
-      return null;
-    });
+    setImagePreviewBlob(null);
     setForm({
       display_name: "",
       photo_url: "",
@@ -97,10 +120,7 @@ function Equipe() {
 
   const openEdit = (p: ServiceProviderRow) => {
     setImageFile(null);
-    setImagePreviewBlob((prev) => {
-      if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
-      return null;
-    });
+    setImagePreviewBlob(null);
     setEditing(p);
     setForm({
       display_name: p.display_name,
@@ -197,15 +217,9 @@ function Equipe() {
         action={
           <Dialog
             open={open}
-            onOpenChange={(v) => {
-              setOpen(v);
-              if (!v) resetForm();
-              else if (!editing) {
-                setForm((f) => ({
-                  ...f,
-                  service_ids: services.map((s: { id: string }) => s.id),
-                }));
-              }
+            onOpenChange={(nextOpen) => {
+              setOpen(nextOpen);
+              if (!nextOpen) resetForm();
             }}
           >
             <Button
@@ -220,7 +234,11 @@ function Equipe() {
             >
               <Plus className="size-4" /> Novo prestador
             </Button>
-            <DialogContent className={adminMobileDialogContentClass}>
+            <DialogContent
+              className={adminMobileDialogContentClass}
+              onInteractOutside={(e) => e.preventDefault()}
+              onPointerDownOutside={(e) => e.preventDefault()}
+            >
               <DialogHeader className={adminMobileDialogHeaderClass}>
                 <DialogTitle>{editing ? "Editar prestador" : "Novo prestador"}</DialogTitle>
                 <DialogDescription>
@@ -236,55 +254,84 @@ function Equipe() {
                     placeholder="Ex.: Joyce Mendes"
                   />
                 </label>
-                <label className="grid gap-1.5 text-sm">
-                  Foto
-                  <div className="flex items-center gap-3">
+                <div className="grid gap-2 text-sm">
+                  <span>Foto</span>
+                  <div className="flex flex-wrap items-center gap-3">
                     {imagePreviewBlob || form.photo_url ? (
                       <img
+                        key={imagePreviewBlob || form.photo_url}
                         src={imagePreviewBlob || form.photo_url}
-                        alt=""
-                        className="size-14 rounded-full object-cover"
+                        alt="Prévia do prestador"
+                        className="size-14 shrink-0 rounded-full object-cover ring-2 ring-border"
                       />
                     ) : (
-                      <div className="grid size-14 place-items-center rounded-full bg-muted text-muted-foreground">
+                      <div className="grid size-14 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground ring-2 ring-border">
                         <UserRound className="size-6" />
                       </div>
                     )}
-                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm">
+                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm hover:bg-accent">
                       <Upload className="size-4" />
-                      Enviar
+                      {imageFile ? "Trocar foto" : "Enviar"}
                       <input
                         type="file"
                         accept="image/jpeg,image/png,image/webp,image/gif"
                         className="sr-only"
                         onChange={(e) => {
                           const f = e.target.files?.[0];
+                          e.target.value = "";
                           if (!f) return;
-                          const okType =
-                            f.type === "image/jpeg" ||
-                            f.type === "image/png" ||
-                            f.type === "image/webp" ||
-                            f.type === "image/gif";
-                          if (!okType) {
+                          if (!isAllowedProviderImage(f)) {
                             toast.error("Use JPG, PNG ou WebP.");
-                            e.target.value = "";
                             return;
                           }
                           if (f.size > 5 * 1024 * 1024) {
                             toast.error("Imagem muito grande (máx. 5 MB).");
-                            e.target.value = "";
                             return;
                           }
-                          setImagePreviewBlob((prev) => {
-                            if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
-                            return URL.createObjectURL(f);
-                          });
                           setImageFile(f);
+                          void readImagePreviewDataUrl(f)
+                            .then((dataUrl) => setImagePreviewBlob(dataUrl))
+                            .catch(() => {
+                              setImageFile(null);
+                              setImagePreviewBlob(null);
+                              toast.error("Não foi possível exibir a prévia da imagem.");
+                            });
                         }}
                       />
                     </label>
+                    {(imagePreviewBlob || form.photo_url) && (
+                      <button
+                        type="button"
+                        className="inline-flex items-center gap-1 rounded-lg border border-destructive/40 px-3 py-2 text-xs text-destructive hover:bg-destructive/10"
+                        onClick={() => {
+                          setImageFile(null);
+                          setImagePreviewBlob(null);
+                          setForm((s) => ({ ...s, photo_url: "" }));
+                        }}
+                      >
+                        <Trash2 className="size-3.5" /> Remover
+                      </button>
+                    )}
                   </div>
-                </label>
+                  {imageFile ? (
+                    <p className="text-xs text-emerald-600 dark:text-emerald-400">
+                      Imagem selecionada: {imageFile.name}
+                    </p>
+                  ) : null}
+                  <p className="text-xs text-muted-foreground">
+                    JPG, PNG ou WebP · até 5 MB. A prévia aparece assim que você escolher o arquivo.
+                  </p>
+                  {(imagePreviewBlob || form.photo_url) && (
+                    <div className="overflow-hidden rounded-xl border border-border">
+                      <img
+                        key={`preview-${imagePreviewBlob || form.photo_url}`}
+                        src={imagePreviewBlob || form.photo_url}
+                        alt="Prévia ampliada do prestador"
+                        className="h-36 w-full object-cover"
+                      />
+                    </div>
+                  )}
+                </div>
                 <div className="grid gap-1.5 text-sm">
                   Cor na agenda
                   <div className="flex flex-wrap gap-2">
