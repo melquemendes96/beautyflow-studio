@@ -36,6 +36,7 @@ function Equipe() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<ServiceProviderRow | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreviewBlob, setImagePreviewBlob] = useState<string | null>(null);
   const [form, setForm] = useState({
     display_name: "",
     photo_url: "",
@@ -79,6 +80,10 @@ function Equipe() {
   const resetForm = () => {
     setEditing(null);
     setImageFile(null);
+    setImagePreviewBlob((prev) => {
+      if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+      return null;
+    });
     setForm({
       display_name: "",
       photo_url: "",
@@ -91,6 +96,11 @@ function Equipe() {
   };
 
   const openEdit = (p: ServiceProviderRow) => {
+    setImageFile(null);
+    setImagePreviewBlob((prev) => {
+      if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+      return null;
+    });
     setEditing(p);
     setForm({
       display_name: p.display_name,
@@ -229,8 +239,12 @@ function Equipe() {
                 <label className="grid gap-1.5 text-sm">
                   Foto
                   <div className="flex items-center gap-3">
-                    {form.photo_url ? (
-                      <img src={form.photo_url} alt="" className="size-14 rounded-full object-cover" />
+                    {imagePreviewBlob || form.photo_url ? (
+                      <img
+                        src={imagePreviewBlob || form.photo_url}
+                        alt=""
+                        className="size-14 rounded-full object-cover"
+                      />
                     ) : (
                       <div className="grid size-14 place-items-center rounded-full bg-muted text-muted-foreground">
                         <UserRound className="size-6" />
@@ -241,9 +255,32 @@ function Equipe() {
                       Enviar
                       <input
                         type="file"
-                        accept="image/*"
+                        accept="image/jpeg,image/png,image/webp,image/gif"
                         className="sr-only"
-                        onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (!f) return;
+                          const okType =
+                            f.type === "image/jpeg" ||
+                            f.type === "image/png" ||
+                            f.type === "image/webp" ||
+                            f.type === "image/gif";
+                          if (!okType) {
+                            toast.error("Use JPG, PNG ou WebP.");
+                            e.target.value = "";
+                            return;
+                          }
+                          if (f.size > 5 * 1024 * 1024) {
+                            toast.error("Imagem muito grande (máx. 5 MB).");
+                            e.target.value = "";
+                            return;
+                          }
+                          setImagePreviewBlob((prev) => {
+                            if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+                            return URL.createObjectURL(f);
+                          });
+                          setImageFile(f);
+                        }}
                       />
                     </label>
                   </div>

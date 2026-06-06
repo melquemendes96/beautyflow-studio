@@ -27,6 +27,7 @@ import {
 } from "@/lib/public-booking-flow";
 import { clientPortalService } from "@/services/clientPortalService";
 import { BrandedImage } from "@/components/booking/BrandedImage";
+import { ProviderPickerCarousel } from "@/components/booking/ProviderPickerCarousel";
 import { PublicStudioHero, getBrandingButtonStyle } from "@/components/booking/PublicStudioHero";
 import { displayStudioName, normalizeHexColor, studioInitials } from "@/lib/branding-utils";
 import { toast } from "sonner";
@@ -477,37 +478,12 @@ function Agendar() {
               ) : providers.length === 0 ? (
                 <p className="mt-4 text-sm text-muted-foreground">Nenhum profissional disponível para este serviço.</p>
               ) : (
-                <div className="mt-5 grid gap-3 md:grid-cols-2">
-                  {providers.map((p) => (
-                    <button
-                      key={p.id}
-                      type="button"
-                      onClick={() => setProviderId(p.id)}
-                      className={`flex min-h-[5rem] items-center gap-4 rounded-2xl border p-4 text-left transition ${
-                        providerId === p.id ? "bg-secondary/60 shadow-soft" : "border-border hover:border-foreground/30"
-                      }`}
-                      style={providerId === p.id ? { borderColor: primary } : undefined}
-                    >
-                      {p.photo_url ? (
-                        <img src={p.photo_url} alt="" className="size-16 rounded-full object-cover" />
-                      ) : (
-                        <div
-                          className="grid size-16 shrink-0 place-items-center rounded-full text-lg font-semibold text-white"
-                          style={{ backgroundColor: p.color ?? primary }}
-                        >
-                          {p.display_name.slice(0, 1).toUpperCase()}
-                        </div>
-                      )}
-                      <div className="flex-1">
-                        <div className="font-medium">{p.display_name}</div>
-                        {p.is_owner ? (
-                          <div className="text-xs text-muted-foreground">Responsável pelo studio</div>
-                        ) : null}
-                      </div>
-                      {providerId === p.id && <Check className="size-5 text-success" />}
-                    </button>
-                  ))}
-                </div>
+                <ProviderPickerCarousel
+                  providers={providers}
+                  selectedId={providerId}
+                  onSelect={setProviderId}
+                  primaryColor={primary}
+                />
               )}
             </>
           )}
