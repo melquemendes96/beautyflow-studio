@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { PageTitle } from "@/components/admin/AdminShell";
 import { Plus, Pencil, Trash2, Upload, UserRound } from "lucide-react";
 import { AdminEmptyState } from "@/components/admin/AdminPageStates";
@@ -44,21 +44,10 @@ function isAllowedProviderImage(file: File): boolean {
   return ext === "jpg" || ext === "jpeg" || ext === "png" || ext === "webp" || ext === "gif";
 }
 
-function readImagePreviewDataUrl(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result === "string") resolve(reader.result);
-      else reject(new Error("preview_invalid"));
-    };
-    reader.onerror = () => reject(new Error("preview_read_failed"));
-    reader.readAsDataURL(file);
-  });
-}
-
 function Equipe() {
   const queryClient = useQueryClient();
   const { companyId, hasCompany } = useCurrentCompany();
+  const pickingFileRef = useRef(false);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<ServiceProviderRow | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
@@ -72,6 +61,16 @@ function Equipe() {
     default_commission_pct: "",
     service_ids: [] as string[],
   });
+
+  useEffect(() => {
+    const onWindowFocus = () => {
+      window.setTimeout(() => {
+        pickingFileRef.current = false;
+      }, 300);
+    };
+    window.addEventListener("focus", onWindowFocus);
+    return () => window.removeEventListener("focus", onWindowFocus);
+  }, []);
 
   const teamQuery = useQuery({
     queryKey: ["admin", "team", companyId],
@@ -103,10 +102,17 @@ function Equipe() {
   const slotsFull = slotsLoaded && slotLimit > 0 && activeCount >= slotLimit;
   const slotsMisconfigured = slotsLoaded && slotLimit <= 0;
 
+  const clearImagePreview = () => {
+    setImagePreviewBlob((prev) => {
+      if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+      return null;
+    });
+    setImageFile(null);
+  };
+
   const resetForm = () => {
     setEditing(null);
-    setImageFile(null);
-    setImagePreviewBlob(null);
+    clearImagePreview();
     setForm({
       display_name: "",
       photo_url: "",
@@ -119,8 +125,7 @@ function Equipe() {
   };
 
   const openEdit = (p: ServiceProviderRow) => {
-    setImageFile(null);
-    setImagePreviewBlob(null);
+    clearImagePreview();
     setEditing(p);
     setForm({
       display_name: p.display_name,
@@ -203,6 +208,28 @@ function Equipe() {
     [providers],
   );
 
+  const photoPreviewSrc = imagePreviewBlob || form.photo_url || null;
+
+  const onPickProviderPhoto = (e: React.ChangeEvent<HTMLInputElement>) => {
+    pickingFileRef.current = false;
+    const f = e.target.files?.[0];
+    e.target.value = "";
+    if (!f) return;
+    if (!isAllowedProviderImage(f)) {
+      toast.error("Use JPG, PNG ou WebP.");
+      return;
+    }
+    if (f.size > 5 * 1024 * 1024) {
+      toast.error("Imagem muito grande (máx. 5 MB).");
+      return;
+    }
+    setImagePreviewBlob((prev) => {
+      if (prev?.startsWith("blob:")) URL.revokeObjectURL(prev);
+      return URL.createObjectURL(f);
+    });
+    setImageFile(f);
+  };
+
   return (
     <div>
       <PageTitle
@@ -218,6 +245,7 @@ function Equipe() {
           <Dialog
             open={open}
             onOpenChange={(nextOpen) => {
+              if (!nextOpen && pickingFileRef.current) return;
               setOpen(nextOpen);
               if (!nextOpen) resetForm();
             }}
@@ -238,6 +266,7 @@ function Equipe() {
               className={adminMobileDialogContentClass}
               onInteractOutside={(e) => e.preventDefault()}
               onPointerDownOutside={(e) => e.preventDefault()}
+              onFocusOutside={(e) => e.preventDefault()}
             >
               <DialogHeader className={adminMobileDialogHeaderClass}>
                 <DialogTitle>{editing ? "Editar prestador" : "Novo prestador"}</DialogTitle>
@@ -257,80 +286,52 @@ function Equipe() {
                 <div className="grid gap-2 text-sm">
                   <span>Foto</span>
                   <div className="flex flex-wrap items-center gap-3">
-                    {imagePreviewBlob || form.photo_url ? (
-                      <img
-                        key={imagePreviewBlob || form.photo_url}
-                        src={imagePreviewBlob || form.photo_url}
-                        alt="Prévia do prestador"
-                        className="size-14 shrink-0 rounded-full object-cover ring-2 ring-border"
-                      />
-                    ) : (
-                      <div className="grid size-14 shrink-0 place-items-center rounded-full bg-muted text-muted-foreground ring-2 ring-border">
-                        <UserRound className="size-6" />
-                      </div>
-                    )}
-                    <label className="inline-flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm hover:bg-accent">
+                    <label
+                      className="inline-flex cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 text-sm hover:bg-accent"
+                      onClick={() => {
+                        pickingFileRef.current = true;
+                      }}
+                    >
                       <Upload className="size-4" />
-                      {imageFile ? "Trocar foto" : "Enviar"}
+                      Enviar
                       <input
                         type="file"
                         accept="image/jpeg,image/png,image/webp,image/gif"
                         className="sr-only"
-                        onChange={(e) => {
-                          const f = e.target.files?.[0];
-                          e.target.value = "";
-                          if (!f) return;
-                          if (!isAllowedProviderImage(f)) {
-                            toast.error("Use JPG, PNG ou WebP.");
-                            return;
-                          }
-                          if (f.size > 5 * 1024 * 1024) {
-                            toast.error("Imagem muito grande (máx. 5 MB).");
-                            return;
-                          }
-                          setImageFile(f);
-                          void readImagePreviewDataUrl(f)
-                            .then((dataUrl) => setImagePreviewBlob(dataUrl))
-                            .catch(() => {
-                              setImageFile(null);
-                              setImagePreviewBlob(null);
-                              toast.error("Não foi possível exibir a prévia da imagem.");
-                            });
-                        }}
+                        onChange={onPickProviderPhoto}
                       />
                     </label>
-                    {(imagePreviewBlob || form.photo_url) && (
+                    {photoPreviewSrc ? (
+                      <img
+                        key={photoPreviewSrc}
+                        src={photoPreviewSrc}
+                        alt="Prévia do prestador"
+                        className="size-16 shrink-0 rounded-full border-2 border-emerald-500 object-cover shadow-sm"
+                      />
+                    ) : (
+                      <div className="grid size-16 shrink-0 place-items-center rounded-full border border-dashed border-border bg-muted text-muted-foreground">
+                        <UserRound className="size-6" />
+                      </div>
+                    )}
+                    {photoPreviewSrc ? (
                       <button
                         type="button"
                         className="inline-flex items-center gap-1 rounded-lg border border-destructive/40 px-3 py-2 text-xs text-destructive hover:bg-destructive/10"
                         onClick={() => {
-                          setImageFile(null);
-                          setImagePreviewBlob(null);
+                          clearImagePreview();
                           setForm((s) => ({ ...s, photo_url: "" }));
                         }}
                       >
                         <Trash2 className="size-3.5" /> Remover
                       </button>
-                    )}
+                    ) : null}
                   </div>
                   {imageFile ? (
                     <p className="text-xs text-emerald-600 dark:text-emerald-400">
                       Imagem selecionada: {imageFile.name}
                     </p>
                   ) : null}
-                  <p className="text-xs text-muted-foreground">
-                    JPG, PNG ou WebP · até 5 MB. A prévia aparece assim que você escolher o arquivo.
-                  </p>
-                  {(imagePreviewBlob || form.photo_url) && (
-                    <div className="overflow-hidden rounded-xl border border-border">
-                      <img
-                        key={`preview-${imagePreviewBlob || form.photo_url}`}
-                        src={imagePreviewBlob || form.photo_url}
-                        alt="Prévia ampliada do prestador"
-                        className="h-36 w-full object-cover"
-                      />
-                    </div>
-                  )}
+                  <p className="text-xs text-muted-foreground">JPG, PNG ou WebP · até 5 MB.</p>
                 </div>
                 <div className="grid gap-1.5 text-sm">
                   Cor na agenda
@@ -402,7 +403,13 @@ function Equipe() {
                 </label>
               </div>
               <DialogFooter className={adminMobileDialogFooterClass}>
-                <Button variant="outline" onClick={() => setOpen(false)}>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    resetForm();
+                    setOpen(false);
+                  }}
+                >
                   Cancelar
                 </Button>
                 <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending}>
