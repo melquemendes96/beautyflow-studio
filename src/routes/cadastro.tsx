@@ -1,9 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery } from "@tanstack/react-query";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Check, Lock, Mail, Sparkles, Building2 } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
-import { GoogleOAuthButton } from "@/components/auth/GoogleOAuthButton";
 import { authService } from "@/services/authService";
 import { fetchPublicPlans } from "@/lib/fetch-public-plans";
 import { PublicPlansLoadError } from "@/components/site/PublicPlansLoadError";
@@ -13,13 +12,7 @@ import { Input } from "@/components/ui/input";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthProvider";
-import {
-  clearOAuthFlowContext,
-  readOAuthFlowContext,
-  readStudioNameFromUrl,
-  saveOAuthFlowContext,
-} from "@/lib/oauth-signup-intent";
-import { navigateAfterAuthenticatedSession } from "@/lib/complete-auth-onboarding";
+import { readStudioNameFromUrl } from "@/lib/oauth-signup-intent";
 import { usePublicAuthRedirect } from "@/lib/use-public-auth-redirect";
 
 function CadastroRouteError({ error, reset }: { error: Error; reset: () => void }) {
@@ -104,17 +97,8 @@ type PublicPlanRow = { id: string; name: string; price?: number | null; features
 
 function Cadastro() {
   const { planId: planIdFromUrl } = Route.useSearch();
-  const navigate = Route.useNavigate();
   const [selectedPlanId, setSelectedPlanId] = useState<string | undefined>(planIdFromUrl);
-  const {
-    session,
-    profileReady,
-    isPlatformAdmin,
-    companyMemberships,
-    isLoading,
-    refresh: refreshAuth,
-  } = useAuth();
-  const oauthHandledRef = useRef(false);
+  const { isPlatformAdmin } = useAuth();
 
   const effectivePlanId = planIdFromUrl ?? selectedPlanId;
 
@@ -134,54 +118,13 @@ function Cadastro() {
     email?: string;
     password?: string;
   }>({});
-  const [googlePending, setGooglePending] = useState(false);
 
   const pwStatus = passwordChecks(password);
 
   useEffect(() => {
-    const c = readOAuthFlowContext();
-    if (c?.mode === "login") clearOAuthFlowContext();
     const fromUrl = readStudioNameFromUrl();
     if (fromUrl) setCompanyName(fromUrl);
-    else if (c?.mode === "signup" && c.companyName) setCompanyName(c.companyName);
-    if (c?.planId) setSelectedPlanId(c.planId);
   }, []);
-
-  useEffect(() => {
-    if (!isSupabaseConfigured() || !profileReady || !session) return;
-    if (isPlatformAdmin || companyMemberships.length > 0) return;
-
-    const ctx = readOAuthFlowContext();
-    if (!ctx || ctx.mode !== "signup") return;
-    if (oauthHandledRef.current) return;
-    oauthHandledRef.current = true;
-    setError(null);
-
-    void (async () => {
-      const res = await navigateAfterAuthenticatedSession({
-        navigate,
-        planId: ctx.planId ?? effectivePlanId,
-        preferTrial: true,
-        companyName: ctx.companyName?.trim() ? ctx.companyName : null,
-        refreshAuth,
-      });
-      if (!res.ok) {
-        oauthHandledRef.current = false;
-        if (res.code === "needs_company_name") setStep("account");
-        setError(res.error);
-        return;
-      }
-      clearOAuthFlowContext();
-    })();
-  }, [
-    session,
-    profileReady,
-    isPlatformAdmin,
-    companyMemberships.length,
-    effectivePlanId,
-    navigate,
-    refreshAuth,
-  ]);
 
   const plansQuery = useQuery({
     queryKey: ["public", "plans", "cadastro"],
@@ -239,12 +182,6 @@ function Cadastro() {
   const onAccountSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
-    const name = companyName.trim();
-    saveOAuthFlowContext({
-      mode: "signup",
-      companyName: name,
-      planId: effectivePlanId,
-    });
     if (!isSupabaseConfigured()) {
       setError(
         "Crie o arquivo .env na raiz do projeto com VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY (JWT eyJ...). Valores em: Supabase → Configurações do projeto → API → Legacy anon. Depois reinicie o npm run dev.",
@@ -253,41 +190,6 @@ function Cadastro() {
     }
     if (!validateForm()) return;
     createAccountMutation.mutate();
-  };
-
-  const onGoogle = async () => {
-    setError(null);
-    setFieldErrors({});
-    if (!isSupabaseConfigured()) {
-      setError(
-        "Configure o Supabase no .env (VITE_SUPABASE_URL e VITE_SUPABASE_ANON_KEY eyJ...) e reinicie o servidor.",
-      );
-      return;
-    }
-    const name = companyName.trim();
-    if (name.length < 2) {
-      setFieldErrors({ companyName: "Informe o nome do studio para continuar com o Google." });
-      return;
-    }
-    setGooglePending(true);
-    try {
-      saveOAuthFlowContext({
-        mode: "signup",
-        companyName: name,
-        planId: effectivePlanId,
-      });
-      const { data, error: oErr } = await authService.signInWithGoogle();
-      if (oErr) {
-        clearOAuthFlowContext();
-        setError(oErr.message || "Não foi possível abrir o Google. Tente de novo.");
-        return;
-      }
-      if (data?.url) {
-        window.location.assign(data.url);
-      }
-    } finally {
-      setGooglePending(false);
-    }
   };
 
   const loginSearch = effectivePlanId ? { planId: effectivePlanId } : {};
@@ -344,7 +246,8 @@ function Cadastro() {
             <>
               <h1 className="font-display text-2xl tracking-tight">Criar sua conta</h1>
               <p className="mt-1 text-sm text-muted-foreground">
-                Use Google ou e-mail. Sua empresa será criada automaticamente no primeiro acesso.
+                Cadastre-se com e-mail e senha. Depois você pode entrar também com Google (mesmo e-mail) na tela de
+                login.
               </p>
 
               <div className="mt-5 rounded-2xl border border-border bg-secondary/40 p-4 text-sm">
@@ -415,24 +318,7 @@ function Cadastro() {
                 </p>
               )}
 
-              <div className="mt-6">
-                <GoogleOAuthButton
-                  label="Continuar com Google"
-                  pending={googlePending}
-                  disabled={pending || isLoading}
-                  onClick={() => void onGoogle()}
-                />
-                <div className="relative my-6">
-                  <div className="absolute inset-0 flex items-center">
-                    <span className="w-full border-t border-border" />
-                  </div>
-                  <div className="relative flex justify-center text-xs uppercase tracking-wider">
-                    <span className="bg-card px-3 text-muted-foreground">ou cadastre com e-mail</span>
-                  </div>
-                </div>
-              </div>
-
-              <form onSubmit={(ev) => void onAccountSubmit(ev)} aria-busy={pending}>
+              <form onSubmit={(ev) => void onAccountSubmit(ev)} className="mt-6" aria-busy={pending}>
                 <div className="grid gap-4">
                   <label className="grid gap-1.5">
                     <span className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
@@ -515,7 +401,7 @@ function Cadastro() {
                 </div>
 
                 <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:flex-wrap">
-                  <Button type="submit" className="h-11 flex-1 rounded-full sm:min-w-[12rem]" disabled={pending || googlePending}>
+                  <Button type="submit" className="h-11 flex-1 rounded-full sm:min-w-[12rem]" disabled={pending}>
                     {pending ? "Criando…" : "Criar conta"}
                   </Button>
                   <Button variant="outline" className="h-11 rounded-full" type="button" asChild>
@@ -533,8 +419,8 @@ function Cadastro() {
               <h1 className="font-display text-2xl tracking-tight">Verifique seu e-mail</h1>
               <p className="mt-1 text-sm text-muted-foreground">
                 Enviamos um link de confirmação para{" "}
-                <span className="font-medium text-foreground">{email.trim()}</span>. Confirme sua conta e depois faça
-                login para entrar no painel.
+                <span className="font-medium text-foreground">{email.trim()}</span>. Confirme sua conta e entre com
+                e-mail e senha (ou Google, mesmo e-mail) na tela de login.
               </p>
 
               <div className="mt-6 rounded-2xl border border-border bg-secondary/40 p-4 text-sm text-muted-foreground">

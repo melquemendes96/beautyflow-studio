@@ -163,7 +163,9 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
             <Logo onLight className="h-14 max-w-[260px]" />
           </div>
           <h1 className="font-display text-2xl tracking-tight">Entrar no painel</h1>
-          <p className="mt-1 text-sm text-muted-foreground">Bem-vinda de volta. Acesse seu studio.</p>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Bem-vinda de volta. Use e-mail e senha ou Google com o mesmo e-mail do cadastro.
+          </p>
 
           {error && (
             <div
