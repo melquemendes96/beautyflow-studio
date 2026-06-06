@@ -60,7 +60,7 @@ ALTER TABLE public.plans
 
 UPDATE public.plans
 SET
-  included_provider_slots = COALESCE(included_provider_slots, 3),
+  included_provider_slots = COALESCE(NULLIF(included_provider_slots, 0), 3),
   extra_provider_slot_price = COALESCE(extra_provider_slot_price, 17.00)
 WHERE lower(name) LIKE '%elite%';
 
@@ -244,7 +244,7 @@ DECLARE
 BEGIN
   v_plan_id := public.resolve_company_plan_id(p_company_id);
   IF v_plan_id IS NOT NULL THEN
-    SELECT COALESCE(p.included_provider_slots, 3) INTO v_included
+    SELECT COALESCE(NULLIF(p.included_provider_slots, 0), 3) INTO v_included
     FROM public.plans p WHERE p.id = v_plan_id;
   END IF;
 

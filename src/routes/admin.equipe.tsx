@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { PageTitle } from "@/components/admin/AdminShell";
@@ -18,7 +18,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
   adminMobileDialogBodyClass,
   adminMobileDialogContentClass,
   adminMobileDialogFooterClass,
@@ -69,9 +68,13 @@ function Equipe() {
   });
 
   const providers = teamQuery.data?.providers ?? [];
-  const slotLimit = teamQuery.data?.slot_limit ?? 3;
+  const slotLimit = teamQuery.data?.slot_limit ?? 0;
   const activeCount = teamQuery.data?.active_count ?? 0;
   const services = servicesQuery.data ?? [];
+  const slotsLoaded = teamQuery.isSuccess;
+  const canAdd = slotsLoaded && slotLimit > 0 && activeCount < slotLimit;
+  const slotsFull = slotsLoaded && slotLimit > 0 && activeCount >= slotLimit;
+  const slotsMisconfigured = slotsLoaded && slotLimit <= 0;
 
   const resetForm = () => {
     setEditing(null);
@@ -165,8 +168,6 @@ function Equipe() {
     onError: () => toast.error("Erro ao remover prestador"),
   });
 
-  const canAdd = activeCount < slotLimit;
-
   const sortedProviders = useMemo(
     () => [...providers].sort((a, b) => a.sort_order - b.sort_order || a.display_name.localeCompare(b.display_name)),
     [providers],
@@ -176,7 +177,13 @@ function Equipe() {
     <div>
       <PageTitle
         title="Equipe"
-        subtitle={`Gerencie prestadores bookáveis no link público (${activeCount}/${slotLimit} vagas ativas).`}
+        subtitle={
+          teamQuery.isLoading
+            ? "Carregando limite de vagas…"
+            : slotsMisconfigured
+              ? `Prestadores bookáveis no link público (${activeCount}/0 — limite a corrigir)`
+              : `Gerencie prestadores bookáveis no link público (${activeCount}/${slotLimit} vagas ativas).`
+        }
         action={
           <Dialog
             open={open}
@@ -191,11 +198,18 @@ function Equipe() {
               }
             }}
           >
-            <DialogTrigger asChild>
-              <Button disabled={!canAdd} className="gap-2">
-                <Plus className="size-4" /> Novo prestador
-              </Button>
-            </DialogTrigger>
+            <Button
+              type="button"
+              disabled={!canAdd}
+              className="gap-2"
+              onClick={() => {
+                if (!canAdd) return;
+                resetForm();
+                setOpen(true);
+              }}
+            >
+              <Plus className="size-4" /> Novo prestador
+            </Button>
             <DialogContent className={adminMobileDialogContentClass}>
               <DialogHeader className={adminMobileDialogHeaderClass}>
                 <DialogTitle>{editing ? "Editar prestador" : "Novo prestador"}</DialogTitle>
@@ -315,6 +329,45 @@ function Equipe() {
           </Dialog>
         }
       />
+
+      {teamQuery.isError ? (
+        <div className="mt-6 rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
+          Não foi possível carregar a equipe. Confirme que a migration de Equipe foi aplicada no Supabase e que
+          seu usuário é owner/admin.
+          <button
+            type="button"
+            className="mt-2 block text-xs underline"
+            onClick={() => void teamQuery.refetch()}
+          >
+            Tentar novamente
+          </button>
+        </div>
+      ) : null}
+
+      {slotsMisconfigured ? (
+        <div className="mt-6 rounded-2xl border border-gold/40 bg-gold-soft/30 px-4 py-3 text-sm">
+          <p className="font-medium">Limite de prestadores indisponível (0 vagas)</p>
+          <p className="mt-1 text-muted-foreground">
+            O plano Elite inclui <strong>3 prestadores</strong> no agendamento online, mas o limite no banco está
+            zerado. Aplique a migration{" "}
+            <code className="text-xs">20260602000000_fix_provider_slot_limit.sql</code> no Supabase ou peça ao
+            suporte para ajustar <code className="text-xs">included_provider_slots</code> do plano Elite.
+          </p>
+        </div>
+      ) : null}
+
+      {slotsFull ? (
+        <div className="mt-6 rounded-2xl border border-border bg-secondary/40 px-4 py-3 text-sm">
+          <p className="font-medium">Todas as vagas estão em uso ({activeCount}/{slotLimit})</p>
+          <p className="mt-1 text-muted-foreground">
+            O Elite inclui 3 prestadores. Vagas extras (R$ 17/mês cada) ainda serão contratadas pelo{" "}
+            <Link to="/admin/plano" className="underline hover:text-foreground">
+              Plano e assinatura
+            </Link>{" "}
+            — por enquanto, solicite pelo suporte na página de plano.
+          </p>
+        </div>
+      ) : null}
 
       {teamQuery.isLoading ? (
         <p className="mt-6 text-sm text-muted-foreground">Carregando equipe…</p>

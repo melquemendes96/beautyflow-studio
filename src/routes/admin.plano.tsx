@@ -11,6 +11,7 @@ import { subscriptionService } from "@/services/subscriptionService";
 import { paymentService } from "@/services/paymentService";
 import { useMemo, useState } from "react";
 import { supportTicketService } from "@/services/supportTicketService";
+import { teamService } from "@/services/teamService";
 import { toast } from "sonner";
 import {
   Dialog,
@@ -222,6 +223,19 @@ function Plano() {
     };
   }, [subscriptionQuery.data]);
 
+  const isElitePlan = (current?.name ?? "").toLowerCase().includes("elite");
+
+  const teamSlotsQuery = useQuery({
+    queryKey: ["admin", "team", "slots", companyId],
+    enabled: hasCompany && Boolean(companyId) && isElitePlan,
+    queryFn: async () => {
+      const res = await teamService.list(companyId!);
+      if (res.error) throw res.error;
+      if (!res.data?.ok) throw new Error(res.data?.error ?? "Erro ao carregar equipe");
+      return res.data;
+    },
+  });
+
   const statusPt = (st: string) => {
     if (st === "active") return "Ativa";
     if (st === "trialing") return "Teste";
@@ -313,6 +327,49 @@ function Plano() {
           </div>
         </div>
       </div>
+
+      {isElitePlan && hasCompany ? (
+        <div className="mb-8 rounded-2xl border border-border bg-card p-6 shadow-soft">
+          <h2 className="font-display text-lg">Equipe no agendamento online</h2>
+          <p className="mt-2 text-sm text-muted-foreground">
+            O plano Elite inclui <strong>3 prestadores</strong> bookáveis (dono/conta como 1 vaga). Renovar o plano
+            mantém o Elite — não adiciona vagas extras automaticamente.
+          </p>
+          {teamSlotsQuery.isLoading ? (
+            <Skeleton className="mt-4 h-4 w-48" />
+          ) : teamSlotsQuery.isError ? (
+            <p className="mt-4 text-sm text-muted-foreground">
+              Não foi possível ler o uso de vagas. Veja em{" "}
+              <Link to="/admin/equipe" className="underline hover:text-foreground">
+                Equipe
+              </Link>
+              .
+            </p>
+          ) : (
+            <p className="mt-4 text-sm">
+              Uso atual:{" "}
+              <span className="font-medium">
+                {teamSlotsQuery.data?.active_count ?? 0}/{teamSlotsQuery.data?.slot_limit ?? 3} vagas ativas
+              </span>
+              {(teamSlotsQuery.data?.slot_limit ?? 0) <= 0 ? (
+                <span className="mt-2 block text-amber-700">
+                  Limite zerado no sistema — aplique a correção no Supabase ou fale com o suporte.
+                </span>
+              ) : null}
+            </p>
+          )}
+          <p className="mt-3 text-xs text-muted-foreground">
+            Vagas extras de prestador (R$ 17/mês cada) serão contratadas como add-on em breve. Enquanto isso, use
+            &quot;Falar com suporte&quot; abaixo para solicitar.
+          </p>
+          <Link
+            to="/admin/equipe"
+            className="mt-4 inline-flex rounded-full border border-border px-4 py-2 text-sm hover:bg-accent"
+          >
+            Gerenciar equipe →
+          </Link>
+        </div>
+      ) : null}
 
       <div className="mb-8 grid gap-6 lg:grid-cols-2">
         <div className="rounded-2xl border border-border bg-card p-6 shadow-soft">
