@@ -1,5 +1,5 @@
-import { createFileRoute } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect, useMemo, useState } from "react";
 import { PageTitle } from "@/components/admin/AdminShell";
 import { Lock, Plus } from "lucide-react";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
@@ -34,10 +34,13 @@ import {
   formatAppointmentTimeHm,
 } from "@/lib/appointment-time";
 import {
+  blocksForAgendaScope,
+  findCoveringBlockForHour,
   findManualBlockForHour,
   hasBlockType,
   hourSlotEnd,
   isHourBlocked,
+  blockScopeLabel,
   type ScheduleBlockRow,
 } from "@/lib/admin-agenda-blocks";
 import { businessSettingsService } from "@/services/businessSettingsService";
@@ -46,6 +49,9 @@ import { teamService } from "@/services/teamService";
 import type { ScheduleBlockType } from "@/services/scheduleBlockService";
 
 export const Route = createFileRoute("/admin/agenda")({
+  validateSearch: (s: Record<string, unknown>) => ({
+    provider: typeof s.provider === "string" ? s.provider : undefined,
+  }),
   component: Agenda,
 });
 
@@ -89,7 +95,8 @@ function startOfWeek(date: Date) {
 function Agenda() {
   const [view, setView] = useState<"dia" | "semana">("dia");
   const queryClient = useQueryClient();
-  const { companyId, hasCompany } = useCurrentCompany();
+  const { companyId, hasCompany, providerId, isProvider } = useCurrentCompany();
+  const { provider: providerFromSearch } = Route.useSearch();
   const [day, setDay] = useState<Date>(new Date());
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({
@@ -99,6 +106,16 @@ function Agenda() {
   });
   const [providerFilterId, setProviderFilterId] = useState("");
 
+  useEffect(() => {
+    if (isProvider && providerId) {
+      setProviderFilterId(providerId);
+      return;
+    }
+    if (providerFromSearch) {
+      setProviderFilterId(providerFromSearch);
+    }
+  }, [isProvider, providerId, providerFromSearch]);
+
   const teamFeatureQuery = useQuery({
     queryKey: ["admin", "feature", "team", companyId],
     enabled: hasCompany && Boolean(companyId),
@@ -107,7 +124,7 @@ function Agenda() {
 
   const teamQuery = useQuery({
     queryKey: ["admin", "team", companyId],
-    enabled: hasCompany && Boolean(companyId) && Boolean(teamFeatureQuery.data),
+    enabled: hasCompany && Boolean(companyId) && Boolean(teamFeatureQuery.data) && !isProvider,
     queryFn: async () => {
       const res = await teamService.list(companyId!);
       if (res.error) throw res.error;
@@ -223,6 +240,7 @@ function Agenda() {
         service_id: form.service_id,
         appointment_date: dateYmd,
         appointment_time: form.time,
+        provider_id: isProvider ? providerId : null,
       });
       if (res.error) throw res.error;
       return res.data;
@@ -252,22 +270,47 @@ function Agenda() {
     await queryClient.invalidateQueries({ queryKey: ["admin", "agenda", "blocks", companyId, dateYmd] });
   };
 
+  const blocks = useMemo(() => (dayBlocksQuery.data ?? []) as ScheduleBlockRow[], [dayBlocksQuery.data]);
+
+  const activeBlockScopeId = useMemo(() => {
+    if (isProvider) return providerId ?? null;
+    return providerFilterId || null;
+  }, [isProvider, providerId, providerFilterId]);
+
+  const ownerViewingAllProviders = !isProvider && !providerFilterId;
+
+  const agendaBlocks = useMemo(() => {
+    if (ownerViewingAllProviders) return blocks;
+    return blocksForAgendaScope(blocks, activeBlockScopeId);
+  }, [blocks, ownerViewingAllProviders, activeBlockScopeId]);
+
+  const blockScopeHint = useMemo(
+    () =>
+      blockScopeLabel(
+        activeBlockScopeId,
+        teamQuery.data?.providers?.find((p: { id: string }) => p.id === activeBlockScopeId)?.display_name,
+      ),
+    [activeBlockScopeId, teamQuery.data?.providers],
+  );
+
   const toggleBulkBlockMutation = useMutation({
     mutationFn: async (blockType: ScheduleBlockType) => {
       if (!companyId) throw new Error("Sem empresa");
+      const scopeId = activeBlockScopeId;
       const blocks = (dayBlocksQuery.data ?? []) as ScheduleBlockRow[];
-      if (hasBlockType(blocks, blockType)) {
-        const res = await scheduleBlockService.deleteByType(companyId, dateYmd, blockType);
+      if (hasBlockType(blocks, blockType, scopeId)) {
+        const res = await scheduleBlockService.deleteByType(companyId, dateYmd, blockType, scopeId);
         if (res.error) throw res.error;
         return { action: "removed" as const, blockType };
       }
       if (blockType === "day_full") {
-        await scheduleBlockService.deleteByType(companyId, dateYmd, "morning_full");
-        await scheduleBlockService.deleteByType(companyId, dateYmd, "afternoon_full");
+        await scheduleBlockService.deleteByType(companyId, dateYmd, "morning_full", scopeId);
+        await scheduleBlockService.deleteByType(companyId, dateYmd, "afternoon_full", scopeId);
       }
       const res = await scheduleBlockService.create(companyId, {
         block_date: dateYmd,
         block_type: blockType,
+        provider_id: scopeId,
       });
       if (res.error) throw res.error;
       return { action: "created" as const, blockType };
@@ -290,8 +333,9 @@ function Agenda() {
   const toggleHourBlockMutation = useMutation({
     mutationFn: async (hourHm: string) => {
       if (!companyId) throw new Error("Sem empresa");
+      const scopeId = activeBlockScopeId;
       const blocks = (dayBlocksQuery.data ?? []) as ScheduleBlockRow[];
-      const manual = findManualBlockForHour(blocks, hourHm);
+      const manual = findManualBlockForHour(blocks, hourHm, scopeId);
       if (manual?.id) {
         const res = await scheduleBlockService.delete(companyId, manual.id);
         if (res.error) throw res.error;
@@ -302,6 +346,7 @@ function Agenda() {
         block_type: "manual_block",
         time_start: hourHm,
         time_end: hourSlotEnd(hourHm),
+        provider_id: scopeId,
       });
       if (res.error) throw res.error;
       return { action: "blocked" as const, hourHm };
@@ -356,21 +401,41 @@ function Agenda() {
     return map;
   }, [filteredDayAppointments]);
 
-  const blocks = useMemo(() => (dayBlocksQuery.data ?? []) as ScheduleBlockRow[], [dayBlocksQuery.data]);
-
-  const isBlockedAt = (time: string) => isHourBlocked(time, blocks, businessHours);
+  const isBlockedAt = (time: string) => isHourBlocked(time, agendaBlocks, businessHours);
 
   const handleHourSlotClick = (hora: string) => {
     const eventos = dayEventsByTime.get(hora) ?? [];
     if (eventos.length > 0) return;
 
-    const manual = findManualBlockForHour(blocks, hora);
+    if (ownerViewingAllProviders) {
+      const studioManual = findManualBlockForHour(blocks, hora, null);
+      if (studioManual) {
+        toggleHourBlockMutation.mutate(hora);
+        return;
+      }
+      const covering = findCoveringBlockForHour(blocks, hora, businessHours);
+      if (covering?.provider_id) {
+        const name =
+          (covering.provider as { display_name?: string | null } | null | undefined)?.display_name ??
+          "prestador";
+        toast.message(`Horário bloqueado por ${name}. Selecione o prestador no filtro para alterar.`);
+        return;
+      }
+      if (isBlockedAt(hora)) {
+        toast.message("Horário bloqueado pelo botão manhã/tarde/dia. Clique de novo no mesmo botão para remover.");
+        return;
+      }
+      toggleHourBlockMutation.mutate(hora);
+      return;
+    }
+
+    const manual = findManualBlockForHour(blocks, hora, activeBlockScopeId);
     if (manual) {
       toggleHourBlockMutation.mutate(hora);
       return;
     }
     if (isBlockedAt(hora)) {
-      toast.message("Horário bloqueado pelo botão manhã/tarde/dia. Clique de novo no mesmo botão para remover o bloqueio em massa.");
+      toast.message("Horário bloqueado pelo botão manhã/tarde/dia. Clique de novo no mesmo botão para remover.");
       return;
     }
     toggleHourBlockMutation.mutate(hora);
@@ -379,11 +444,15 @@ function Agenda() {
   return (
     <div>
       <PageTitle
-        title="Agenda"
-        subtitle={subtitle}
+        title={isProvider ? "Minha agenda" : "Agenda"}
+        subtitle={
+          isProvider
+            ? `${subtitle} · seus agendamentos`
+            : subtitle
+        }
         action={
           <div className="flex flex-wrap items-center gap-2">
-            {teamFeatureQuery.data && (teamQuery.data?.providers?.length ?? 0) > 0 ? (
+        {!isProvider && teamFeatureQuery.data && (teamQuery.data?.providers?.length ?? 0) > 0 ? (
               <select
                 className="h-10 rounded-full border border-border bg-card px-3 text-sm"
                 value={providerFilterId}
@@ -489,6 +558,9 @@ function Agenda() {
           />
         </div>
         <div className="flex flex-wrap gap-2 text-xs">
+          <p className="w-full text-[11px] text-muted-foreground">
+            Bloqueios para: <span className="font-medium text-foreground">{blockScopeHint}</span>
+          </p>
           {(
             [
               { type: "morning_full" as const, label: "Bloquear manhã" },
@@ -496,7 +568,7 @@ function Agenda() {
               { type: "day_full" as const, label: "Marcar dia lotado" },
             ] as const
           ).map(({ type, label }) => {
-            const active = hasBlockType(blocks, type);
+            const active = hasBlockType(blocks, type, activeBlockScopeId);
             return (
               <button
                 key={type}
@@ -528,7 +600,13 @@ function Agenda() {
               const eventos = dayEventsByTime.get(hora) ?? [];
               const occupied = eventos.length > 0;
               const blocked = !occupied && isBlockedAt(hora);
-              const manualBlock = findManualBlockForHour(blocks, hora);
+              const manualBlock = ownerViewingAllProviders
+                ? findManualBlockForHour(blocks, hora, null)
+                : findManualBlockForHour(blocks, hora, activeBlockScopeId);
+              const coveringBlock = blocked ? findCoveringBlockForHour(agendaBlocks, hora, businessHours) : null;
+              const providerBlockName =
+                (coveringBlock?.provider as { display_name?: string | null } | null | undefined)?.display_name ??
+                null;
               const slotLabel = occupied ? "Ocupado" : blocked ? "Bloqueado" : "Horário livre";
               return (
                 <div key={hora} className="flex gap-4 border-b border-border last:border-0 px-3 py-3">
@@ -591,7 +669,9 @@ function Agenda() {
                           {blocked
                             ? manualBlock
                               ? "Clique para liberar"
-                              : "Bloqueio em massa — use os botões acima para remover"
+                              : providerBlockName
+                                ? `Bloqueado por ${providerBlockName}${ownerViewingAllProviders ? " — selecione no filtro para alterar" : ""}`
+                                : "Bloqueio em massa — use os botões acima para remover"
                             : "Clique para bloquear este horário"}
                         </span>
                       </button>

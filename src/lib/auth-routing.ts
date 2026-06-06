@@ -122,6 +122,11 @@ export function resolveAuthDestinationFromProfile(
     };
   }
 
+  const primary = memberships[0];
+  if (primary?.role === "provider" && primary.provider_id) {
+    return { kind: "dashboard", path: "/admin" };
+  }
+
   return { kind: "dashboard", path: "/admin" };
 }
 

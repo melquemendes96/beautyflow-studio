@@ -2,11 +2,15 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { PageTitle } from "@/components/admin/AdminShell";
-import { Plus, Pencil, Trash2, Upload, UserRound } from "lucide-react";
+import { Calendar, Copy, Link2, Plus, Pencil, Trash2, Upload, UserRound } from "lucide-react";
 import { AdminEmptyState } from "@/components/admin/AdminPageStates";
 import { useCurrentCompany } from "@/lib/current-company";
 import { teamService, type ServiceProviderRow } from "@/services/teamService";
 import { serviceService } from "@/services/serviceService";
+import {
+  formatProviderInviteError,
+  providerInviteService,
+} from "@/services/providerInviteService";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,6 +34,37 @@ export const Route = createFileRoute("/admin/equipe")({
 
 const PRESET_COLORS = ["#1a1a1a", "#c9a960", "#7c3aed", "#2563eb", "#059669", "#dc2626"];
 
+function accessStatusLabel(status?: ServiceProviderRow["access_status"]) {
+  switch (status) {
+    case "active":
+      return "Acesso ativo";
+    case "invite_pending":
+      return "Convite pendente";
+    case "suspended":
+      return "Suspenso";
+    default:
+      return "Sem acesso";
+  }
+}
+
+function accessStatusClass(status?: ServiceProviderRow["access_status"]) {
+  switch (status) {
+    case "active":
+      return "bg-emerald-500/15 text-emerald-700 dark:text-emerald-400";
+    case "invite_pending":
+      return "bg-amber-500/15 text-amber-700 dark:text-amber-400";
+    case "suspended":
+      return "bg-destructive/15 text-destructive";
+    default:
+      return "bg-muted text-muted-foreground";
+  }
+}
+
+function buildInviteUrl(token: string) {
+  if (typeof window === "undefined") return `/convite/prestador/${token}`;
+  return `${window.location.origin}/convite/prestador/${token}`;
+}
+
 function isAllowedProviderImage(file: File): boolean {
   if (
     file.type === "image/jpeg" ||
@@ -52,6 +87,8 @@ function Equipe() {
   const [editing, setEditing] = useState<ServiceProviderRow | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [imagePreviewBlob, setImagePreviewBlob] = useState<string | null>(null);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [generatedInviteUrl, setGeneratedInviteUrl] = useState<string | null>(null);
   const [form, setForm] = useState({
     display_name: "",
     photo_url: "",
@@ -95,6 +132,13 @@ function Equipe() {
 
   const providers = teamQuery.data?.providers ?? [];
   const slotLimit = teamQuery.data?.slot_limit ?? 0;
+
+  useEffect(() => {
+    if (!editing?.id) return;
+    const fresh = providers.find((p: ServiceProviderRow) => p.id === editing.id);
+    if (fresh) setEditing(fresh);
+  }, [providers, editing?.id]);
+
   const activeCount = teamQuery.data?.active_count ?? 0;
   const services = servicesQuery.data ?? [];
   const slotsLoaded = teamQuery.isSuccess;
@@ -113,6 +157,8 @@ function Equipe() {
   const resetForm = () => {
     setEditing(null);
     clearImagePreview();
+    setInviteEmail("");
+    setGeneratedInviteUrl(null);
     setForm({
       display_name: "",
       photo_url: "",
@@ -126,6 +172,8 @@ function Equipe() {
 
   const openEdit = (p: ServiceProviderRow) => {
     clearImagePreview();
+    setGeneratedInviteUrl(null);
+    setInviteEmail(p.invited_email ?? p.linked_user_email ?? "");
     setEditing(p);
     setForm({
       display_name: p.display_name,
@@ -191,6 +239,13 @@ function Equipe() {
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       if (!companyId) throw new Error("Sem empresa");
+      if (
+        !window.confirm(
+          "Remover este prestador? O acesso ao painel será revogado imediatamente. Agendamentos antigos permanecem no histórico.",
+        )
+      ) {
+        throw new Error("cancelled");
+      }
       const res = await teamService.delete(companyId, id);
       if (res.error) throw res.error;
       const payload = res.data as { ok?: boolean };
@@ -200,8 +255,96 @@ function Equipe() {
       toast.success("Prestador removido");
       await queryClient.invalidateQueries({ queryKey: ["admin", "team", companyId] });
     },
-    onError: () => toast.error("Erro ao remover prestador"),
+    onError: (e: Error) => {
+      if (e.message === "cancelled") return;
+      toast.error("Erro ao remover prestador");
+    },
   });
+
+  const inviteMutation = useMutation({
+    mutationFn: async (providerId: string) => {
+      if (!companyId) throw new Error("Sem empresa");
+      const res = await providerInviteService.createInvite(companyId, providerId, inviteEmail || null);
+      if (res.error) throw res.error;
+      if (!res.data?.ok || !res.data.token) {
+        throw new Error(formatProviderInviteError(res.data?.error));
+      }
+      return buildInviteUrl(res.data.token);
+    },
+    onSuccess: async (url) => {
+      setGeneratedInviteUrl(url);
+      toast.success("Link de convite gerado.");
+      await queryClient.invalidateQueries({ queryKey: ["admin", "team", companyId] });
+    },
+    onError: (e: Error) => toast.error(e.message || "Erro ao gerar convite"),
+  });
+
+  const cancelInviteMutation = useMutation({
+    mutationFn: async (providerId: string) => {
+      if (!companyId) throw new Error("Sem empresa");
+      const res = await providerInviteService.cancelInvite(companyId, providerId);
+      if (res.error) throw res.error;
+    },
+    onSuccess: async () => {
+      setGeneratedInviteUrl(null);
+      toast.message("Convite cancelado.");
+      await queryClient.invalidateQueries({ queryKey: ["admin", "team", companyId] });
+    },
+    onError: () => toast.error("Erro ao cancelar convite"),
+  });
+
+  const suspendMutation = useMutation({
+    mutationFn: async (providerId: string) => {
+      if (!companyId) throw new Error("Sem empresa");
+      const res = await providerInviteService.suspendAccess(companyId, providerId);
+      if (res.error) throw res.error;
+      const data = res.data as { ok?: boolean; error?: string };
+      if (data?.ok === false) throw new Error(formatProviderInviteError(data.error));
+    },
+    onSuccess: async () => {
+      toast.success("Acesso suspenso.");
+      await queryClient.invalidateQueries({ queryKey: ["admin", "team", companyId] });
+    },
+    onError: (e: Error) => toast.error(e.message || "Erro ao suspender"),
+  });
+
+  const reactivateMutation = useMutation({
+    mutationFn: async (providerId: string) => {
+      if (!companyId) throw new Error("Sem empresa");
+      const res = await providerInviteService.reactivateAccess(companyId, providerId);
+      if (res.error) throw res.error;
+      const data = res.data as { ok?: boolean; error?: string };
+      if (data?.ok === false) throw new Error(formatProviderInviteError(data.error));
+    },
+    onSuccess: async () => {
+      toast.success("Prestador reativado. Gere um novo convite para liberar o painel.");
+      await queryClient.invalidateQueries({ queryKey: ["admin", "team", companyId] });
+    },
+    onError: (e: Error) => toast.error(e.message || "Erro ao reativar"),
+  });
+
+  const unlinkMutation = useMutation({
+    mutationFn: async (providerId: string) => {
+      if (!companyId) throw new Error("Sem empresa");
+      const res = await providerInviteService.unlinkUser(companyId, providerId);
+      if (res.error) throw res.error;
+      const data = res.data as { ok?: boolean; error?: string };
+      if (data?.ok === false) throw new Error(formatProviderInviteError(data.error));
+    },
+    onSuccess: async () => {
+      setGeneratedInviteUrl(null);
+      toast.success("Conta desvinculada.");
+      await queryClient.invalidateQueries({ queryKey: ["admin", "team", companyId] });
+    },
+    onError: (e: Error) => toast.error(e.message || "Erro ao desvincular"),
+  });
+
+  const accessBusy =
+    inviteMutation.isPending ||
+    cancelInviteMutation.isPending ||
+    suspendMutation.isPending ||
+    reactivateMutation.isPending ||
+    unlinkMutation.isPending;
 
   const sortedProviders = useMemo(
     () => [...providers].sort((a, b) => a.sort_order - b.sort_order || a.display_name.localeCompare(b.display_name)),
@@ -385,6 +528,148 @@ function Equipe() {
                     })}
                   </div>
                 </div>
+                {editing?.id ? (
+                  <div className="grid gap-3 rounded-xl border border-border bg-secondary/20 p-4 text-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <span className="font-medium">Acesso ao painel</span>
+                      <span
+                        className={`rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wide ${accessStatusClass(editing.access_status)}`}
+                      >
+                        {accessStatusLabel(editing.access_status)}
+                      </span>
+                    </div>
+                    {editing.access_status === "active" ? (
+                      <p className="text-xs text-muted-foreground">
+                        Vinculado a <strong>{editing.linked_user_email ?? "conta ativa"}</strong>
+                        {editing.linked_at
+                          ? ` · desde ${new Date(editing.linked_at).toLocaleDateString("pt-BR")}`
+                          : ""}
+                      </p>
+                    ) : editing.access_status === "invite_pending" ? (
+                      <p className="text-xs text-muted-foreground">
+                        Convite pendente
+                        {editing.invite_expires_at
+                          ? ` · expira em ${new Date(editing.invite_expires_at).toLocaleDateString("pt-BR")}`
+                          : ""}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-muted-foreground">
+                        Gere um link para o prestador criar login e ver só a própria agenda.
+                      </p>
+                    )}
+                    {editing.access_status !== "active" && editing.access_status !== "suspended" ? (
+                      <label className="grid gap-1.5">
+                        <span className="text-xs text-muted-foreground">E-mail do prestador (recomendado)</span>
+                        <Input
+                          type="email"
+                          value={inviteEmail}
+                          onChange={(e) => setInviteEmail(e.target.value)}
+                          placeholder="profissional@email.com"
+                        />
+                      </label>
+                    ) : null}
+                    <div className="flex flex-wrap gap-2">
+                      {editing.access_status !== "active" && editing.access_status !== "suspended" ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          className="gap-1.5"
+                          disabled={accessBusy}
+                          onClick={() => inviteMutation.mutate(editing.id)}
+                        >
+                          <Link2 className="size-3.5" />
+                          Gerar link
+                        </Button>
+                      ) : null}
+                      {editing.access_status === "invite_pending" ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={accessBusy}
+                          onClick={() => cancelInviteMutation.mutate(editing.id)}
+                        >
+                          Cancelar convite
+                        </Button>
+                      ) : null}
+                      {editing.access_status === "active" ? (
+                        <>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={accessBusy}
+                            onClick={() => unlinkMutation.mutate(editing.id)}
+                          >
+                            Desvincular conta
+                          </Button>
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="text-destructive hover:text-destructive"
+                            disabled={accessBusy}
+                            onClick={() => suspendMutation.mutate(editing.id)}
+                          >
+                            Suspender acesso
+                          </Button>
+                        </>
+                      ) : null}
+                      {editing.access_status === "suspended" ? (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="outline"
+                          disabled={accessBusy}
+                          onClick={() => reactivateMutation.mutate(editing.id)}
+                        >
+                          Reativar perfil
+                        </Button>
+                      ) : null}
+                      {editing.access_status === "active" ? (
+                        <Button type="button" size="sm" variant="outline" className="gap-1.5" asChild>
+                          <Link to="/admin/agenda" search={{ provider: editing.id }}>
+                            <Calendar className="size-3.5" /> Ver agenda
+                          </Link>
+                        </Button>
+                      ) : null}
+                    </div>
+                    {generatedInviteUrl ? (
+                      <div className="grid gap-2 rounded-lg border border-border bg-background p-3">
+                        <p className="text-xs text-muted-foreground">Link válido por 7 dias (anterior invalidado):</p>
+                        <code className="break-all text-xs">{generatedInviteUrl}</code>
+                        <div className="flex flex-wrap gap-2">
+                          <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="gap-1.5"
+                            onClick={() => {
+                              void navigator.clipboard.writeText(generatedInviteUrl);
+                              toast.success("Link copiado.");
+                            }}
+                          >
+                            <Copy className="size-3.5" /> Copiar
+                          </Button>
+                          <Button type="button" size="sm" variant="outline" asChild>
+                            <a
+                              href={`https://wa.me/?text=${encodeURIComponent(`Olá! Acesse seu painel JM BeautyFlow por este link (válido 7 dias): ${generatedInviteUrl}`)}`}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              Enviar WhatsApp
+                            </a>
+                          </Button>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : (
+                  <p className="rounded-xl border border-dashed border-border px-4 py-3 text-xs text-muted-foreground">
+                    Salve o prestador primeiro. Depois, em <strong>Editar</strong>, você gera o link de convite para
+                    o painel individual.
+                  </p>
+                )}
                 <label className="flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
@@ -497,25 +782,36 @@ function Equipe() {
                         Inativo
                       </span>
                     ) : null}
+                    <span
+                      className={`rounded-full px-2 py-0.5 text-[10px] uppercase tracking-wide ${accessStatusClass(p.access_status)}`}
+                    >
+                      {accessStatusLabel(p.access_status)}
+                    </span>
                   </div>
                   <p className="mt-1 text-xs text-muted-foreground">
                     {(p.service_ids?.length ?? 0) > 0
                       ? `${p.service_ids.length} serviço(s)`
                       : "Nenhum serviço vinculado"}
+                    {p.linked_user_email ? ` · ${p.linked_user_email}` : ""}
                   </p>
                 </div>
               </div>
-              <div className="mt-4 flex gap-2">
+              <div className="mt-4 flex flex-wrap gap-2">
                 <Button variant="outline" size="sm" className="gap-1" onClick={() => openEdit(p)}>
                   <Pencil className="size-3.5" /> Editar
                 </Button>
+                {p.access_status === "active" ? (
+                  <Button variant="outline" size="sm" className="gap-1" asChild>
+                    <Link to="/admin/agenda" search={{ provider: p.id }}>
+                      <Calendar className="size-3.5" /> Agenda
+                    </Link>
+                  </Button>
+                ) : null}
                 <Button
                   variant="ghost"
                   size="sm"
                   className="gap-1 text-destructive hover:text-destructive"
-                  onClick={() => {
-                    if (window.confirm(`Remover ${p.display_name}?`)) deleteMutation.mutate(p.id);
-                  }}
+                  onClick={() => deleteMutation.mutate(p.id)}
                 >
                   <Trash2 className="size-3.5" /> Remover
                 </Button>

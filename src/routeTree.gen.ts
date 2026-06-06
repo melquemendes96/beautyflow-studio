@@ -54,6 +54,7 @@ import { Route as AdminConfiguracoesRouteImport } from './routes/admin.configura
 import { Route as AdminClientesRouteImport } from './routes/admin.clientes'
 import { Route as AdminBrandingRouteImport } from './routes/admin.branding'
 import { Route as AdminAgendaRouteImport } from './routes/admin.agenda'
+import { Route as ConvitePrestadorTokenRouteImport } from './routes/convite.prestador.$token'
 import { Route as AdminPlanoCheckoutRouteImport } from './routes/admin.plano.checkout'
 
 const ResetPasswordRoute = ResetPasswordRouteImport.update({
@@ -281,6 +282,11 @@ const AdminAgendaRoute = AdminAgendaRouteImport.update({
   path: '/agenda',
   getParentRoute: () => AdminRoute,
 } as any)
+const ConvitePrestadorTokenRoute = ConvitePrestadorTokenRouteImport.update({
+  id: '/convite/prestador/$token',
+  path: '/convite/prestador/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminPlanoCheckoutRoute = AdminPlanoCheckoutRouteImport.update({
   id: '/checkout',
   path: '/checkout',
@@ -334,6 +340,7 @@ export interface FileRoutesByFullPath {
   '/admin/': typeof AdminIndexRoute
   '/master/': typeof MasterIndexRoute
   '/admin/plano/checkout': typeof AdminPlanoCheckoutRoute
+  '/convite/prestador/$token': typeof ConvitePrestadorTokenRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -380,6 +387,7 @@ export interface FileRoutesByTo {
   '/admin': typeof AdminIndexRoute
   '/master': typeof MasterIndexRoute
   '/admin/plano/checkout': typeof AdminPlanoCheckoutRoute
+  '/convite/prestador/$token': typeof ConvitePrestadorTokenRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -429,6 +437,7 @@ export interface FileRoutesById {
   '/admin/': typeof AdminIndexRoute
   '/master/': typeof MasterIndexRoute
   '/admin/plano/checkout': typeof AdminPlanoCheckoutRoute
+  '/convite/prestador/$token': typeof ConvitePrestadorTokenRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -479,6 +488,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/master/'
     | '/admin/plano/checkout'
+    | '/convite/prestador/$token'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -525,6 +535,7 @@ export interface FileRouteTypes {
     | '/admin'
     | '/master'
     | '/admin/plano/checkout'
+    | '/convite/prestador/$token'
   id:
     | '__root__'
     | '/'
@@ -573,6 +584,7 @@ export interface FileRouteTypes {
     | '/admin/'
     | '/master/'
     | '/admin/plano/checkout'
+    | '/convite/prestador/$token'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -599,6 +611,7 @@ export interface RootRouteChildren {
   BillingCheckoutRoute: typeof BillingCheckoutRoute
   BillingPlansRoute: typeof BillingPlansRoute
   BillingSuccessRoute: typeof BillingSuccessRoute
+  ConvitePrestadorTokenRoute: typeof ConvitePrestadorTokenRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -918,6 +931,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAgendaRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/convite/prestador/$token': {
+      id: '/convite/prestador/$token'
+      path: '/convite/prestador/$token'
+      fullPath: '/convite/prestador/$token'
+      preLoaderRoute: typeof ConvitePrestadorTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/plano/checkout': {
       id: '/admin/plano/checkout'
       path: '/checkout'
@@ -1035,6 +1055,7 @@ const rootRouteChildren: RootRouteChildren = {
   BillingCheckoutRoute: BillingCheckoutRoute,
   BillingPlansRoute: BillingPlansRoute,
   BillingSuccessRoute: BillingSuccessRoute,
+  ConvitePrestadorTokenRoute: ConvitePrestadorTokenRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { PageTitle } from "@/components/admin/AdminShell";
-import { Calendar, Users, Wallet, TrendingUp, Sparkles, AlertTriangle, CheckCircle2 } from "lucide-react";
+import { Calendar, Users, Wallet, TrendingUp, Sparkles, AlertTriangle, CheckCircle2, Percent } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AdminAgendaRowSkeleton, AdminKpiCardSkeleton } from "@/components/admin/AdminPageStates";
 import { compareAppointmentTime, formatAppointmentTimeHm } from "@/lib/appointment-time";
@@ -11,6 +11,13 @@ import { appointmentService } from "@/services/appointmentService";
 import { clientService } from "@/services/clientService";
 import { companyService } from "@/services/companyService";
 import { onboardingService } from "@/services/onboardingService";
+import {
+  formatPeriodRange,
+  formatProviderMoney,
+  periodKindLabel,
+  providerService,
+  type ProviderCommissionPeriod,
+} from "@/services/providerService";
 import { Button } from "@/components/ui/button";
 import { toast } from "sonner";
 
@@ -47,7 +54,159 @@ function addDays(date: Date, days: number) {
   return d;
 }
 
-function Dashboard() {
+function ProviderDashboard() {
+  const { companyId, hasCompany } = useCurrentCompany();
+
+  const dashboardQuery = useQuery({
+    queryKey: ["admin", "provider", "commission", companyId],
+    enabled: hasCompany && Boolean(companyId),
+    queryFn: async () => {
+      const res = await providerService.getCommissionDashboard(companyId!);
+      if (res.error) throw res.error;
+      const data = res.data;
+      if (data?.ok === false) {
+        throw new Error(data.error ?? "Não foi possível carregar seu dashboard.");
+      }
+      return data;
+    },
+    staleTime: 30_000,
+  });
+
+  const summary = dashboardQuery.data?.summary;
+  const pct = dashboardQuery.data?.commission_pct ?? 0;
+
+  const periodsByKind = useMemo(() => {
+    const list = dashboardQuery.data?.periods ?? [];
+    const groups: Record<string, ProviderCommissionPeriod[]> = { week: [], biweek: [], month: [] };
+    for (const p of list) {
+      groups[p.kind]?.push(p);
+    }
+    return groups;
+  }, [dashboardQuery.data?.periods]);
+
+  const stats = [
+    {
+      icon: Wallet,
+      label: "Faturamento hoje",
+      value: summary ? formatProviderMoney(summary.today_revenue) : "—",
+      sub: summary ? `${summary.today_appointments} atendimento(s)` : "",
+      color: "text-success",
+    },
+    {
+      icon: Percent,
+      label: "Comissão hoje",
+      value: summary ? formatProviderMoney(summary.today_commission) : "—",
+      sub: `${pct}% sobre serviços concluídos`,
+      color: "text-gold",
+    },
+    {
+      icon: TrendingUp,
+      label: "Comissão na semana",
+      value: summary ? formatProviderMoney(summary.week_commission) : "—",
+      sub: summary ? formatProviderMoney(summary.week_revenue) + " faturados" : "",
+      color: "text-info",
+    },
+    {
+      icon: Calendar,
+      label: "Comissão no mês",
+      value: summary ? formatProviderMoney(summary.month_commission) : "—",
+      sub: summary ? formatProviderMoney(summary.month_revenue) + " faturados" : "",
+      color: "text-purple-soft",
+    },
+  ];
+
+  return (
+    <div>
+      <PageTitle
+        title="Meu desempenho"
+        subtitle={
+          dashboardQuery.data?.display_name
+            ? `${dashboardQuery.data.display_name} · comissão de ${pct}%`
+            : "Faturamento e comissão dos seus atendimentos concluídos"
+        }
+        action={
+          <Link
+            to="/admin/agenda"
+            className="inline-flex items-center gap-1.5 rounded-full border border-border bg-card px-4 py-2 text-sm hover:bg-accent"
+          >
+            <Calendar className="size-4" />
+            Minha agenda
+          </Link>
+        }
+      />
+
+      {dashboardQuery.isError ? (
+        <p className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">
+          Não foi possível carregar seus números. Tente atualizar a página.
+        </p>
+      ) : (
+        <>
+          <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+            {dashboardQuery.isLoading
+              ? Array.from({ length: 4 }).map((_, i) => <AdminKpiCardSkeleton key={`prov-kpi-${i}`} />)
+              : stats.map((s) => (
+                  <div key={s.label} className="rounded-2xl border border-border bg-card p-5 shadow-soft">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-muted-foreground">{s.label}</span>
+                      <s.icon className={`size-4 ${s.color}`} />
+                    </div>
+                    <div className="mt-3 font-display text-3xl">{s.value}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">{s.sub}</div>
+                  </div>
+                ))}
+          </div>
+
+          <div className="mt-8 space-y-6">
+            {(["week", "biweek", "month"] as const).map((kind) => {
+              const rows = periodsByKind[kind] ?? [];
+              if (dashboardQuery.isLoading) {
+                return (
+                  <div key={kind} className="rounded-2xl border border-border bg-card p-6 shadow-soft">
+                    <Skeleton className="h-6 w-40" />
+                    <div className="mt-4 space-y-2">
+                      {Array.from({ length: 4 }).map((_, i) => (
+                        <Skeleton key={i} className="h-10 w-full" />
+                      ))}
+                    </div>
+                  </div>
+                );
+              }
+              if (rows.length === 0) return null;
+              return (
+                <div key={kind} className="rounded-2xl border border-border bg-card p-6 shadow-soft">
+                  <h2 className="font-display text-xl">Comissão por {periodKindLabel(kind).toLowerCase()}</h2>
+                  <div className="mt-4 divide-y divide-border">
+                    {rows.map((row) => (
+                      <div
+                        key={`${row.kind}-${row.start_date}`}
+                        className="flex flex-wrap items-center justify-between gap-3 py-3 text-sm"
+                      >
+                        <div>
+                          <div className="font-medium">{formatPeriodRange(row.start_date, row.end_date)}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {row.appointments} atendimento(s) concluído(s)
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <div className="font-display text-lg text-gold">{formatProviderMoney(row.commission)}</div>
+                          <div className="text-xs text-muted-foreground">
+                            {formatProviderMoney(row.revenue)} faturados
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function OwnerDashboard() {
   const { companyId, hasCompany } = useCurrentCompany();
   const queryClient = useQueryClient();
 
@@ -335,4 +494,10 @@ function Dashboard() {
       </div>
     </div>
   );
+}
+
+function Dashboard() {
+  const { isProvider } = useCurrentCompany();
+  if (isProvider) return <ProviderDashboard />;
+  return <OwnerDashboard />;
 }

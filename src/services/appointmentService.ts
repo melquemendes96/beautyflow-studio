@@ -37,7 +37,13 @@ export const appointmentService = {
 
   create(
     companyId: string,
-    input: { client_id: string; service_id: string; appointment_date: string; appointment_time: string },
+    input: {
+      client_id: string;
+      service_id: string;
+      appointment_date: string;
+      appointment_time: string;
+      provider_id?: string | null;
+    },
   ) {
     return getSupabase()
       .from("appointments")
@@ -47,6 +53,7 @@ export const appointmentService = {
         service_id: input.service_id,
         appointment_date: input.appointment_date,
         appointment_time: input.appointment_time,
+        provider_id: input.provider_id ?? null,
         status: "scheduled",
       })
       .select("*, client:clients(name,email,whatsapp), service:services(name,duration_minutes,buffer_minutes), provider:service_providers(display_name,color)")

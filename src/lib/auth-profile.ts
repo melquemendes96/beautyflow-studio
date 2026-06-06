@@ -5,7 +5,8 @@ import { waitForValidSession } from "@/lib/wait-for-auth-session";
 
 export type CompanyMembership = {
   company_id: string;
-  role: "owner" | "admin" | "staff";
+  role: "owner" | "admin" | "staff" | "provider";
+  provider_id?: string | null;
 };
 
 export type AuthProfile = {
@@ -77,7 +78,7 @@ export function isMasterAccount(session: Session | null | undefined): boolean {
 
 type PanelContextPayload = {
   is_platform_admin?: boolean;
-  company_memberships?: Array<{ company_id: string; role: string }>;
+  company_memberships?: Array<{ company_id: string; role: string; provider_id?: string | null }>;
 };
 
 async function syncPlatformAdminInDatabase(): Promise<boolean> {
@@ -123,6 +124,10 @@ async function loadPanelContext(session: Session): Promise<{
       .map((row) => ({
         company_id: String(row.company_id),
         role: row.role as CompanyMembership["role"],
+        provider_id:
+          row.provider_id != null && String(row.provider_id).length > 0
+            ? String(row.provider_id)
+            : null,
       }))
       .filter((m) => m.company_id.length > 0);
   } else if (import.meta.env.DEV && rpcError) {
@@ -132,11 +137,12 @@ async function loadPanelContext(session: Session): Promise<{
   if (memberships.length === 0 && !isPlatformAdmin) {
     const { data: companyRows } = await supabase
       .from("company_users")
-      .select("company_id, role")
+      .select("company_id, role, provider_id")
       .eq("user_id", userId);
     memberships = (companyRows ?? []).map((row) => ({
       company_id: row.company_id,
       role: row.role as CompanyMembership["role"],
+      provider_id: (row as { provider_id?: string | null }).provider_id ?? null,
     }));
   }
 

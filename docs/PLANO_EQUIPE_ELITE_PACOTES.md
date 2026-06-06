@@ -23,14 +23,16 @@ Plano de produto implementado até a Fase 5 (sem Comissões Fase 6 nem add-on MP
 
 ## Admin
 
-- **`/admin/equipe`**: CRUD prestadores (limite 3 + add-ons futuros), serviços por prestador.
+- **`/admin/equipe`**: CRUD prestadores (limite 3 + add-ons futuros), serviços por prestador, **convite de acesso individual** (link 7 dias).
+- **`/convite/prestador/:token`**: prestador cria login ou entra e vê só a própria agenda.
 - **`/admin/servicos`**: tipo Avulso/Pacote + regras do pacote.
 - **`/admin/clientes`**: ativar pacote pago (dialog ao editar cliente).
-- **`/admin/agenda`**: filtro por prestador.
+- **`/admin/agenda`**: filtro por prestador (dono) ou agenda automática do prestador logado.
 
 ## Migration
 
-`supabase/migrations/20260601000000_team_packages_foundation.sql`
+- `supabase/migrations/20260601000000_team_packages_foundation.sql`
+- `supabase/migrations/20260603000000_provider_portal_invites.sql` (convites + painel prestador)
 
 Após aplicar: `NOTIFY pgrst, 'reload schema';` (já incluído no arquivo).
 
@@ -38,4 +40,5 @@ Após aplicar: `NOTIFY pgrst, 'reload schema';` (já incluído no arquivo).
 
 - `list_public_providers`, `lookup_client_package`, `create_public_booking` (+ provider/package)
 - `admin_list_service_providers`, `admin_upsert_service_provider`
+- `admin_create_provider_invite`, `preview_provider_invite`, `accept_provider_invite`
 - `admin_activate_client_package`, `admin_list_client_packages`

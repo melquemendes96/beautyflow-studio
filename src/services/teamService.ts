@@ -11,6 +11,13 @@ export type ServiceProviderRow = {
   default_commission_pct: number | null;
   sort_order: number;
   service_ids: string[];
+  user_id?: string | null;
+  access_status?: "no_access" | "invite_pending" | "active" | "suspended";
+  invited_email?: string | null;
+  invited_at?: string | null;
+  linked_at?: string | null;
+  linked_user_email?: string | null;
+  invite_expires_at?: string | null;
 };
 
 export type TeamListResult = {

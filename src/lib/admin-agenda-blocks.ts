@@ -1,11 +1,7 @@
 import { formatAppointmentTimeHm } from "@/lib/appointment-time";
+import type { ScheduleBlockRow } from "@/services/scheduleBlockService";
 
-export type ScheduleBlockRow = {
-  id?: string;
-  block_type: string;
-  time_start?: string | null;
-  time_end?: string | null;
-};
+export type { ScheduleBlockRow };
 
 export type BusinessHours = {
   opening_time?: string | null;
@@ -57,6 +53,14 @@ function blockInterval(
   }
 }
 
+/** Bloqueios que afetam a visualização da agenda (studio + prestador em foco). */
+export function blocksForAgendaScope(
+  blocks: ScheduleBlockRow[],
+  scopeProviderId: string | null,
+): ScheduleBlockRow[] {
+  return blocks.filter((b) => b.provider_id == null || b.provider_id === scopeProviderId);
+}
+
 /** Horário cheio (ex.: 10:00) está dentro do bloqueio? */
 export function isHourBlocked(
   hourHm: string,
@@ -74,11 +78,13 @@ export function isHourBlocked(
 export function findManualBlockForHour(
   blocks: ScheduleBlockRow[],
   hourHm: string,
+  scopeProviderId: string | null,
 ): ScheduleBlockRow | null {
   const slot = hm(hourHm);
   return (
     blocks.find((b) => {
       if (b.block_type !== "manual_block") return false;
+      if ((b.provider_id ?? null) !== scopeProviderId) return false;
       return hm(b.time_start) === slot;
     }) ?? null
   );
@@ -90,6 +96,31 @@ export function hourSlotEnd(hourHm: string): string {
   return `${String(h + 1).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 }
 
-export function hasBlockType(blocks: ScheduleBlockRow[], blockType: string): boolean {
-  return blocks.some((b) => b.block_type === blockType);
+export function hasBlockType(
+  blocks: ScheduleBlockRow[],
+  blockType: string,
+  scopeProviderId: string | null,
+): boolean {
+  return blocks.some((b) => b.block_type === blockType && (b.provider_id ?? null) === scopeProviderId);
+}
+
+export function blockScopeLabel(scopeProviderId: string | null, providerName?: string | null): string {
+  if (scopeProviderId && providerName) return providerName;
+  if (scopeProviderId) return "prestador selecionado";
+  return "studio inteiro";
+}
+
+/** Primeiro bloqueio que cobre o horário (para rótulo na agenda do dono). */
+export function findCoveringBlockForHour(
+  blocks: ScheduleBlockRow[],
+  hourHm: string,
+  hours: BusinessHours,
+): ScheduleBlockRow | null {
+  const slot = hm(hourHm);
+  for (const b of blocks) {
+    const interval = blockInterval(b, hours);
+    if (!interval) continue;
+    if (slot >= interval.start && slot < interval.end) return b;
+  }
+  return null;
 }

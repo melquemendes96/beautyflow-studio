@@ -44,7 +44,7 @@ export function AdminShell() {
     refresh,
     ensureFullProfile,
   } = useAuth();
-  const { companyId, hasCompany } = useCurrentCompany();
+  const { companyId, hasCompany, isProvider } = useCurrentCompany();
   const membershipSyncRef = useRef(0);
 
   const companyQuery = useQuery({
@@ -73,6 +73,11 @@ export function AdminShell() {
       brandingQuery.data as Parameters<typeof displayStudioName>[1],
     );
   }, [companyQuery.data, brandingQuery.data]);
+
+  const visibleNav = useMemo(() => {
+    if (!isProvider) return nav;
+    return nav.filter((item) => item.to === "/admin" || item.to === "/admin/agenda");
+  }, [isProvider]);
 
   const subscriptionQuery = useQuery({
     queryKey: ["admin", "subscription", companyId],
@@ -193,7 +198,7 @@ export function AdminShell() {
             </button>
           </div>
           <nav className="flex max-h-[calc(100vh-12rem)] flex-col gap-1 overflow-y-auto p-3 pb-36 lg:max-h-none lg:pb-3">
-            {nav.map((item) => {
+            {visibleNav.map((item) => {
               const active = item.exact ? pathname === item.to : pathname.startsWith(item.to);
               const Icon = item.icon;
               return (
@@ -224,17 +229,19 @@ export function AdminShell() {
               Sair
             </button>
           </nav>
-          <div className="absolute inset-x-3 bottom-3 rounded-2xl bg-gradient-to-br from-foreground to-foreground/80 p-4 text-background">
-            <div className="text-xs uppercase tracking-wider text-gold">
-              {subscriptionQuery.isLoading ? "…" : planSummary.title}
+          {!isProvider ? (
+            <div className="absolute inset-x-3 bottom-3 rounded-2xl bg-gradient-to-br from-foreground to-foreground/80 p-4 text-background">
+              <div className="text-xs uppercase tracking-wider text-gold">
+                {subscriptionQuery.isLoading ? "…" : planSummary.title}
+              </div>
+              <div className="mt-1 text-sm text-background/90">
+                {subscriptionQuery.isLoading ? "Carregando…" : planSummary.subtitle}
+              </div>
+              <Link to="/admin/plano" className="mt-3 inline-block text-xs text-gold hover:underline">
+                Gerenciar plano →
+              </Link>
             </div>
-            <div className="mt-1 text-sm text-background/90">
-              {subscriptionQuery.isLoading ? "Carregando…" : planSummary.subtitle}
-            </div>
-            <Link to="/admin/plano" className="mt-3 inline-block text-xs text-gold hover:underline">
-              Gerenciar plano →
-            </Link>
-          </div>
+          ) : null}
         </aside>
 
         {open && (

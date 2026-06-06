@@ -67,6 +67,7 @@ export async function guardCompanyTenantBillingAccess(pathname: string): Promise
 
   const profile = await loadAuthProfile();
   if (!profile.session || profile.isPlatformAdmin) return;
+  if (isProviderMembership(profile)) return;
 
   const companyId = profile.companyMemberships[0]?.company_id;
   if (!companyId) {
@@ -107,6 +108,47 @@ const PLAN_GATED_ADMIN_ROUTES: { prefix: string; feature: FeatureKey }[] = [
   { prefix: "/admin/equipe", feature: "team" },
 ];
 
+const PROVIDER_BLOCKED_PREFIXES = [
+  "/admin/equipe",
+  "/admin/plano",
+  "/admin/branding",
+  "/admin/whatsapp",
+  "/admin/relatorios",
+  "/admin/servicos",
+  "/admin/configuracoes",
+  "/admin/lista-espera",
+  "/admin/plano/checkout",
+  "/billing",
+  "/onboarding",
+];
+
+function isProviderMembership(profile: Awaited<ReturnType<typeof loadAuthProfile>>): boolean {
+  const m = profile.companyMemberships[0];
+  return m?.role === "provider" && Boolean(m.provider_id);
+}
+
+/** Prestador vinculado: dashboard + agenda (+ clientes na agenda). */
+export async function guardProviderPanelAccess(pathname: string): Promise<void> {
+  if (skipGuardOnServer()) return;
+  if (!isSupabaseConfigured()) return;
+
+  const profile = await loadAuthProfile();
+  if (!profile.session || profile.isPlatformAdmin || !isProviderMembership(profile)) return;
+
+  const p = pathname !== "/" && pathname.endsWith("/") ? pathname.replace(/\/+$/, "") : pathname;
+
+  const allowed =
+    p === "/admin" ||
+    p === "/admin/agenda" ||
+    p.startsWith("/admin/agenda/") ||
+    p === "/admin/clientes" ||
+    p.startsWith("/admin/clientes/");
+
+  if (!allowed && PROVIDER_BLOCKED_PREFIXES.some((pre) => p === pre || p.startsWith(`${pre}/`))) {
+    throw redirect({ to: "/admin" });
+  }
+}
+
 export async function guardCompanyPlanFeatureAccess(pathname: string): Promise<void> {
   if (skipGuardOnServer()) return;
   const hit = PLAN_GATED_ADMIN_ROUTES.find((m) => pathname === m.prefix || pathname.startsWith(`${m.prefix}/`));
@@ -115,6 +157,9 @@ export async function guardCompanyPlanFeatureAccess(pathname: string): Promise<v
 
   const profile = await loadAuthProfile();
   if (!profile.session || profile.isPlatformAdmin) return;
+  if (isProviderMembership(profile)) {
+    throw redirect({ to: "/admin" });
+  }
 
   const companyId = profile.companyMemberships[0]?.company_id;
   if (!companyId) return;

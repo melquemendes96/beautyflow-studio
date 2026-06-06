@@ -1,6 +1,6 @@
 import { lazy, Suspense } from "react";
 import { createFileRoute } from "@tanstack/react-router";
-import { CompanyAdminRoute, guardCompanyPlanFeatureAccess, guardCompanyTenantBillingAccess } from "@/lib/route-guards";
+import { CompanyAdminRoute, guardCompanyPlanFeatureAccess, guardCompanyTenantBillingAccess, guardProviderPanelAccess } from "@/lib/route-guards";
 import { Loader2 } from "lucide-react";
 
 const AdminShell = lazy(() =>
@@ -19,6 +19,7 @@ export const Route = createFileRoute("/admin")({
   beforeLoad: async ({ location }) => {
     await CompanyAdminRoute();
     await guardCompanyTenantBillingAccess(location.pathname);
+    await guardProviderPanelAccess(location.pathname);
     await guardCompanyPlanFeatureAccess(location.pathname);
   },
   component: AdminRoute,
