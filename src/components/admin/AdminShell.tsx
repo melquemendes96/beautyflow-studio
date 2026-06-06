@@ -10,7 +10,7 @@ import { displayStudioName } from "@/lib/branding-utils";
 import { Logo } from "@/components/brand/Logo";
 import {
   LayoutDashboard, Calendar, Users, Scissors, Clock, BarChart3,
-  Palette, MessageCircle, CreditCard, Settings, Menu, X, LogOut,
+  Palette, MessageCircle, CreditCard, Settings, Menu, X, LogOut, UserRound,
 } from "lucide-react";
 import { AdminNotificationsBell } from "@/components/admin/AdminNotificationsBell";
 
@@ -20,6 +20,7 @@ const nav: NavItem[] = [
   { to: "/admin/agenda", label: "Agenda", icon: Calendar },
   { to: "/admin/clientes", label: "Clientes", icon: Users },
   { to: "/admin/servicos", label: "Serviços", icon: Scissors },
+  { to: "/admin/equipe", label: "Equipe", icon: UserRound },
   { to: "/admin/lista-espera", label: "Lista de espera", icon: Clock },
   { to: "/admin/relatorios", label: "Relatórios", icon: BarChart3 },
   { to: "/admin/branding", label: "Aparência da marca", icon: Palette },

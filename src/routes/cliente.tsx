@@ -129,6 +129,7 @@ function Cliente() {
 
   const upcoming = (portalQuery.data?.upcoming ?? []) as Record<string, unknown>[];
   const history = (portalQuery.data?.history ?? []) as Record<string, unknown>[];
+  const packages = (portalQuery.data?.packages ?? []) as Record<string, unknown>[];
 
   const proximo = useMemo(() => (upcoming[0] ?? null) as Record<string, unknown> | null, [upcoming]);
 
@@ -369,6 +370,32 @@ function Cliente() {
             {displayWhatsapp ? (
               <div className="mt-1 text-sm text-muted-foreground">{displayWhatsapp}</div>
             ) : null}
+          </div>
+        )}
+
+        {portalReady && packages.length > 0 && (
+          <div className="mt-8">
+            <h2 className="mb-3 text-sm font-semibold uppercase tracking-widest text-muted-foreground">
+              Meus pacotes
+            </h2>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {packages.map((pkg) => (
+                <div key={String(pkg.id)} className="rounded-2xl border border-border bg-card p-5 shadow-soft">
+                  <div className="font-medium">{String(pkg.service_name ?? "Pacote")}</div>
+                  <div className="mt-2 text-2xl font-display">
+                    {String(pkg.session_label ?? `${pkg.used_sessions}/${pkg.total_sessions}`)}
+                  </div>
+                  <div className="mt-1 text-xs text-muted-foreground">
+                    {pkg.status === "active"
+                      ? `${pkg.remaining ?? 0} sessão(ões) restante(s)`
+                      : String(pkg.status ?? "")}
+                    {pkg.expires_at
+                      ? ` · válido até ${new Date(`${pkg.expires_at as string}T12:00:00`).toLocaleDateString("pt-BR")}`
+                      : ""}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 

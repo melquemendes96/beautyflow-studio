@@ -17,7 +17,14 @@ import {
   readRescheduleIntent,
   saveClientPortalSession,
 } from "@/lib/client-portal-session";
-import { publicBookingService } from "@/services/publicBookingService";
+import { publicBookingService, type PublicBookingProvider } from "@/services/publicBookingService";
+import { packageService, type PackageLookupResult } from "@/services/packageService";
+import {
+  buildPublicBookingSteps,
+  isDateAllowedForPackage,
+  toYmdLocal,
+  type PublicBookingStep,
+} from "@/lib/public-booking-flow";
 import { clientPortalService } from "@/services/clientPortalService";
 import { BrandedImage } from "@/components/booking/BrandedImage";
 import { PublicStudioHero, getBrandingButtonStyle } from "@/components/booking/PublicStudioHero";
@@ -33,7 +40,7 @@ export const Route = createFileRoute("/agendar/$slug")({
   component: Agendar,
 });
 
-type Step = "servico" | "data" | "horario" | "dados" | "confirmado";
+type Step = PublicBookingStep;
 
 function Agendar() {
   const { slug: slugParam } = Route.useParams();
@@ -48,6 +55,11 @@ function Agendar() {
   const isRescheduleMode = Boolean(rescheduleIntent);
   const [step, setStep] = useState<Step>("servico");
   const [servico, setServico] = useState<string | null>(null);
+  const [providerId, setProviderId] = useState<string | null>(null);
+  const [clientPackageId, setClientPackageId] = useState<string | null>(null);
+  const [packageLookup, setPackageLookup] = useState<PackageLookupResult | null>(null);
+  const [packageWhatsapp, setPackageWhatsapp] = useState("");
+  const [packageLookupError, setPackageLookupError] = useState<string | null>(null);
   const [data, setData] = useState<string | null>(null);
   const [hora, setHora] = useState<string | null>(null);
   const [form, setForm] = useState({ nome: "", whatsapp: "", notes: "" });
@@ -81,12 +93,16 @@ function Agendar() {
         company?: { id: string; name: string; slug: string; phone?: string; email?: string } | null;
         branding?: Record<string, unknown> | null;
         whatsapp_notifications_available?: boolean;
+        team_enabled?: boolean;
+        packages_enabled?: boolean;
         services?: Array<{
           id: string;
           name: string;
           price?: number;
           duration_minutes?: number;
           image_url?: string | null;
+          service_kind?: string;
+          package_sessions?: number;
         }>;
       } | null;
       if (!payload?.company) return null;
@@ -99,11 +115,67 @@ function Agendar() {
   const whatsappNotificationsAvailable = Boolean(
     (pageQuery.data as { whatsapp_notifications_available?: boolean } | null)?.whatsapp_notifications_available,
   );
+  const teamEnabled = Boolean((pageQuery.data as { team_enabled?: boolean } | null)?.team_enabled);
+  const packagesEnabled = Boolean((pageQuery.data as { packages_enabled?: boolean } | null)?.packages_enabled);
   const servicos = pageQuery.data?.services ?? [];
   const servicoSel = servicos.find((s) => s.id === servico);
+  const isPackageService =
+    packagesEnabled && (servicoSel as { service_kind?: string } | undefined)?.service_kind === "package";
+
+  const providersQuery = useQuery({
+    queryKey: publicBookingKeys.providers(slug, servico ?? ""),
+    enabled: slugValid && Boolean(servico) && teamEnabled,
+    staleTime: PUBLIC_BOOKING_STALE_MS,
+    queryFn: async () => {
+      const res = await publicBookingService.listProviders({ slug, serviceId: servico! });
+      if (res.error) throw res.error;
+      return (res.data ?? []) as PublicBookingProvider[];
+    },
+  });
+
+  const providers = providersQuery.data ?? [];
+  const needsProviderStep = teamEnabled && providers.length > 1;
+  const steps = useMemo(
+    () =>
+      buildPublicBookingSteps({
+        isReschedule: isRescheduleMode,
+        needsProviderStep,
+        isPackage: isPackageService,
+      }),
+    [isRescheduleMode, needsProviderStep, isPackageService],
+  );
+
+  useEffect(() => {
+    if (!servico || !teamEnabled) return;
+    if (providers.length === 1) setProviderId(providers[0].id);
+  }, [servico, teamEnabled, providers]);
+
+  useEffect(() => {
+    setProviderId(null);
+    setClientPackageId(null);
+    setPackageLookup(null);
+    setPackageWhatsapp("");
+    setPackageLookupError(null);
+    setData(null);
+    setHora(null);
+  }, [servico]);
+
+  const packageRules = useMemo(() => {
+    if (!packageLookup?.found) {
+      const svc = servicoSel as { package_allowed_dow?: number[] } | undefined;
+      return {
+        allowedDow: Array.isArray(svc?.package_allowed_dow) ? svc!.package_allowed_dow! : [],
+        holidays: [] as string[],
+      };
+    }
+    return {
+      allowedDow: (packageLookup.allowed_dow ?? []) as number[],
+      holidays: (packageLookup.holidays ?? []) as string[],
+    };
+  }, [packageLookup, servicoSel]);
 
   const slotsQuery = useQuery({
-    queryKey: publicBookingKeys.slots(slug, servico ?? "", data ?? ""),
+    queryKey: publicBookingKeys.slots(slug, servico ?? "", data ?? "", providerId),
     enabled: slugValid && Boolean(servico && data),
     staleTime: PUBLIC_SLOTS_STALE_MS,
     queryFn: async () => {
@@ -111,6 +183,7 @@ function Agendar() {
         slug,
         serviceId: servico!,
         date: data!,
+        providerId,
       });
       if (res.error) throw res.error;
       return (res.data ?? []) as string[];
@@ -139,10 +212,14 @@ function Agendar() {
         appointmentDate: data,
         appointmentTime: hora,
         clientName: form.nome,
-        clientWhatsapp: form.whatsapp,
+        clientWhatsapp: isPackageService ? packageWhatsapp : form.whatsapp,
         notes: form.notes || null,
         whatsappNotifications:
-          whatsappNotificationsAvailable && whatsappOptIn && Boolean(form.whatsapp.trim()),
+          whatsappNotificationsAvailable &&
+          whatsappOptIn &&
+          Boolean((isPackageService ? packageWhatsapp : form.whatsapp).trim()),
+        providerId,
+        clientPackageId: isPackageService ? clientPackageId : null,
       });
       if (res.error) throw res.error;
       return { mode: "create" as const, data: res.data };
@@ -166,6 +243,22 @@ function Agendar() {
           toast.error("Esse horário não respeita o prazo mínimo de agendamento.");
           return;
         }
+        if (d?.error === "pacote_invalido" || d?.error === "pacote_obrigatorio") {
+          toast.error("Pacote inválido ou esgotado. Verifique com o studio.");
+          return;
+        }
+        if (d?.error === "limite_semanal_pacote") {
+          toast.error("Limite de agendamentos do pacote nesta semana.");
+          return;
+        }
+        if (d?.error === "dia_nao_permitido" || d?.error === "data_feriado") {
+          toast.error("Data não permitida para este pacote.");
+          return;
+        }
+        if (d?.error === "prestador_obrigatorio" || d?.error === "prestador_invalido") {
+          toast.error("Selecione um profissional válido.");
+          return;
+        }
         toast.error(
           result.mode === "reschedule"
             ? "Não foi possível reagendar. Verifique os dados."
@@ -180,7 +273,7 @@ function Agendar() {
       saveClientPortalSession({
         slug,
         nome: form.nome,
-        whatsapp: form.whatsapp,
+        whatsapp: isPackageService ? packageWhatsapp : form.whatsapp,
       });
       if (result.mode === "reschedule") clearRescheduleIntent();
       if (result.mode === "create" && d.appointment_id && d.whatsapp_queued) {
@@ -298,8 +391,8 @@ function Agendar() {
           </div>
         ) : null}
         <div className={`flex items-center justify-center gap-2 text-xs ${isRescheduleMode ? "mt-4" : "mt-6 md:mt-8"}`}>
-          {(["servico", "data", "horario", "dados"] as Step[]).map((s, i) => {
-            const idx = ["servico", "data", "horario", "dados"].indexOf(step);
+          {steps.filter((s) => s !== "confirmado").map((s, i) => {
+            const idx = steps.indexOf(step);
             const active = i <= idx;
             return (
               <div key={s} className="flex items-center gap-2">
@@ -313,7 +406,7 @@ function Agendar() {
                 >
                   {i + 1}
                 </div>
-                {i < 3 && (
+                {i < steps.filter((x) => x !== "confirmado").length - 1 && (
                   <div
                     className="h-px w-6 md:w-10"
                     style={{ backgroundColor: active && i < idx ? primary : "var(--border)" }}
@@ -362,7 +455,10 @@ function Agendar() {
                       <div className="flex-1">
                         <div className="font-medium">{s.name}</div>
                         <div className="text-xs text-muted-foreground">
-                          {s.duration_minutes ?? 0} min · R$ {Number(s.price ?? 0).toFixed(2).replace(".", ",")}
+                          {s.duration_minutes ?? 0} min
+                          {(s as { service_kind?: string }).service_kind === "package"
+                            ? ` · Pacote ${(s as { package_sessions?: number }).package_sessions ?? ""} sessões`
+                            : ` · R$ ${Number(s.price ?? 0).toFixed(2).replace(".", ",")}`}
                         </div>
                       </div>
                       {servico === s.id && <Check className="size-5 text-success" />}
@@ -373,9 +469,96 @@ function Agendar() {
             </>
           )}
 
+          {step === "profissional" && (
+            <>
+              <h2 className="font-display text-xl font-bold md:text-2xl">Escolha o profissional</h2>
+              {providersQuery.isLoading ? (
+                <p className="mt-4 text-sm text-muted-foreground">Carregando profissionais…</p>
+              ) : providers.length === 0 ? (
+                <p className="mt-4 text-sm text-muted-foreground">Nenhum profissional disponível para este serviço.</p>
+              ) : (
+                <div className="mt-5 grid gap-3 md:grid-cols-2">
+                  {providers.map((p) => (
+                    <button
+                      key={p.id}
+                      type="button"
+                      onClick={() => setProviderId(p.id)}
+                      className={`flex min-h-[5rem] items-center gap-4 rounded-2xl border p-4 text-left transition ${
+                        providerId === p.id ? "bg-secondary/60 shadow-soft" : "border-border hover:border-foreground/30"
+                      }`}
+                      style={providerId === p.id ? { borderColor: primary } : undefined}
+                    >
+                      {p.photo_url ? (
+                        <img src={p.photo_url} alt="" className="size-16 rounded-full object-cover" />
+                      ) : (
+                        <div
+                          className="grid size-16 shrink-0 place-items-center rounded-full text-lg font-semibold text-white"
+                          style={{ backgroundColor: p.color ?? primary }}
+                        >
+                          {p.display_name.slice(0, 1).toUpperCase()}
+                        </div>
+                      )}
+                      <div className="flex-1">
+                        <div className="font-medium">{p.display_name}</div>
+                        {p.is_owner ? (
+                          <div className="text-xs text-muted-foreground">Responsável pelo studio</div>
+                        ) : null}
+                      </div>
+                      {providerId === p.id && <Check className="size-5 text-success" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </>
+          )}
+
+          {step === "whatsapp_pacote" && (
+            <>
+              <h2 className="font-display text-xl font-bold md:text-2xl">Identifique seu pacote</h2>
+              <p className="mt-1 text-sm text-muted-foreground">
+                Informe o WhatsApp usado na compra do pacote para localizar suas sessões.
+              </p>
+              <div className="mt-5 grid gap-4">
+                <Field
+                  label="WhatsApp"
+                  value={packageWhatsapp}
+                  onChange={setPackageWhatsapp}
+                  placeholder="(11) 99999-0000"
+                />
+                {packageLookup?.found ? (
+                  <div className="rounded-2xl border border-success/30 bg-success/10 p-4 text-sm">
+                    <div className="font-medium text-foreground">
+                      Pacote encontrado — sessão {packageLookup.session_label}
+                    </div>
+                    {packageLookup.is_last_session ? (
+                      <p className="mt-2 rounded-xl border border-gold/40 bg-gold-soft/40 px-3 py-2 text-foreground">
+                        Atenção: este será o último serviço do seu pacote.
+                      </p>
+                    ) : null}
+                  </div>
+                ) : null}
+                {packageLookupError ? (
+                  <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                    {packageLookupError}
+                  </p>
+                ) : null}
+              </div>
+            </>
+          )}
+
           {step === "data" && (
             <>
               <h2 className="font-display text-xl font-bold md:text-2xl">Escolha a data</h2>
+              {packageLookup?.found && packageLookup.is_last_session ? (
+                <p className="mt-2 rounded-xl border border-gold/40 bg-gold-soft/30 px-4 py-2 text-sm">
+                  Último serviço do pacote ({packageLookup.session_label}).
+                </p>
+              ) : null}
+              {packageLookup?.found ? (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  Sessão {packageLookup.session_label} de {packageLookup.total_sessions}
+                </p>
+              ) : null}
               <div className="mt-5 flex justify-center">
                 <div className="rounded-2xl border border-border bg-card p-2 shadow-soft">
                   <CalendarPicker
@@ -383,11 +566,19 @@ function Agendar() {
                     selected={data ? new Date(`${data}T12:00:00`) : undefined}
                     onSelect={(d) => {
                       if (!d) return;
-                      setData(toYmd(d));
+                      setData(toYmdLocal(d));
                       setHora(null);
                     }}
                     locale={ptBR}
-                    disabled={{ before: new Date(new Date().setHours(0, 0, 0, 0)) }}
+                    disabled={(date) => {
+                      const today = new Date();
+                      today.setHours(0, 0, 0, 0);
+                      if (date < today) return true;
+                      if (isPackageService) {
+                        return !isDateAllowedForPackage(date, packageRules);
+                      }
+                      return false;
+                    }}
                     className="rounded-xl"
                   />
                 </div>
@@ -431,49 +622,24 @@ function Agendar() {
             </>
           )}
 
-          {step === "horario" && (
-            <>
-              <h2 className="font-display text-xl font-bold md:text-2xl">Escolha o horário</h2>
-              <div className="-mx-1 mt-5 flex gap-2 overflow-x-auto pb-2 md:mx-0 md:grid md:grid-cols-5 md:overflow-visible">
-                {(slotsQuery.data ?? []).map((h) => {
-                  const sel = hora === h;
-                  return (
-                    <button
-                      key={h}
-                      type="button"
-                      onClick={() => setHora(h)}
-                      className={`min-h-12 min-w-[5.5rem] shrink-0 rounded-xl border px-4 py-3 text-sm font-medium transition md:min-w-0 ${
-                        sel ? "border-transparent text-background" : "border-border bg-success/10 hover:border-foreground/40"
-                      }`}
-                      style={sel ? btnStyle : undefined}
-                    >
-                      {h}
-                    </button>
-                  );
-                })}
-              </div>
-              {!slotsQuery.isLoading && (slotsQuery.data ?? []).length === 0 && (
-                <div className="mt-4 rounded-2xl border border-border bg-secondary/40 p-4 text-sm text-muted-foreground">
-                  Nenhum horário disponível para esta data.
-                </div>
-              )}
-            </>
-          )}
-
           {step === "dados" && (
             <>
               <h2 className="font-display text-xl font-bold md:text-2xl">Seus dados</h2>
-              <p className="mt-1 text-sm text-muted-foreground">Para confirmarmos seu agendamento.</p>
+              <p className="mt-1 text-sm text-muted-foreground">
+                {isPackageService ? "Confirme seu nome para finalizar." : "Para confirmarmos seu agendamento."}
+              </p>
               <div className="mt-5 grid gap-4">
                 <Field label="Nome completo" value={form.nome} onChange={(v) => setForm({ ...form, nome: v })} />
-                <Field
-                  label="WhatsApp"
-                  value={form.whatsapp}
-                  onChange={(v) => setForm({ ...form, whatsapp: v })}
-                  placeholder="(11) 99999-0000"
-                />
+                {!isPackageService ? (
+                  <Field
+                    label="WhatsApp"
+                    value={form.whatsapp}
+                    onChange={(v) => setForm({ ...form, whatsapp: v })}
+                    placeholder="(11) 99999-0000"
+                  />
+                ) : null}
                 <Field label="Observações (opcional)" value={form.notes} onChange={(v) => setForm({ ...form, notes: v })} />
-                {whatsappNotificationsAvailable && form.whatsapp.trim() && (
+                {whatsappNotificationsAvailable && !isPackageService && form.whatsapp.trim() && (
                   <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border bg-secondary/30 p-4 text-sm">
                     <input
                       type="checkbox"
@@ -504,8 +670,12 @@ function Agendar() {
                   <span>{hora}</span>
                 </div>
                 <div className="mt-2 flex justify-between border-t border-border pt-2 font-medium">
-                  <span>Total</span>
-                  <span>R$ {Number(servicoSel?.price ?? 0).toFixed(2).replace(".", ",")}</span>
+                  <span>{isPackageService ? "Pacote" : "Total"}</span>
+                  <span>
+                    {isPackageService
+                      ? packageLookup?.session_label ?? "Sessão"
+                      : `R$ ${Number(servicoSel?.price ?? 0).toFixed(2).replace(".", ",")}`}
+                  </span>
                 </div>
               </div>
             </>
@@ -515,13 +685,8 @@ function Agendar() {
             <button
               type="button"
               onClick={() => {
-                if (step === "dados") {
-                  setStep(hora ? "data" : "horario");
-                  return;
-                }
-                const order: Step[] = ["servico", "data", "horario", "dados"];
-                const i = order.indexOf(step);
-                if (i > 0) setStep(order[i - 1]);
+                const i = steps.indexOf(step);
+                if (i > 0) setStep(steps[i - 1]);
               }}
               className="inline-flex min-h-11 items-center justify-center gap-1 text-sm text-muted-foreground hover:text-foreground"
             >
@@ -531,18 +696,48 @@ function Agendar() {
               type="button"
               disabled={
                 (step === "servico" && !servico) ||
+                (step === "profissional" && !providerId) ||
+                (step === "whatsapp_pacote" && !packageWhatsapp.trim()) ||
                 (step === "data" && (!data || !hora)) ||
-                (step === "horario" && !hora) ||
-                (step === "dados" && (!form.nome.trim() || !form.whatsapp.trim()))
+                (step === "dados" &&
+                  (!form.nome.trim() || (!isPackageService && !form.whatsapp.trim())))
               }
-              onClick={() => {
+              onClick={async () => {
+                if (step === "whatsapp_pacote" && servico) {
+                  setPackageLookupError(null);
+                  const res = await packageService.lookupPackage({
+                    slug,
+                    whatsapp: packageWhatsapp,
+                    serviceId: servico,
+                  });
+                  if (res.error) {
+                    toast.error("Erro ao buscar pacote.");
+                    return;
+                  }
+                  const payload = res.data as PackageLookupResult;
+                  if (!payload?.found) {
+                    setPackageLookup(null);
+                    setClientPackageId(null);
+                    setPackageLookupError(
+                      "Pacote não encontrado para este WhatsApp. Confira com o studio se o pacote está pago.",
+                    );
+                    return;
+                  }
+                  setPackageLookup(payload);
+                  setClientPackageId(payload.client_package_id ?? null);
+                  if (payload.client_name) {
+                    setForm((f) => ({ ...f, nome: payload.client_name ?? f.nome }));
+                  }
+                  const i = steps.indexOf(step);
+                  if (i < steps.length - 1) setStep(steps[i + 1]);
+                  return;
+                }
                 if (step === "data" && data && hora) {
                   setStep("dados");
                   return;
                 }
-                const order: Step[] = ["servico", "data", "horario", "dados"];
-                const i = order.indexOf(step);
-                if (i < order.length - 1) setStep(order[i + 1]);
+                const i = steps.indexOf(step);
+                if (i < steps.length - 1) setStep(steps[i + 1]);
                 else createMutation.mutate();
               }}
               className="inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-full px-6 py-3.5 text-sm font-medium shadow-[0_4px_20px_-6px_rgba(0,0,0,0.25)] transition hover:opacity-90 disabled:opacity-30 sm:w-auto"
@@ -554,7 +749,9 @@ function Agendar() {
                   : isRescheduleMode
                     ? "Confirmar reagendamento"
                     : "Confirmar agendamento"
-                : "Continuar"}
+                : step === "whatsapp_pacote"
+                  ? "Buscar pacote"
+                  : "Continuar"}
               <ArrowRight className="size-4" />
             </button>
           </div>
@@ -735,11 +932,4 @@ function ServiceInitials({ name, primary, secondary }: { name: string; primary: 
       {studioInitials(name)}
     </div>
   );
-}
-
-function toYmd(date: Date) {
-  const y = date.getFullYear();
-  const m = String(date.getMonth() + 1).padStart(2, "0");
-  const d = String(date.getDate()).padStart(2, "0");
-  return `${y}-${m}-${d}`;
 }

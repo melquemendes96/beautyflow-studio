@@ -33,9 +33,9 @@ async function removeStaleKindFiles(companyId: string, kind: "logo" | "banner", 
  */
 export async function uploadCompanyImage(
   companyId: string,
-  kind: "logo" | "banner" | "service",
+  kind: "logo" | "banner" | "service" | "provider",
   file: File,
-  opts?: { serviceId?: string },
+  opts?: { serviceId?: string; providerId?: string },
 ): Promise<{ publicUrl: string | null; error: Error | null }> {
   const supabase = getSupabase();
 
@@ -50,7 +50,9 @@ export async function uploadCompanyImage(
   const objectPath =
     kind === "service"
       ? `${companyId}/services/${opts?.serviceId ?? crypto.randomUUID()}.${ext}`
-      : `${companyId}/${kind}.${ext}`;
+      : kind === "provider"
+        ? `${companyId}/providers/${opts?.providerId ?? crypto.randomUUID()}.${ext}`
+        : `${companyId}/${kind}.${ext}`;
 
   let lastError: Error | null = null;
 

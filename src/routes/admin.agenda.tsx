@@ -41,6 +41,8 @@ import {
   type ScheduleBlockRow,
 } from "@/lib/admin-agenda-blocks";
 import { businessSettingsService } from "@/services/businessSettingsService";
+import { hasFeatureAccess } from "@/lib/plan-access";
+import { teamService } from "@/services/teamService";
 import type { ScheduleBlockType } from "@/services/scheduleBlockService";
 
 export const Route = createFileRoute("/admin/agenda")({
@@ -94,6 +96,23 @@ function Agenda() {
     client_id: "",
     service_id: "",
     time: "09:00",
+  });
+  const [providerFilterId, setProviderFilterId] = useState("");
+
+  const teamFeatureQuery = useQuery({
+    queryKey: ["admin", "feature", "team", companyId],
+    enabled: hasCompany && Boolean(companyId),
+    queryFn: () => hasFeatureAccess(companyId!, "team"),
+  });
+
+  const teamQuery = useQuery({
+    queryKey: ["admin", "team", companyId],
+    enabled: hasCompany && Boolean(companyId) && Boolean(teamFeatureQuery.data),
+    queryFn: async () => {
+      const res = await teamService.list(companyId!);
+      if (res.error) throw res.error;
+      return res.data;
+    },
   });
 
   const dateYmd = useMemo(() => toYmd(day), [day]);
@@ -300,19 +319,31 @@ function Agenda() {
     },
   });
 
+  const filteredDayAppointments = useMemo(() => {
+    const list = dayAppointmentsQuery.data ?? [];
+    if (!providerFilterId) return list;
+    return list.filter((a: { provider_id?: string | null }) => a.provider_id === providerFilterId);
+  }, [dayAppointmentsQuery.data, providerFilterId]);
+
+  const filteredWeekAppointments = useMemo(() => {
+    const list = weekAppointmentsQuery.data ?? [];
+    if (!providerFilterId) return list;
+    return list.filter((a: { provider_id?: string | null }) => a.provider_id === providerFilterId);
+  }, [weekAppointmentsQuery.data, providerFilterId]);
+
   const dayTimeSlots = useMemo(() => {
     const times = new Set<string>();
     for (let h = 8; h <= 18; h++) times.add(`${String(h).padStart(2, "0")}:00`);
-    for (const a of dayAppointmentsQuery.data ?? []) {
+    for (const a of filteredDayAppointments) {
       const t = formatAppointmentTimeHm(a.appointment_time);
       if (t) times.add(t);
     }
     return Array.from(times).sort();
-  }, [dayAppointmentsQuery.data]);
+  }, [filteredDayAppointments]);
 
   const dayEventsByTime = useMemo(() => {
     const map = new Map<string, any[]>();
-    for (const a of dayAppointmentsQuery.data ?? []) {
+    for (const a of filteredDayAppointments) {
       const key = formatAppointmentTimeHm(a.appointment_time);
       if (!key) continue;
       const list = map.get(key) ?? [];
@@ -323,7 +354,7 @@ function Agenda() {
       list.sort((x, y) => compareAppointmentTime(x.appointment_time, y.appointment_time));
     }
     return map;
-  }, [dayAppointmentsQuery.data]);
+  }, [filteredDayAppointments]);
 
   const blocks = useMemo(() => (dayBlocksQuery.data ?? []) as ScheduleBlockRow[], [dayBlocksQuery.data]);
 
@@ -351,7 +382,23 @@ function Agenda() {
         title="Agenda"
         subtitle={subtitle}
         action={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {teamFeatureQuery.data && (teamQuery.data?.providers?.length ?? 0) > 0 ? (
+              <select
+                className="h-10 rounded-full border border-border bg-card px-3 text-sm"
+                value={providerFilterId}
+                onChange={(e) => setProviderFilterId(e.target.value)}
+              >
+                <option value="">Todos os prestadores</option>
+                {(teamQuery.data?.providers ?? [])
+                  .filter((p: { active: boolean }) => p.active)
+                  .map((p: { id: string; display_name: string }) => (
+                    <option key={p.id} value={p.id}>
+                      {p.display_name}
+                    </option>
+                  ))}
+              </select>
+            ) : null}
             <div className="inline-flex rounded-full border border-border bg-card p-1">
               {(["dia", "semana"] as const).map((v) => (
                 <button
@@ -572,7 +619,7 @@ function Agenda() {
                 );
               })}
               {weekTimeSlots.map((h) => (
-                <FragmentRow key={h} h={h} weekStart={weekStart} weekAppointments={weekAppointmentsQuery.data ?? []} />
+                <FragmentRow key={h} h={h} weekStart={weekStart} weekAppointments={filteredWeekAppointments} />
               ))}
             </div>
           )}

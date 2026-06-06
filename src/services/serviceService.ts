@@ -32,6 +32,11 @@ export const serviceService = {
       image_url?: string | null;
       active?: boolean;
       category?: string | null;
+      service_kind?: "single" | "package";
+      package_sessions?: number | null;
+      package_allowed_dow?: number[] | null;
+      package_max_per_week?: number | null;
+      package_valid_days?: number | null;
     },
   ) {
     return getSupabase()
@@ -46,6 +51,11 @@ export const serviceService = {
         image_url: input.image_url ?? null,
         active: input.active ?? true,
         category: input.category ?? null,
+        service_kind: input.service_kind ?? "single",
+        package_sessions: input.package_sessions ?? null,
+        package_allowed_dow: input.package_allowed_dow ?? null,
+        package_max_per_week: input.package_max_per_week ?? null,
+        package_valid_days: input.package_valid_days ?? null,
       })
       .select("*")
       .single();
@@ -63,6 +73,11 @@ export const serviceService = {
       image_url: string | null;
       active: boolean;
       category: string | null;
+      service_kind: "single" | "package";
+      package_sessions: number | null;
+      package_allowed_dow: number[] | null;
+      package_max_per_week: number | null;
+      package_valid_days: number | null;
     }>,
   ) {
     return getSupabase()

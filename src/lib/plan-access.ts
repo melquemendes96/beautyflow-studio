@@ -16,12 +16,18 @@ export const FEATURE_KEYS = [
   "whatsapp",
   "automation",
   "finance",
+  "team",
+  "packages",
+  "commissions",
 ] as const;
 
 export type FeatureKey = (typeof FEATURE_KEYS)[number];
 
 /** @deprecated Use FeatureKey — alias para rotas já gateadas */
-export type PlanGatedFeature = Extract<FeatureKey, "branding" | "waitlist" | "reports" | "whatsapp">;
+export type PlanGatedFeature = Extract<
+  FeatureKey,
+  "branding" | "waitlist" | "reports" | "whatsapp" | "team" | "packages"
+>;
 
 function normalizePlanName(name: string | null | undefined): string {
   return (name ?? "").toLowerCase().trim();
@@ -42,6 +48,9 @@ export function legacyPlanNameAllowsFeature(
     n.includes("studio pro") || (n.includes("pro") && !isElite) || n.includes("stúdio pro") || n.includes("profissional");
 
   if (feature === "whatsapp" || feature === "automation" || feature === "finance") {
+    return isElite;
+  }
+  if (feature === "team" || feature === "packages" || feature === "commissions") {
     return isElite;
   }
   if (feature === "branding" || feature === "waitlist" || feature === "reports") {
@@ -89,6 +98,9 @@ export function featureToPortugueseLabel(feature: FeatureKey | PlanGatedFeature)
     whatsapp: "WhatsApp oficial",
     automation: "automação",
     finance: "financeiro",
+    team: "equipe",
+    packages: "pacotes",
+    commissions: "comissões",
   };
   return labels[feature] ?? feature;
 }

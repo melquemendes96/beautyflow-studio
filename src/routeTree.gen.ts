@@ -49,6 +49,7 @@ import { Route as AdminServicosRouteImport } from './routes/admin.servicos'
 import { Route as AdminRelatoriosRouteImport } from './routes/admin.relatorios'
 import { Route as AdminPlanoRouteImport } from './routes/admin.plano'
 import { Route as AdminListaEsperaRouteImport } from './routes/admin.lista-espera'
+import { Route as AdminEquipeRouteImport } from './routes/admin.equipe'
 import { Route as AdminConfiguracoesRouteImport } from './routes/admin.configuracoes'
 import { Route as AdminClientesRouteImport } from './routes/admin.clientes'
 import { Route as AdminBrandingRouteImport } from './routes/admin.branding'
@@ -255,6 +256,11 @@ const AdminListaEsperaRoute = AdminListaEsperaRouteImport.update({
   path: '/lista-espera',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminEquipeRoute = AdminEquipeRouteImport.update({
+  id: '/equipe',
+  path: '/equipe',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminConfiguracoesRoute = AdminConfiguracoesRouteImport.update({
   id: '/configuracoes',
   path: '/configuracoes',
@@ -303,6 +309,7 @@ export interface FileRoutesByFullPath {
   '/admin/branding': typeof AdminBrandingRoute
   '/admin/clientes': typeof AdminClientesRoute
   '/admin/configuracoes': typeof AdminConfiguracoesRoute
+  '/admin/equipe': typeof AdminEquipeRoute
   '/admin/lista-espera': typeof AdminListaEsperaRoute
   '/admin/plano': typeof AdminPlanoRouteWithChildren
   '/admin/relatorios': typeof AdminRelatoriosRoute
@@ -348,6 +355,7 @@ export interface FileRoutesByTo {
   '/admin/branding': typeof AdminBrandingRoute
   '/admin/clientes': typeof AdminClientesRoute
   '/admin/configuracoes': typeof AdminConfiguracoesRoute
+  '/admin/equipe': typeof AdminEquipeRoute
   '/admin/lista-espera': typeof AdminListaEsperaRoute
   '/admin/plano': typeof AdminPlanoRouteWithChildren
   '/admin/relatorios': typeof AdminRelatoriosRoute
@@ -396,6 +404,7 @@ export interface FileRoutesById {
   '/admin/branding': typeof AdminBrandingRoute
   '/admin/clientes': typeof AdminClientesRoute
   '/admin/configuracoes': typeof AdminConfiguracoesRoute
+  '/admin/equipe': typeof AdminEquipeRoute
   '/admin/lista-espera': typeof AdminListaEsperaRoute
   '/admin/plano': typeof AdminPlanoRouteWithChildren
   '/admin/relatorios': typeof AdminRelatoriosRoute
@@ -445,6 +454,7 @@ export interface FileRouteTypes {
     | '/admin/branding'
     | '/admin/clientes'
     | '/admin/configuracoes'
+    | '/admin/equipe'
     | '/admin/lista-espera'
     | '/admin/plano'
     | '/admin/relatorios'
@@ -490,6 +500,7 @@ export interface FileRouteTypes {
     | '/admin/branding'
     | '/admin/clientes'
     | '/admin/configuracoes'
+    | '/admin/equipe'
     | '/admin/lista-espera'
     | '/admin/plano'
     | '/admin/relatorios'
@@ -537,6 +548,7 @@ export interface FileRouteTypes {
     | '/admin/branding'
     | '/admin/clientes'
     | '/admin/configuracoes'
+    | '/admin/equipe'
     | '/admin/lista-espera'
     | '/admin/plano'
     | '/admin/relatorios'
@@ -871,6 +883,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminListaEsperaRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/equipe': {
+      id: '/admin/equipe'
+      path: '/equipe'
+      fullPath: '/admin/equipe'
+      preLoaderRoute: typeof AdminEquipeRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/configuracoes': {
       id: '/admin/configuracoes'
       path: '/configuracoes'
@@ -926,6 +945,7 @@ interface AdminRouteChildren {
   AdminBrandingRoute: typeof AdminBrandingRoute
   AdminClientesRoute: typeof AdminClientesRoute
   AdminConfiguracoesRoute: typeof AdminConfiguracoesRoute
+  AdminEquipeRoute: typeof AdminEquipeRoute
   AdminListaEsperaRoute: typeof AdminListaEsperaRoute
   AdminPlanoRoute: typeof AdminPlanoRouteWithChildren
   AdminRelatoriosRoute: typeof AdminRelatoriosRoute
@@ -939,6 +959,7 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminBrandingRoute: AdminBrandingRoute,
   AdminClientesRoute: AdminClientesRoute,
   AdminConfiguracoesRoute: AdminConfiguracoesRoute,
+  AdminEquipeRoute: AdminEquipeRoute,
   AdminListaEsperaRoute: AdminListaEsperaRoute,
   AdminPlanoRoute: AdminPlanoRouteWithChildren,
   AdminRelatoriosRoute: AdminRelatoriosRoute,

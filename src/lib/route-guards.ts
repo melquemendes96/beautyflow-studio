@@ -104,6 +104,7 @@ const PLAN_GATED_ADMIN_ROUTES: { prefix: string; feature: FeatureKey }[] = [
   { prefix: "/admin/lista-espera", feature: "waitlist" },
   { prefix: "/admin/relatorios", feature: "reports" },
   { prefix: "/admin/whatsapp", feature: "whatsapp" },
+  { prefix: "/admin/equipe", feature: "team" },
 ];
 
 export async function guardCompanyPlanFeatureAccess(pathname: string): Promise<void> {

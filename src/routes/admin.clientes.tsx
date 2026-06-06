@@ -5,7 +5,10 @@ import { PageTitle } from "@/components/admin/AdminShell";
 import { Search, Plus, Users } from "lucide-react";
 import { AdminEmptyState, AdminTableRowSkeleton } from "@/components/admin/AdminPageStates";
 import { useCurrentCompany } from "@/lib/current-company";
+import { hasFeatureAccess } from "@/lib/plan-access";
 import { clientService } from "@/services/clientService";
+import { serviceService } from "@/services/serviceService";
+import { packageService } from "@/services/packageService";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -34,6 +37,24 @@ function Clientes() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<any | null>(null);
   const [form, setForm] = useState({ name: "", email: "", whatsapp: "", notes: "" });
+  const [pkgForm, setPkgForm] = useState({ serviceId: "", totalSessions: "", notes: "" });
+
+  const packagesQuery = useQuery({
+    queryKey: ["admin", "feature", "packages", companyId],
+    enabled: hasCompany && Boolean(companyId),
+    queryFn: () => hasFeatureAccess(companyId!, "packages"),
+  });
+  const packagesEnabled = Boolean(packagesQuery.data);
+
+  const packageServicesQuery = useQuery({
+    queryKey: ["admin", "services", "packages", companyId],
+    enabled: hasCompany && packagesEnabled,
+    queryFn: async () => {
+      const res = await serviceService.listByCompany(companyId!);
+      if (res.error) throw res.error;
+      return (res.data ?? []).filter((s: { service_kind?: string }) => s.service_kind === "package");
+    },
+  });
 
   const clientsQuery = useQuery({
     queryKey: ["admin", "clients", companyId],
@@ -91,6 +112,27 @@ function Clientes() {
       await queryClient.invalidateQueries({ queryKey: ["admin", "clients", companyId] });
       toast.success("Cliente salvo com sucesso");
     },
+  });
+
+  const activatePackageMutation = useMutation({
+    mutationFn: async () => {
+      if (!companyId || !editing?.id) throw new Error("Selecione uma cliente");
+      if (!pkgForm.serviceId) throw new Error("Selecione o serviço pacote");
+      const res = await packageService.activate(companyId, {
+        clientId: editing.id,
+        serviceId: pkgForm.serviceId,
+        totalSessions: pkgForm.totalSessions.trim() ? Number(pkgForm.totalSessions) : undefined,
+        notes: pkgForm.notes.trim() || null,
+      });
+      if (res.error) throw res.error;
+      const payload = res.data as { ok?: boolean; error?: string };
+      if (!payload?.ok) throw new Error(payload?.error ?? "Erro ao ativar pacote");
+    },
+    onSuccess: () => {
+      toast.success("Pacote ativado — cliente já pode agendar sessões");
+      setPkgForm({ serviceId: "", totalSessions: "", notes: "" });
+    },
+    onError: (e: Error) => toast.error(e.message || "Erro ao ativar pacote"),
   });
 
   const beginCreate = () => {
@@ -156,6 +198,42 @@ function Clientes() {
                     <Input value={form.notes} onChange={(e) => setForm((s) => ({ ...s, notes: e.target.value }))} />
                   </label>
                 </div>
+
+                {editing && packagesEnabled ? (
+                  <div className="mt-4 rounded-xl border border-gold/30 bg-gold-soft/20 p-4">
+                    <h4 className="text-sm font-medium">Ativar pacote pago</h4>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Marque o pacote como pago para liberar agendamento online das sessões.
+                    </p>
+                    <div className="mt-3 grid gap-3">
+                      <select
+                        className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                        value={pkgForm.serviceId}
+                        onChange={(e) => setPkgForm((s) => ({ ...s, serviceId: e.target.value }))}
+                      >
+                        <option value="">Serviço pacote…</option>
+                        {(packageServicesQuery.data ?? []).map((s: { id: string; name: string; package_sessions?: number }) => (
+                          <option key={s.id} value={s.id}>
+                            {s.name} ({s.package_sessions ?? "?"} sessões)
+                          </option>
+                        ))}
+                      </select>
+                      <Input
+                        placeholder="Sessões (opcional — usa padrão do serviço)"
+                        value={pkgForm.totalSessions}
+                        onChange={(e) => setPkgForm((s) => ({ ...s, totalSessions: e.target.value }))}
+                      />
+                      <Button
+                        type="button"
+                        variant="secondary"
+                        disabled={activatePackageMutation.isPending || !pkgForm.serviceId}
+                        onClick={() => activatePackageMutation.mutate()}
+                      >
+                        {activatePackageMutation.isPending ? "Ativando…" : "Marcar pacote como pago"}
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
 
                 {saveMutation.error && (
                   <div className="mt-3 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">

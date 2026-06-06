@@ -5,6 +5,7 @@ import { PageTitle } from "@/components/admin/AdminShell";
 import { Plus, Pencil, Power, Scissors, Trash2, Upload } from "lucide-react";
 import { AdminEmptyState, AdminServiceCardSkeleton } from "@/components/admin/AdminPageStates";
 import { useCurrentCompany } from "@/lib/current-company";
+import { hasFeatureAccess } from "@/lib/plan-access";
 import { serviceService } from "@/services/serviceService";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -44,7 +45,19 @@ function Servicos() {
     buffer_minutes: "0",
     image_url: "",
     active: true,
+    service_kind: "single" as "single" | "package",
+    package_sessions: "4",
+    package_allowed_dow: [2, 3, 4, 5, 6] as number[],
+    package_max_per_week: "1",
+    package_valid_days: "",
   });
+
+  const packagesQuery = useQuery({
+    queryKey: ["admin", "feature", "packages", companyId],
+    enabled: hasCompany && Boolean(companyId),
+    queryFn: () => hasFeatureAccess(companyId!, "packages"),
+  });
+  const packagesEnabled = Boolean(packagesQuery.data);
 
   const servicesQuery = useQuery({
     queryKey: ["admin", "services", companyId],
@@ -80,6 +93,21 @@ function Servicos() {
         buffer_minutes: Number(form.buffer_minutes),
         image_url,
         active: Boolean(form.active),
+        service_kind: packagesEnabled ? form.service_kind : "single",
+        package_sessions:
+          packagesEnabled && form.service_kind === "package"
+            ? Number(form.package_sessions)
+            : null,
+        package_allowed_dow:
+          packagesEnabled && form.service_kind === "package" ? form.package_allowed_dow : null,
+        package_max_per_week:
+          packagesEnabled && form.service_kind === "package"
+            ? Number(form.package_max_per_week)
+            : null,
+        package_valid_days:
+          packagesEnabled && form.service_kind === "package" && form.package_valid_days.trim()
+            ? Number(form.package_valid_days)
+            : null,
       };
       if (!payload.name) throw new Error("Nome obrigatório");
       if (!Number.isFinite(payload.price)) throw new Error("Preço inválido");
@@ -112,6 +140,11 @@ function Servicos() {
         buffer_minutes: "0",
         image_url: "",
         active: true,
+        service_kind: "single",
+        package_sessions: "4",
+        package_allowed_dow: [2, 3, 4, 5, 6],
+        package_max_per_week: "1",
+        package_valid_days: "",
       });
       await queryClient.invalidateQueries({ queryKey: ["admin", "services", companyId] });
       toast.success("Serviço salvo com sucesso");
@@ -146,6 +179,11 @@ function Servicos() {
       buffer_minutes: "0",
       image_url: "",
       active: true,
+      service_kind: "single",
+      package_sessions: "4",
+      package_allowed_dow: [2, 3, 4, 5, 6],
+      package_max_per_week: "1",
+      package_valid_days: "",
     });
     setOpen(true);
   };
@@ -166,6 +204,13 @@ function Servicos() {
       buffer_minutes: s.buffer_minutes != null ? String(s.buffer_minutes) : "0",
       image_url: s.image_url ?? "",
       active: Boolean(s.active),
+      service_kind: s.service_kind === "package" ? "package" : "single",
+      package_sessions: s.package_sessions != null ? String(s.package_sessions) : "4",
+      package_allowed_dow: Array.isArray(s.package_allowed_dow)
+        ? (s.package_allowed_dow as number[])
+        : [2, 3, 4, 5, 6],
+      package_max_per_week: s.package_max_per_week != null ? String(s.package_max_per_week) : "1",
+      package_valid_days: s.package_valid_days != null ? String(s.package_valid_days) : "",
     });
     setOpen(true);
   };
@@ -253,6 +298,89 @@ function Servicos() {
                     </select>
                   </label>
                 </div>
+                {packagesEnabled ? (
+                  <div className="rounded-xl border border-border bg-secondary/30 p-4">
+                    <label className="grid gap-1.5 text-sm">
+                      <span className="text-xs font-medium text-muted-foreground">Tipo de serviço</span>
+                      <select
+                        className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                        value={form.service_kind}
+                        onChange={(e) =>
+                          setForm((s) => ({
+                            ...s,
+                            service_kind: e.target.value as "single" | "package",
+                          }))
+                        }
+                      >
+                        <option value="single">Avulso</option>
+                        <option value="package">Pacote</option>
+                      </select>
+                    </label>
+                    {form.service_kind === "package" ? (
+                      <div className="mt-3 grid gap-3 md:grid-cols-2">
+                        <label className="grid gap-1.5 text-sm">
+                          Sessões no pacote
+                          <Input
+                            inputMode="numeric"
+                            value={form.package_sessions}
+                            onChange={(e) => setForm((s) => ({ ...s, package_sessions: e.target.value }))}
+                          />
+                        </label>
+                        <label className="grid gap-1.5 text-sm">
+                          Máx. por semana
+                          <Input
+                            inputMode="numeric"
+                            value={form.package_max_per_week}
+                            onChange={(e) => setForm((s) => ({ ...s, package_max_per_week: e.target.value }))}
+                          />
+                        </label>
+                        <label className="grid gap-1.5 text-sm md:col-span-2">
+                          Validade (dias após ativação)
+                          <Input
+                            inputMode="numeric"
+                            value={form.package_valid_days}
+                            onChange={(e) => setForm((s) => ({ ...s, package_valid_days: e.target.value }))}
+                            placeholder="Opcional"
+                          />
+                        </label>
+                        <div className="md:col-span-2">
+                          <span className="text-xs font-medium text-muted-foreground">Dias permitidos</span>
+                          <div className="mt-2 flex flex-wrap gap-2">
+                            {[
+                              [1, "Seg"],
+                              [2, "Ter"],
+                              [3, "Qua"],
+                              [4, "Qui"],
+                              [5, "Sex"],
+                              [6, "Sáb"],
+                              [7, "Dom"],
+                            ].map(([dow, label]) => {
+                              const n = dow as number;
+                              const checked = form.package_allowed_dow.includes(n);
+                              return (
+                                <label key={n} className="flex items-center gap-1 rounded-lg border px-2 py-1 text-xs">
+                                  <input
+                                    type="checkbox"
+                                    checked={checked}
+                                    onChange={() => {
+                                      setForm((s) => ({
+                                        ...s,
+                                        package_allowed_dow: checked
+                                          ? s.package_allowed_dow.filter((x) => x !== n)
+                                          : [...s.package_allowed_dow, n].sort(),
+                                      }));
+                                    }}
+                                  />
+                                  {label}
+                                </label>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      </div>
+                    ) : null}
+                  </div>
+                ) : null}
                 <div className="grid gap-2">
                   <span className="text-xs font-medium text-muted-foreground">Imagem do serviço</span>
                   <div className="flex flex-wrap items-center gap-2">
@@ -362,6 +490,11 @@ function Servicos() {
             <div className="p-5">
               <div className="text-xs text-gold uppercase tracking-wider">{s.category ?? "Serviço"}</div>
               <h3 className="mt-1 font-display text-lg">{s.name}</h3>
+              {s.service_kind === "package" ? (
+                <span className="mt-1 inline-block rounded-full bg-purple-soft/20 px-2 py-0.5 text-[10px] uppercase tracking-wide text-purple-soft">
+                  Pacote · {s.package_sessions ?? "?"} sessões
+                </span>
+              ) : null}
               <p className="mt-1 text-sm text-muted-foreground">{s.description ?? "—"}</p>
               <div className="mt-4 flex items-center justify-between text-sm">
                 <span className="font-medium">R$ {Number(s.price ?? 0).toFixed(2).replace(".", ",")}</span>
