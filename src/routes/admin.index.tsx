@@ -5,6 +5,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { AdminAgendaRowSkeleton, AdminKpiCardSkeleton } from "@/components/admin/AdminPageStates";
 import { compareAppointmentTime, formatAppointmentTimeHm } from "@/lib/appointment-time";
 import { useCurrentCompany } from "@/lib/current-company";
+import { hasFeatureAccess } from "@/lib/plan-access";
+import { PendingPackagePaymentsPanel } from "@/components/admin/PendingPackagePaymentsPanel";
 import { useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { appointmentService } from "@/services/appointmentService";
@@ -56,6 +58,12 @@ function addDays(date: Date, days: number) {
 
 function ProviderDashboard() {
   const { companyId, hasCompany } = useCurrentCompany();
+
+  const packagesQuery = useQuery({
+    queryKey: ["admin", "feature", "packages", companyId],
+    enabled: hasCompany && Boolean(companyId),
+    queryFn: () => hasFeatureAccess(companyId!, "packages"),
+  });
 
   const dashboardQuery = useQuery({
     queryKey: ["admin", "provider", "commission", companyId],
@@ -135,6 +143,11 @@ function ProviderDashboard() {
         }
       />
 
+      <PendingPackagePaymentsPanel
+        companyId={companyId}
+        packagesEnabled={Boolean(packagesQuery.data)}
+      />
+
       {dashboardQuery.isError ? (
         <p className="rounded-2xl border border-destructive/30 bg-destructive/5 p-6 text-sm text-destructive">
           Não foi possível carregar seus números. Tente atualizar a página.
@@ -209,6 +222,12 @@ function ProviderDashboard() {
 function OwnerDashboard() {
   const { companyId, hasCompany } = useCurrentCompany();
   const queryClient = useQueryClient();
+
+  const packagesQuery = useQuery({
+    queryKey: ["admin", "feature", "packages", companyId],
+    enabled: hasCompany && Boolean(companyId),
+    queryFn: () => hasFeatureAccess(companyId!, "packages"),
+  });
 
   const companyQuery = useQuery({
     queryKey: ["admin", "company", companyId],
@@ -367,6 +386,11 @@ function OwnerDashboard() {
   return (
     <div>
       <PageTitle title="Dashboard" subtitle="Visão geral do seu studio hoje" />
+
+      <PendingPackagePaymentsPanel
+        companyId={companyId}
+        packagesEnabled={Boolean(packagesQuery.data)}
+      />
 
       {showOnboardingCard && (
         <div className="mb-6 rounded-2xl border border-gold/35 bg-gradient-to-br from-gold-soft/30 to-card p-6 shadow-soft">

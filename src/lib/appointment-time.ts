@@ -37,6 +37,7 @@ export type PublicBookingRpcResult = {
   appointment_id?: string;
   client_id?: string;
   company_id?: string;
+  pending_payment?: boolean;
   whatsapp_queued?: boolean;
   whatsapp_log_id?: string | null;
   whatsapp_send_token?: string | null;
@@ -63,6 +64,7 @@ export function parsePublicBookingRpcResult(data: unknown): PublicBookingRpcResu
     appointment_id: typeof raw.appointment_id === "string" ? raw.appointment_id : undefined,
     client_id: typeof raw.client_id === "string" ? raw.client_id : undefined,
     company_id: typeof raw.company_id === "string" ? raw.company_id : undefined,
+    pending_payment: raw.pending_payment === true,
     whatsapp_queued: raw.whatsapp_queued === true,
     whatsapp_log_id:
       typeof raw.whatsapp_log_id === "string"

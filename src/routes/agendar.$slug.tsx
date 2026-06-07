@@ -61,6 +61,8 @@ function Agendar() {
   const [packageLookup, setPackageLookup] = useState<PackageLookupResult | null>(null);
   const [packageWhatsapp, setPackageWhatsapp] = useState("");
   const [packageLookupError, setPackageLookupError] = useState<string | null>(null);
+  const [packageFirstPurchase, setPackageFirstPurchase] = useState(false);
+  const [bookingPendingPayment, setBookingPendingPayment] = useState(false);
   const [data, setData] = useState<string | null>(null);
   const [hora, setHora] = useState<string | null>(null);
   const [form, setForm] = useState({ nome: "", whatsapp: "", notes: "" });
@@ -142,8 +144,9 @@ function Agendar() {
         isReschedule: isRescheduleMode,
         needsProviderStep,
         isPackage: isPackageService,
+        packageFirstPurchase,
       }),
-    [isRescheduleMode, needsProviderStep, isPackageService],
+    [isRescheduleMode, needsProviderStep, isPackageService, packageFirstPurchase],
   );
 
   useEffect(() => {
@@ -157,9 +160,16 @@ function Agendar() {
     setPackageLookup(null);
     setPackageWhatsapp("");
     setPackageLookupError(null);
+    setPackageFirstPurchase(false);
+    setBookingPendingPayment(false);
     setData(null);
     setHora(null);
   }, [servico]);
+
+  useEffect(() => {
+    if (!isPackageService || !packageWhatsapp.trim()) return;
+    setForm((f) => ({ ...f, whatsapp: packageWhatsapp }));
+  }, [packageWhatsapp, isPackageService]);
 
   const packageRules = useMemo(() => {
     if (!packageLookup?.found) {
@@ -177,7 +187,10 @@ function Agendar() {
 
   const slotsQuery = useQuery({
     queryKey: publicBookingKeys.slots(slug, servico ?? "", data ?? "", providerId),
-    enabled: slugValid && Boolean(servico && data),
+    enabled:
+      slugValid &&
+      Boolean(servico && data) &&
+      (!teamEnabled || !needsProviderStep || Boolean(providerId)),
     staleTime: PUBLIC_SLOTS_STALE_MS,
     queryFn: async () => {
       const res = await publicBookingService.getAvailableSlots({
@@ -220,7 +233,7 @@ function Agendar() {
           whatsappOptIn &&
           Boolean((isPackageService ? packageWhatsapp : form.whatsapp).trim()),
         providerId,
-        clientPackageId: isPackageService ? clientPackageId : null,
+        clientPackageId: isPackageService && clientPackageId ? clientPackageId : null,
       });
       if (res.error) throw res.error;
       return { mode: "create" as const, data: res.data };
@@ -230,6 +243,7 @@ function Agendar() {
         ok?: boolean;
         error?: string;
         appointment_id?: string;
+        pending_payment?: boolean;
         whatsapp_queued?: boolean;
         whatsapp_log_id?: string | null;
         whatsapp_send_token?: string | null;
@@ -246,6 +260,10 @@ function Agendar() {
         }
         if (d?.error === "pacote_invalido" || d?.error === "pacote_obrigatorio") {
           toast.error("Pacote inválido ou esgotado. Verifique com o studio.");
+          return;
+        }
+        if (d?.error === "pacote_ja_existe") {
+          toast.error("Já existe um pacote em andamento para este WhatsApp.");
           return;
         }
         if (d?.error === "limite_semanal_pacote") {
@@ -284,6 +302,7 @@ function Agendar() {
           sendToken: d.whatsapp_send_token ?? undefined,
         });
       }
+      setBookingPendingPayment(Boolean(d.pending_payment));
       setStep("confirmado");
     },
     onError: () => {
@@ -322,8 +341,9 @@ function Agendar() {
         studioPhone={company?.phone ?? undefined}
         studioEmail={company?.email ?? undefined}
         location={location}
-        clientWhatsapp={form.whatsapp}
+        clientWhatsapp={isPackageService ? packageWhatsapp : form.whatsapp}
         wasReschedule={isRescheduleMode}
+        pendingPackagePayment={bookingPendingPayment}
       />
     );
   }
@@ -492,13 +512,20 @@ function Agendar() {
             <>
               <h2 className="font-display text-xl font-bold md:text-2xl">Identifique seu pacote</h2>
               <p className="mt-1 text-sm text-muted-foreground">
-                Informe o WhatsApp usado na compra do pacote para localizar suas sessões.
+                {packageFirstPurchase
+                  ? "Informe seu WhatsApp para vincular o novo pacote ao seu cadastro."
+                  : "Já possui pacote? Informe o WhatsApp para agendar a próxima sessão. Novo pacote? Use o botão abaixo."}
               </p>
               <div className="mt-5 grid gap-4">
                 <Field
                   label="WhatsApp"
                   value={packageWhatsapp}
-                  onChange={setPackageWhatsapp}
+                  onChange={(v) => {
+                    setPackageWhatsapp(v);
+                    setPackageLookupError(null);
+                    setPackageLookup(null);
+                    setClientPackageId(null);
+                  }}
                   placeholder="(11) 99999-0000"
                 />
                 {packageLookup?.found ? (
@@ -506,6 +533,9 @@ function Agendar() {
                     <div className="font-medium text-foreground">
                       Pacote encontrado — sessão {packageLookup.session_label}
                     </div>
+                    {packageLookup.provider_name ? (
+                      <p className="mt-1 text-muted-foreground">Profissional: {packageLookup.provider_name}</p>
+                    ) : null}
                     {packageLookup.is_last_session ? (
                       <p className="mt-2 rounded-xl border border-gold/40 bg-gold-soft/40 px-3 py-2 text-foreground">
                         Atenção: este será o último serviço do seu pacote.
@@ -513,10 +543,33 @@ function Agendar() {
                     ) : null}
                   </div>
                 ) : null}
+                {packageFirstPurchase ? (
+                  <p className="rounded-xl border border-border bg-secondary/40 px-3 py-2 text-sm text-muted-foreground">
+                    Novo pacote — após continuar você escolhe o profissional e a data. O pagamento é confirmado no
+                    salão.
+                  </p>
+                ) : null}
                 {packageLookupError ? (
                   <p className="rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
                     {packageLookupError}
                   </p>
+                ) : null}
+                {!packageFirstPurchase && !packageLookup?.found ? (
+                  <button
+                    type="button"
+                    disabled={!packageWhatsapp.trim()}
+                    onClick={() => {
+                      setPackageFirstPurchase(true);
+                      setPackageLookup(null);
+                      setClientPackageId(null);
+                      setPackageLookupError(null);
+                      const next = needsProviderStep ? "profissional" : "data";
+                      setStep(next);
+                    }}
+                    className="rounded-xl border border-border bg-card px-4 py-3 text-sm font-medium transition hover:bg-accent"
+                  >
+                    Contratar novo pacote
+                  </button>
                 ) : null}
               </div>
             </>
@@ -533,6 +586,11 @@ function Agendar() {
               {packageLookup?.found ? (
                 <p className="mt-2 text-sm text-muted-foreground">
                   Sessão {packageLookup.session_label} de {packageLookup.total_sessions}
+                  {packageLookup.provider_name ? ` · ${packageLookup.provider_name}` : ""}
+                </p>
+              ) : packageFirstPurchase ? (
+                <p className="mt-2 text-sm text-muted-foreground">
+                  1ª sessão do pacote — pagamento confirmado no salão após o atendimento.
                 </p>
               ) : null}
               <div className="mt-5 flex justify-center">
@@ -649,7 +707,10 @@ function Agendar() {
                   <span>{isPackageService ? "Pacote" : "Total"}</span>
                   <span>
                     {isPackageService
-                      ? packageLookup?.session_label ?? "Sessão"
+                      ? packageLookup?.session_label ??
+                        (packageFirstPurchase
+                          ? `1/${(servicoSel as { package_sessions?: number })?.package_sessions ?? "?"}` 
+                          : "Sessão")
                       : `R$ ${Number(servicoSel?.price ?? 0).toFixed(2).replace(".", ",")}`}
                   </span>
                 </div>
@@ -679,7 +740,7 @@ function Agendar() {
                   (!form.nome.trim() || (!isPackageService && !form.whatsapp.trim())))
               }
               onClick={async () => {
-                if (step === "whatsapp_pacote" && servico) {
+                if (step === "whatsapp_pacote" && servico && !packageFirstPurchase) {
                   setPackageLookupError(null);
                   const res = await packageService.lookupPackage({
                     slug,
@@ -691,16 +752,25 @@ function Agendar() {
                     return;
                   }
                   const payload = res.data as PackageLookupResult;
+                  if (payload?.error === "aguardando_pagamento_salao" || payload?.pending_payment) {
+                    setPackageLookup(null);
+                    setClientPackageId(null);
+                    setPackageLookupError(
+                      "Seu pacote está aguardando confirmação de pagamento no salão. Compareça no horário agendado.",
+                    );
+                    return;
+                  }
                   if (!payload?.found) {
                     setPackageLookup(null);
                     setClientPackageId(null);
                     setPackageLookupError(
-                      "Pacote não encontrado para este WhatsApp. Confira com o studio se o pacote está pago.",
+                      "Pacote não encontrado. Se é sua primeira vez, use «Contratar novo pacote».",
                     );
                     return;
                   }
                   setPackageLookup(payload);
                   setClientPackageId(payload.client_package_id ?? null);
+                  if (payload.provider_id) setProviderId(payload.provider_id);
                   if (payload.client_name) {
                     setForm((f) => ({ ...f, nome: payload.client_name ?? f.nome }));
                   }
@@ -726,7 +796,9 @@ function Agendar() {
                     ? "Confirmar reagendamento"
                     : "Confirmar agendamento"
                 : step === "whatsapp_pacote"
-                  ? "Buscar pacote"
+                  ? packageFirstPurchase
+                    ? "Continuar"
+                    : "Buscar pacote"
                   : "Continuar"}
               <ArrowRight className="size-4" />
             </button>
@@ -787,6 +859,7 @@ function Confirmado({
   location,
   clientWhatsapp,
   wasReschedule,
+  pendingPackagePayment,
 }: {
   slug: string;
   studioName: string;
@@ -800,6 +873,7 @@ function Confirmado({
   location?: string;
   clientWhatsapp?: string;
   wasReschedule?: boolean;
+  pendingPackagePayment?: boolean;
 }) {
   const btnStyle = getBrandingButtonStyle(primaryColor);
   const publicPageHref = `/agendar/${encodeURIComponent(slug)}`;
@@ -834,7 +908,14 @@ function Confirmado({
         <h1 className="mt-5 font-display text-2xl">
           {wasReschedule ? "Reagendamento confirmado!" : "Agendamento confirmado!"}
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">Você receberá uma mensagem no WhatsApp.</p>
+        {pendingPackagePayment ? (
+          <p className="mt-2 rounded-xl border border-gold/40 bg-gold-soft/30 px-4 py-3 text-sm text-foreground">
+            Seu horário está reservado. O pagamento do pacote será confirmado no salão — se preferir pagar só esta
+            sessão, avise na recepção.
+          </p>
+        ) : (
+          <p className="mt-1 text-sm text-muted-foreground">Você receberá uma mensagem no WhatsApp.</p>
+        )}
 
         <div className="mt-6 space-y-2 rounded-2xl bg-secondary/60 p-5 text-left text-sm">
           <div className="flex justify-between">

@@ -9,6 +9,7 @@ import { hasFeatureAccess } from "@/lib/plan-access";
 import { clientService } from "@/services/clientService";
 import { serviceService } from "@/services/serviceService";
 import { packageService } from "@/services/packageService";
+import { PendingPackagePaymentsPanel } from "@/components/admin/PendingPackagePaymentsPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -254,6 +255,8 @@ function Clientes() {
           </Dialog>
         }
       />
+
+      <PendingPackagePaymentsPanel companyId={companyId} packagesEnabled={packagesEnabled} />
 
       <div className="mb-4 relative">
         <Search className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />

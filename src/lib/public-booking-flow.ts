@@ -12,11 +12,18 @@ export function buildPublicBookingSteps(input: {
   isReschedule: boolean;
   needsProviderStep: boolean;
   isPackage: boolean;
+  /** Cliente contratando pacote pela 1ª vez (após WhatsApp, antes da data). */
+  packageFirstPurchase?: boolean;
 }): PublicBookingStep[] {
   if (input.isReschedule) return ["data", "dados"];
   const steps: PublicBookingStep[] = ["servico"];
-  if (input.needsProviderStep) steps.push("profissional");
-  if (input.isPackage) steps.push("whatsapp_pacote");
+  if (!input.isPackage) {
+    if (input.needsProviderStep) steps.push("profissional");
+    steps.push("data", "dados");
+    return steps;
+  }
+  steps.push("whatsapp_pacote");
+  if (input.packageFirstPurchase && input.needsProviderStep) steps.push("profissional");
   steps.push("data", "dados");
   return steps;
 }
