@@ -7,7 +7,7 @@ export const appointmentService = {
   listByCompanyAndDate(companyId: string, date: string) {
     return getSupabase()
       .from("appointments")
-      .select("*, client:clients(name,email,whatsapp), service:services(name,duration_minutes,buffer_minutes), provider:service_providers(display_name,color)")
+      .select("*, client:clients(name,email,whatsapp), service:services(name,duration_minutes,buffer_minutes), provider:service_providers(display_name,color,photo_url)")
       .eq("company_id", companyId)
       .eq("appointment_date", date)
       .order("appointment_time");
@@ -16,7 +16,7 @@ export const appointmentService = {
   listByCompanyForRange(companyId: string, startDate: string, endDate: string) {
     return getSupabase()
       .from("appointments")
-      .select("*, client:clients(name,email,whatsapp), service:services(name,duration_minutes,buffer_minutes), provider:service_providers(display_name,color)")
+      .select("*, client:clients(name,email,whatsapp), service:services(name,duration_minutes,buffer_minutes), provider:service_providers(display_name,color,photo_url)")
       .eq("company_id", companyId)
       .gte("appointment_date", startDate)
       .lte("appointment_date", endDate)
@@ -56,7 +56,7 @@ export const appointmentService = {
         provider_id: input.provider_id ?? null,
         status: "scheduled",
       })
-      .select("*, client:clients(name,email,whatsapp), service:services(name,duration_minutes,buffer_minutes), provider:service_providers(display_name,color)")
+      .select("*, client:clients(name,email,whatsapp), service:services(name,duration_minutes,buffer_minutes), provider:service_providers(display_name,color,photo_url)")
       .single();
   },
 
@@ -75,7 +75,7 @@ export const appointmentService = {
       .update({ status })
       .eq("company_id", companyId)
       .eq("id", appointmentId)
-      .select("*, client:clients(name,email,whatsapp), service:services(name,duration_minutes,buffer_minutes), provider:service_providers(display_name,color)")
+      .select("*, client:clients(name,email,whatsapp), service:services(name,duration_minutes,buffer_minutes), provider:service_providers(display_name,color,photo_url)")
       .single();
   },
 };

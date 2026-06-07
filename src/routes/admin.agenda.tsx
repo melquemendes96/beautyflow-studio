@@ -27,6 +27,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { AdminAgendaDaySlotSkeleton, AdminAgendaWeekGridSkeleton } from "@/components/admin/AdminPageStates";
+import { ProviderAgendaAvatar, providerAgendaLabel } from "@/components/admin/ProviderAgendaAvatar";
 import {
   clientContactLine,
   compareAppointmentTime,
@@ -615,41 +616,60 @@ function Agenda() {
                     {occupied ? (
                       eventos.map((evento) => (
                         <div key={evento.id} className="rounded-xl bg-secondary/60 p-3">
-                          <div className="flex items-center justify-between gap-2">
-                            <div className="text-sm font-medium">{evento.client?.name ?? "Cliente"}</div>
-                            <span
-                              className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] ${statusClass[evento.status] ?? statusClass.scheduled}`}
-                            >
-                              {statusLabel[evento.status] ?? "Agendado"}
-                            </span>
-                          </div>
-                          <div className="text-xs text-muted-foreground">{evento.service?.name ?? "Serviço"}</div>
-                          <div className="mt-0.5 text-xs text-muted-foreground">{clientContactLine(evento.client)}</div>
-                          <div className="mt-2 flex flex-wrap gap-1.5 text-[11px]">
-                            <button
-                              type="button"
-                              className="rounded-full border border-border bg-background px-2.5 py-1 hover:bg-accent"
-                              onClick={() => updateStatusMutation.mutate({ id: evento.id, status: "completed" })}
-                            >
-                              Concluir
-                            </button>
-                            <button type="button" className="rounded-full border border-border bg-background px-2.5 py-1 hover:bg-accent" disabled>
-                              Reagendar
-                            </button>
-                            <button
-                              type="button"
-                              className="rounded-full border border-border bg-background px-2.5 py-1 hover:bg-accent"
-                              onClick={() => updateStatusMutation.mutate({ id: evento.id, status: "cancelled" })}
-                            >
-                              Cancelar
-                            </button>
-                            <button
-                              type="button"
-                              className="rounded-full border border-border bg-background px-2.5 py-1 hover:bg-accent"
-                              onClick={() => updateStatusMutation.mutate({ id: evento.id, status: "no_show" })}
-                            >
-                              Não compareceu
-                            </button>
+                          <div className="flex gap-3">
+                            <ProviderAgendaAvatar provider={evento.provider} showName />
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <div className="truncate text-sm font-medium">{evento.client?.name ?? "Cliente"}</div>
+                                  {providerAgendaLabel(evento.provider) ? (
+                                    <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
+                                      <span
+                                        className="size-2 shrink-0 rounded-full"
+                                        style={{
+                                          backgroundColor: evento.provider?.color?.trim() || "#1a1a1a",
+                                        }}
+                                        aria-hidden
+                                      />
+                                      <span className="truncate">{providerAgendaLabel(evento.provider)}</span>
+                                    </div>
+                                  ) : null}
+                                </div>
+                                <span
+                                  className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] ${statusClass[evento.status] ?? statusClass.scheduled}`}
+                                >
+                                  {statusLabel[evento.status] ?? "Agendado"}
+                                </span>
+                              </div>
+                              <div className="mt-1 text-xs text-muted-foreground">{evento.service?.name ?? "Serviço"}</div>
+                              <div className="mt-0.5 text-xs text-muted-foreground">{clientContactLine(evento.client)}</div>
+                              <div className="mt-2 flex flex-wrap gap-1.5 text-[11px]">
+                                <button
+                                  type="button"
+                                  className="rounded-full border border-border bg-background px-2.5 py-1 hover:bg-accent"
+                                  onClick={() => updateStatusMutation.mutate({ id: evento.id, status: "completed" })}
+                                >
+                                  Concluir
+                                </button>
+                                <button type="button" className="rounded-full border border-border bg-background px-2.5 py-1 hover:bg-accent" disabled>
+                                  Reagendar
+                                </button>
+                                <button
+                                  type="button"
+                                  className="rounded-full border border-border bg-background px-2.5 py-1 hover:bg-accent"
+                                  onClick={() => updateStatusMutation.mutate({ id: evento.id, status: "cancelled" })}
+                                >
+                                  Cancelar
+                                </button>
+                                <button
+                                  type="button"
+                                  className="rounded-full border border-border bg-background px-2.5 py-1 hover:bg-accent"
+                                  onClick={() => updateStatusMutation.mutate({ id: evento.id, status: "no_show" })}
+                                >
+                                  Não compareceu
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       ))
@@ -738,8 +758,11 @@ function FragmentRow({
         return (
           <div key={c} className="border-b border-l border-border p-2">
             {appt && (
-              <div className="rounded-md bg-foreground/90 px-2 py-1 text-[10px] text-background">
-                {appt.client?.name ?? "Cliente"}
+              <div className="rounded-md border border-border bg-secondary/70 p-1">
+                <div className="flex items-center gap-1">
+                  <ProviderAgendaAvatar provider={appt.provider} size="sm" />
+                  <span className="min-w-0 truncate text-[10px] text-foreground">{appt.client?.name ?? "Cliente"}</span>
+                </div>
               </div>
             )}
           </div>
