@@ -239,6 +239,13 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
                     className="relative z-10 h-auto rounded-xl border border-input bg-background py-3 pl-10 pr-11 text-sm outline-none transition focus:border-foreground focus:ring-2 focus:ring-gold/30 disabled:opacity-60"
                   />
                 </div>
+                <ul className="mt-2 grid gap-0.5 text-[11px] text-muted-foreground sm:text-xs">
+                  <li>Mínimo 8 caracteres</li>
+                  <li>Uma letra minúscula</li>
+                  <li>Uma letra maiúscula</li>
+                  <li>Um número</li>
+                </ul>
+                <p className="mt-1.5 text-[11px] text-muted-foreground sm:text-xs">Exemplo: Senha123</p>
               </label>
             </div>
 
