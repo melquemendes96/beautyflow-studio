@@ -1,0 +1,25 @@
+{
+  "name": "JM BeautyFlow — Equipe",
+  "short_name": "Equipe",
+  "description": "Agenda e repasses para colaboradores",
+  "start_url": "/login",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#faf9f7",
+  "theme_color": "#1a1a1a",
+  "icons": [
+    {
+      "src": "/logo-beautyflow.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-beautyflow.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

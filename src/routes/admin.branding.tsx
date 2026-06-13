@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useId, useRef, useState } from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { PageTitle } from "@/components/admin/AdminShell";
 import { studioInitials } from "@/lib/branding-utils";
 import { Instagram, MapPin, Upload, X } from "lucide-react";
@@ -13,6 +13,7 @@ import { AdminBrandingFormSkeleton, AdminBrandingPreviewSkeleton } from "@/compo
 import { uploadCompanyImage } from "@/lib/company-media-upload";
 import { publicBookingKeys } from "@/lib/public-booking-queries";
 import { normalizePublicBookingSlug } from "@/lib/public-booking-slug";
+import { PwaInstallTrigger } from "@/components/pwa/PwaInstallTrigger";
 
 function clampPercent(value: unknown, fallback: number): number {
   const n = typeof value === "number" ? value : Number(value);
@@ -113,6 +114,34 @@ function Branding() {
     });
   }, [brandingQuery.data]);
 
+  const publicSlug = useMemo(
+    () => (companyQuery.data?.slug ? normalizePublicBookingSlug(String(companyQuery.data.slug)) : ""),
+    [companyQuery.data?.slug],
+  );
+
+  const adminManifest = useMemo(
+    () => ({
+      profile: "admin" as const,
+      appName: b.nome.trim() || "JM BeautyFlow Admin",
+      shortName: "Admin",
+      iconUrl: b.logo_url || undefined,
+      themeColor: b.cor,
+    }),
+    [b.nome, b.logo_url, b.cor],
+  );
+
+  const clientManifest = useMemo(
+    () => ({
+      profile: "client" as const,
+      slug: publicSlug,
+      appName: b.nome.trim() || "Salão",
+      shortName: b.nome.trim() || "Salão",
+      iconUrl: b.logo_url || undefined,
+      themeColor: b.cor,
+    }),
+    [publicSlug, b.nome, b.logo_url, b.cor],
+  );
+
   const invalidatePublicPage = async () => {
     const slug = companyQuery.data?.slug
       ? normalizePublicBookingSlug(String(companyQuery.data.slug))
@@ -189,6 +218,23 @@ function Branding() {
               slug={companyQuery.data?.slug}
               companyName={companyQuery.data?.name}
             />
+
+            <div className="space-y-3 rounded-2xl border border-border bg-secondary/20 p-4">
+              <p className="text-sm font-medium text-foreground">Aplicativos</p>
+              <PwaInstallTrigger manifest={adminManifest} label="Instalar app admin" variant="card" />
+              {publicSlug ? (
+                <PwaInstallTrigger
+                  manifest={clientManifest}
+                  label="Pré-visualizar instalação — app clientes"
+                  variant="button"
+                />
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Defina o slug em Configurações para gerar o app personalizado das clientes.
+                </p>
+              )}
+            </div>
+
             <Field label="Nome comercial" value={b.nome} onChange={(v) => setB({ ...b, nome: v })} />
             <Field label="Slogan" value={b.slogan} onChange={(v) => setB({ ...b, slogan: v })} />
 

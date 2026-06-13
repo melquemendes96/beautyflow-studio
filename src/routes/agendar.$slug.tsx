@@ -403,7 +403,11 @@ function Agendar() {
 
   return (
     <div className="min-h-screen bg-[#f7f4ef]">
-      <PublicStudioHero company={company} branding={branding as Parameters<typeof PublicStudioHero>[0]["branding"]} />
+      <PublicStudioHero
+        company={company}
+        branding={branding as Parameters<typeof PublicStudioHero>[0]["branding"]}
+        slug={slug}
+      />
 
       <div className="mx-auto w-full max-w-[1400px] px-4 pb-16 md:px-6">
         {isRescheduleMode ? (

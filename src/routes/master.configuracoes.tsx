@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { MasterPageTitle } from "@/components/master/MasterShell";
 import { Settings, CreditCard, Bell, Shield, ExternalLink } from "lucide-react";
+import { PwaInstallTrigger } from "@/components/pwa/PwaInstallTrigger";
 import { AdminConfigSectionSkeleton } from "@/components/admin/AdminPageStates";
 import { useState } from "react";
 
@@ -27,6 +28,16 @@ function MasterConfiguracoes() {
           âncora para futuras chaves de ambiente, webhooks e políticas exibidas aos tenants.
         </p>
       </div>
+
+      <PwaInstallTrigger
+        manifest={{
+          profile: "master",
+          appName: "JM BeautyFlow Master",
+          shortName: "Master",
+        }}
+        label="Instalar app master"
+        variant="card"
+      />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <section className="rounded-2xl border border-border bg-card p-6 shadow-soft">

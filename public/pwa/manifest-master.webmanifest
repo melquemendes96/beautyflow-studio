@@ -1,0 +1,25 @@
+{
+  "name": "JM BeautyFlow — Master",
+  "short_name": "Master",
+  "description": "Painel master da plataforma",
+  "start_url": "/login",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#faf9f7",
+  "theme_color": "#1a1a1a",
+  "icons": [
+    {
+      "src": "/logo-beautyflow.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/logo-beautyflow.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable"
+    }
+  ]
+}

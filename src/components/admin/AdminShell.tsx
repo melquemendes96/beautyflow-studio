@@ -11,7 +11,7 @@ import { Logo } from "@/components/brand/Logo";
 import {
   LayoutDashboard, Calendar, Users, Scissors, Clock, BarChart3,
   Palette, MessageCircle, CreditCard, Settings, Menu, X, LogOut, UserRound, Receipt,
-  Package, HandCoins, Landmark,
+  Package, HandCoins, Landmark, Smartphone,
 } from "lucide-react";
 import { AdminNotificationsBell } from "@/components/admin/AdminNotificationsBell";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
@@ -82,12 +82,13 @@ export function AdminShell() {
 
   const visibleNav = useMemo(() => {
     if (!isProvider) return nav;
-    return nav.filter(
-      (item) =>
-        item.to === "/admin" ||
-        item.to === "/admin/agenda" ||
-        item.to === "/admin/repasses",
-    );
+    const providerNav: NavItem[] = [
+      { to: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
+      { to: "/admin/agenda", label: "Agenda", icon: Calendar },
+      { to: "/admin/app", label: "App", icon: Smartphone },
+      { to: "/admin/repasses", label: "Repasses", icon: HandCoins },
+    ];
+    return providerNav;
   }, [isProvider]);
 
   const subscriptionQuery = useQuery({

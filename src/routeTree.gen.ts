@@ -57,6 +57,7 @@ import { Route as AdminConfiguracoesRouteImport } from './routes/admin.configura
 import { Route as AdminComandasRouteImport } from './routes/admin.comandas'
 import { Route as AdminClientesRouteImport } from './routes/admin.clientes'
 import { Route as AdminBrandingRouteImport } from './routes/admin.branding'
+import { Route as AdminAppRouteImport } from './routes/admin.app'
 import { Route as AdminAgendaRouteImport } from './routes/admin.agenda'
 import { Route as ConvitePrestadorTokenRouteImport } from './routes/convite.prestador.$token'
 import { Route as AdminPlanoCheckoutRouteImport } from './routes/admin.plano.checkout'
@@ -301,6 +302,11 @@ const AdminBrandingRoute = AdminBrandingRouteImport.update({
   path: '/branding',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminAppRoute = AdminAppRouteImport.update({
+  id: '/app',
+  path: '/app',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminAgendaRoute = AdminAgendaRouteImport.update({
   id: '/agenda',
   path: '/agenda',
@@ -336,6 +342,7 @@ export interface FileRoutesByFullPath {
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin/agenda': typeof AdminAgendaRoute
+  '/admin/app': typeof AdminAppRoute
   '/admin/branding': typeof AdminBrandingRoute
   '/admin/clientes': typeof AdminClientesRoute
   '/admin/comandas': typeof AdminComandasRoute
@@ -387,6 +394,7 @@ export interface FileRoutesByTo {
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin/agenda': typeof AdminAgendaRoute
+  '/admin/app': typeof AdminAppRoute
   '/admin/branding': typeof AdminBrandingRoute
   '/admin/clientes': typeof AdminClientesRoute
   '/admin/comandas': typeof AdminComandasRoute
@@ -441,6 +449,7 @@ export interface FileRoutesById {
   '/register': typeof RegisterRoute
   '/reset-password': typeof ResetPasswordRoute
   '/admin/agenda': typeof AdminAgendaRoute
+  '/admin/app': typeof AdminAppRoute
   '/admin/branding': typeof AdminBrandingRoute
   '/admin/clientes': typeof AdminClientesRoute
   '/admin/comandas': typeof AdminComandasRoute
@@ -496,6 +505,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/admin/agenda'
+    | '/admin/app'
     | '/admin/branding'
     | '/admin/clientes'
     | '/admin/comandas'
@@ -547,6 +557,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/admin/agenda'
+    | '/admin/app'
     | '/admin/branding'
     | '/admin/clientes'
     | '/admin/comandas'
@@ -600,6 +611,7 @@ export interface FileRouteTypes {
     | '/register'
     | '/reset-password'
     | '/admin/agenda'
+    | '/admin/app'
     | '/admin/branding'
     | '/admin/clientes'
     | '/admin/comandas'
@@ -1000,6 +1012,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminBrandingRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/app': {
+      id: '/admin/app'
+      path: '/app'
+      fullPath: '/admin/app'
+      preLoaderRoute: typeof AdminAppRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/agenda': {
       id: '/admin/agenda'
       path: '/agenda'
@@ -1038,6 +1057,7 @@ const AdminPlanoRouteWithChildren = AdminPlanoRoute._addFileChildren(
 
 interface AdminRouteChildren {
   AdminAgendaRoute: typeof AdminAgendaRoute
+  AdminAppRoute: typeof AdminAppRoute
   AdminBrandingRoute: typeof AdminBrandingRoute
   AdminClientesRoute: typeof AdminClientesRoute
   AdminComandasRoute: typeof AdminComandasRoute
@@ -1056,6 +1076,7 @@ interface AdminRouteChildren {
 
 const AdminRouteChildren: AdminRouteChildren = {
   AdminAgendaRoute: AdminAgendaRoute,
+  AdminAppRoute: AdminAppRoute,
   AdminBrandingRoute: AdminBrandingRoute,
   AdminClientesRoute: AdminClientesRoute,
   AdminComandasRoute: AdminComandasRoute,

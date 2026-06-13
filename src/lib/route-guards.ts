@@ -150,7 +150,9 @@ export async function guardProviderPanelAccess(pathname: string): Promise<void> 
     p === "/admin/clientes" ||
     p.startsWith("/admin/clientes/") ||
     p === "/admin/repasses" ||
-    p.startsWith("/admin/repasses/");
+    p.startsWith("/admin/repasses/") ||
+    p === "/admin/app" ||
+    p.startsWith("/admin/app/");
 
   if (!allowed && PROVIDER_BLOCKED_PREFIXES.some((pre) => p === pre || p.startsWith(`${pre}/`))) {
     throw redirect({ to: "/admin" });

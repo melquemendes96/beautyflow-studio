@@ -1,5 +1,7 @@
 import { Clock, Instagram, MapPin, MessageCircle, Store } from "lucide-react";
 import { BrandedImage } from "@/components/booking/BrandedImage";
+import { PwaInstallTrigger } from "@/components/pwa/PwaInstallTrigger";
+import { useMemo } from "react";
 import {
   clampPercent,
   displayStudioName,
@@ -16,9 +18,11 @@ import {
 type PublicStudioHeroProps = {
   company: CompanySummary | null | undefined;
   branding: CompanyBranding | null | undefined;
+  /** Slug público do salão — personaliza o app instalado pela cliente */
+  slug?: string;
 };
 
-export function PublicStudioHero({ company, branding }: PublicStudioHeroProps) {
+export function PublicStudioHero({ company, branding, slug }: PublicStudioHeroProps) {
   const studioName = displayStudioName(company, branding);
   const primary = normalizeHexColor(branding?.primary_color, "#1a1a1a");
   const secondary = normalizeHexColor(branding?.secondary_color, "#c9a960");
@@ -32,8 +36,21 @@ export function PublicStudioHero({ company, branding }: PublicStudioHeroProps) {
   const hasBanner = Boolean(branding?.banner_url?.trim());
   const hasLogo = Boolean(branding?.logo_url?.trim());
 
+  const clientManifest = useMemo(
+    () => ({
+      profile: "client" as const,
+      slug,
+      appName: studioName,
+      shortName: studioName,
+      iconUrl: branding?.logo_url ?? undefined,
+      themeColor: primary,
+      backgroundColor: "#faf9f7",
+    }),
+    [slug, studioName, branding?.logo_url, primary],
+  );
+
   const socialButtons = (
-    <div className="flex flex-wrap gap-2.5">
+    <div className="flex flex-wrap items-center gap-2.5">
       {instagramHref ? (
         <a
           href={instagramHref}
@@ -55,6 +72,14 @@ export function PublicStudioHero({ company, branding }: PublicStudioHeroProps) {
           <MessageCircle className="size-4 shrink-0" />
           <span className="font-medium">{formatWhatsAppLabel(branding?.whatsapp)}</span>
         </a>
+      ) : null}
+      {slug ? (
+        <PwaInstallTrigger
+          manifest={clientManifest}
+          label="Baixar app"
+          variant="pill"
+          primaryColor={primary}
+        />
       ) : null}
     </div>
   );
