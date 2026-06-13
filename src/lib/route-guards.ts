@@ -67,7 +67,6 @@ export async function guardCompanyTenantBillingAccess(pathname: string): Promise
 
   const profile = await loadAuthProfile();
   if (!profile.session || profile.isPlatformAdmin) return;
-  if (isProviderMembership(profile)) return;
 
   const companyId = profile.companyMemberships[0]?.company_id;
   if (!companyId) {
@@ -90,6 +89,24 @@ export async function guardCompanyTenantBillingAccess(pathname: string): Promise
 
   if (!isSubscriptionDashboardAllowed(sub)) {
     const reason = getSubscriptionAccessReason(sub);
+    if (isProviderMembership(profile)) {
+      const p =
+        pathname !== "/" && pathname.endsWith("/") ? pathname.replace(/\/+$/, "") : pathname;
+      const providerAllowed =
+        p === "/admin" ||
+        p === "/admin/agenda" ||
+        p.startsWith("/admin/agenda/") ||
+        p === "/admin/clientes" ||
+        p.startsWith("/admin/clientes/") ||
+        p === "/admin/repasses" ||
+        p.startsWith("/admin/repasses/") ||
+        p === "/admin/app" ||
+        p.startsWith("/admin/app/");
+      if (!providerAllowed) {
+        throw redirect({ to: "/admin", search: { billing: "expired" } });
+      }
+      return;
+    }
     const billing =
       reason === "trial_expired" || reason === "period_ended"
         ? "expired"
