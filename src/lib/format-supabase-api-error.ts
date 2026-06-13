@@ -22,7 +22,13 @@ export function formatSupabaseApiError(error: unknown): string {
     return "403 — Sem permissão de platform_admin. Confirme seu e-mail em platform_admins no Supabase.";
   }
   if (code === "PGRST202" || msg.includes("Could not find the function")) {
-    return "PGRST202 — RPC ausente neste projeto. Execute a migration 202605168 no SQL Editor do Supabase.";
+    if (msg.includes("consume_client_package_session")) {
+      return "RPC consume_client_package_session ausente — aplique a migration supabase/migrations/20260608000000_fix_package_session_on_close.sql no Supabase.";
+    }
+    if (msg.includes("list_provider_payouts") || msg.includes("provider_commission_balance")) {
+      return "RPC de repasses ausente — aplique apply_comandas_phases_345_full.sql e 20260613000002_fix_provider_payouts_balance.sql no Supabase.";
+    }
+    return "PGRST202 — RPC ausente neste projeto. Execute a migration correspondente no SQL Editor do Supabase.";
   }
   if (status === 404 || code === "PGRST116") {
     return "404 — Recurso não encontrado. Verifique se o .env aponta para o projeto Supabase correto.";

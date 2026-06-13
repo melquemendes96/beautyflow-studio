@@ -5,8 +5,13 @@ import { Lock, Plus } from "lucide-react";
 import { Calendar as CalendarPicker } from "@/components/ui/calendar";
 import { ptBR } from "date-fns/locale";
 import { useCurrentCompany } from "@/lib/current-company";
+import { hasFeatureAccess } from "@/lib/plan-access";
+import { ComandaDrawer } from "@/components/admin/ComandaDrawer";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { appointmentService } from "@/services/appointmentService";
+import { packageService, type ClientPackageRow } from "@/services/packageService";
+import { formatTabMoney, tabService } from "@/services/tabService";
+import { cashService } from "@/services/cashService";
 import { scheduleBlockService } from "@/services/scheduleBlockService";
 import { clientService } from "@/services/clientService";
 import { serviceService } from "@/services/serviceService";
@@ -34,6 +39,7 @@ import {
   formatAppointmentDateYmd,
   formatAppointmentTimeHm,
 } from "@/lib/appointment-time";
+import { formatSupabaseApiError } from "@/lib/format-supabase-api-error";
 import {
   blocksForAgendaScope,
   findCoveringBlockForHour,
@@ -45,7 +51,6 @@ import {
   type ScheduleBlockRow,
 } from "@/lib/admin-agenda-blocks";
 import { businessSettingsService } from "@/services/businessSettingsService";
-import { hasFeatureAccess } from "@/lib/plan-access";
 import { teamService } from "@/services/teamService";
 import type { ScheduleBlockType } from "@/services/scheduleBlockService";
 
@@ -93,10 +98,15 @@ function startOfWeek(date: Date) {
   return d;
 }
 
+function mutationErrorMessage(err: unknown, fallback: string) {
+  if (err instanceof Error && err.message.trim()) return err.message;
+  return formatSupabaseApiError(err) || fallback;
+}
+
 function Agenda() {
   const [view, setView] = useState<"dia" | "semana">("dia");
   const queryClient = useQueryClient();
-  const { companyId, hasCompany, providerId, isProvider } = useCurrentCompany();
+  const { companyId, hasCompany, providerId, isProvider, isOwnerAdmin } = useCurrentCompany();
   const { provider: providerFromSearch } = Route.useSearch();
   const [day, setDay] = useState<Date>(new Date());
   const [open, setOpen] = useState(false);
@@ -106,32 +116,15 @@ function Agenda() {
     time: "09:00",
   });
   const [providerFilterId, setProviderFilterId] = useState("");
+  const [comandaAppointmentId, setComandaAppointmentId] = useState<string | null>(null);
 
   useEffect(() => {
     if (isProvider && providerId) {
       setProviderFilterId(providerId);
       return;
     }
-    if (providerFromSearch) {
-      setProviderFilterId(providerFromSearch);
-    }
+    setProviderFilterId(providerFromSearch ?? "");
   }, [isProvider, providerId, providerFromSearch]);
-
-  const teamFeatureQuery = useQuery({
-    queryKey: ["admin", "feature", "team", companyId],
-    enabled: hasCompany && Boolean(companyId),
-    queryFn: () => hasFeatureAccess(companyId!, "team"),
-  });
-
-  const teamQuery = useQuery({
-    queryKey: ["admin", "team", companyId],
-    enabled: hasCompany && Boolean(companyId) && Boolean(teamFeatureQuery.data) && !isProvider,
-    queryFn: async () => {
-      const res = await teamService.list(companyId!);
-      if (res.error) throw res.error;
-      return res.data;
-    },
-  });
 
   const dateYmd = useMemo(() => toYmd(day), [day]);
   const subtitle = useMemo(
@@ -143,6 +136,72 @@ function Agenda() {
       }),
     [day],
   );
+
+  const teamFeatureQuery = useQuery({
+    queryKey: ["admin", "feature", "team", companyId],
+    enabled: hasCompany && Boolean(companyId),
+    queryFn: () => hasFeatureAccess(companyId!, "team"),
+  });
+
+  const cashQuery = useQuery({
+    queryKey: ["admin", "cash-register", companyId],
+    enabled: hasCompany && Boolean(companyId) && isOwnerAdmin,
+    queryFn: () => cashService.getStatus(companyId!),
+    staleTime: 10_000,
+  });
+
+  const packagesFeatureQuery = useQuery({
+    queryKey: ["admin", "feature", "packages", companyId],
+    enabled: hasCompany && Boolean(companyId),
+    queryFn: () => hasFeatureAccess(companyId!, "packages"),
+  });
+  const packagesEnabled = Boolean(packagesFeatureQuery.data);
+
+  const packagesQuery = useQuery({
+    queryKey: ["admin", "packages", "list", companyId, "all"],
+    enabled: hasCompany && Boolean(companyId) && packagesEnabled,
+    queryFn: async () => {
+      const res = await packageService.listByCompany(companyId!);
+      if (res.error) throw res.error;
+      return res.data ?? [];
+    },
+    staleTime: 15_000,
+  });
+
+  const packageById = useMemo(() => {
+    const map = new Map<string, ClientPackageRow>();
+    for (const pkg of packagesQuery.data ?? []) map.set(pkg.id, pkg);
+    return map;
+  }, [packagesQuery.data]);
+
+  const tabsQuery = useQuery({
+    queryKey: ["admin", "tabs", companyId, dateYmd],
+    enabled: hasCompany && Boolean(companyId),
+    queryFn: async () => {
+      const res = await tabService.listForDate(companyId!, dateYmd);
+      if (res.error) throw res.error;
+      return res.data ?? [];
+    },
+    staleTime: 10_000,
+  });
+
+  const tabByAppointmentId = useMemo(() => {
+    const map = new Map<string, { status: string; total: number }>();
+    for (const t of tabsQuery.data ?? []) {
+      map.set(t.appointment_id, { status: t.status, total: Number(t.total ?? 0) });
+    }
+    return map;
+  }, [tabsQuery.data]);
+
+  const teamQuery = useQuery({
+    queryKey: ["admin", "team", companyId],
+    enabled: hasCompany && Boolean(companyId) && Boolean(teamFeatureQuery.data) && !isProvider,
+    queryFn: async () => {
+      const res = await teamService.list(companyId!);
+      if (res.error) throw res.error;
+      return res.data;
+    },
+  });
 
   const clientsQuery = useQuery({
     queryKey: ["admin", "clients", companyId],
@@ -251,19 +310,27 @@ function Agenda() {
       toast.success("Agendamento criado");
       await queryClient.invalidateQueries({ queryKey: ["admin", "agenda", "day", companyId, dateYmd] });
       await queryClient.invalidateQueries({ queryKey: ["admin", "agenda", "week", companyId, weekStartYmd, weekEndYmd] });
+      await queryClient.invalidateQueries({ queryKey: ["admin", "tabs", companyId, dateYmd] });
     },
   });
 
   const updateStatusMutation = useMutation({
     mutationFn: async (input: { id: string; status: string }) => {
       if (!companyId) throw new Error("Sem empresa");
+
       const res = await appointmentService.updateStatus(companyId, input.id, input.status);
-      if (res.error) throw res.error;
+      if (res.error) {
+        throw new Error(formatSupabaseApiError(res.error) || "Não foi possível atualizar o agendamento.");
+      }
       return res.data;
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["admin", "agenda", "day", companyId, dateYmd] });
       await queryClient.invalidateQueries({ queryKey: ["admin", "agenda", "week", companyId, weekStartYmd, weekEndYmd] });
+      await queryClient.invalidateQueries({ queryKey: ["admin", "tabs", companyId, dateYmd] });
+    },
+    onError: (err: unknown) => {
+      toast.error(mutationErrorMessage(err, "Não foi possível atualizar o agendamento."));
     },
   });
 
@@ -443,6 +510,7 @@ function Agenda() {
   };
 
   return (
+    <>
     <div>
       <PageTitle
         title={isProvider ? "Minha agenda" : "Agenda"}
@@ -642,15 +710,73 @@ function Agenda() {
                                 </span>
                               </div>
                               <div className="mt-1 text-xs text-muted-foreground">{evento.service?.name ?? "Serviço"}</div>
+                              {(evento as { client_package_id?: string | null }).client_package_id ? (
+                                <div className="mt-1">
+                                  {(() => {
+                                    const pkgId = (evento as { client_package_id?: string | null }).client_package_id!;
+                                    const pkg = packageById.get(pkgId);
+                                    const sessionNum = (evento as { package_session_number?: number | null })
+                                      .package_session_number;
+                                    if (pkg?.status === "pending_payment") {
+                                      return (
+                                        <span className="inline-flex rounded-full bg-warning/20 px-2 py-0.5 text-[10px] font-medium text-warning">
+                                          Pacote · confirme pagamento na comanda
+                                        </span>
+                                      );
+                                    }
+                                    if (pkg?.status === "active") {
+                                      return (
+                                        <span className="inline-flex rounded-full bg-success/15 px-2 py-0.5 text-[10px] font-medium text-success">
+                                          Pacote ativo · {pkg.used_sessions}/{pkg.total_sessions} sessões
+                                          {sessionNum ? ` · sessão ${sessionNum}` : ""}
+                                        </span>
+                                      );
+                                    }
+                                    return (
+                                      <span className="inline-flex rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                        Pacote
+                                      </span>
+                                    );
+                                  })()}
+                                </div>
+                              ) : null}
                               <div className="mt-0.5 text-xs text-muted-foreground">{clientContactLine(evento.client)}</div>
+                              {(() => {
+                                const tabInfo = tabByAppointmentId.get(evento.id);
+                                if (!tabInfo || evento.status === "cancelled" || evento.status === "no_show") {
+                                  return null;
+                                }
+                                if (tabInfo.status === "closed" || evento.status === "completed") {
+                                  return (
+                                    <div className="mt-1 text-[10px] text-success">
+                                      Comanda fechada
+                                      {tabInfo.total > 0 ? ` · ${formatTabMoney(tabInfo.total)}` : ""}
+                                    </div>
+                                  );
+                                }
+                                return (
+                                  <div className="mt-1 text-[10px] text-info">
+                                    Comanda aberta · {formatTabMoney(tabInfo.total)}
+                                    {isOwnerAdmin ? " · aguardando caixa" : ""}
+                                  </div>
+                                );
+                              })()}
                               <div className="mt-2 flex flex-wrap gap-1.5 text-[11px]">
                                 <button
                                   type="button"
-                                  className="rounded-full border border-border bg-background px-2.5 py-1 hover:bg-accent"
-                                  onClick={() => updateStatusMutation.mutate({ id: evento.id, status: "completed" })}
+                                  className="rounded-full border border-gold/40 bg-gold-soft/30 px-2.5 py-1 font-medium hover:bg-gold-soft/50"
+                                  onClick={() => setComandaAppointmentId(evento.id)}
                                 >
-                                  Concluir
+                                  Comanda
                                 </button>
+                                {isOwnerAdmin && tabByAppointmentId.get(evento.id)?.status === "open" ? (
+                                  <Link
+                                    to="/admin/comandas"
+                                    className="rounded-full border border-border bg-background px-2.5 py-1 hover:bg-accent"
+                                  >
+                                    Caixa
+                                  </Link>
+                                ) : null}
                                 <button type="button" className="rounded-full border border-border bg-background px-2.5 py-1 hover:bg-accent" disabled>
                                   Reagendar
                                 </button>
@@ -726,6 +852,19 @@ function Agenda() {
         </div>
       )}
     </div>
+
+    <ComandaDrawer
+      appointmentId={comandaAppointmentId}
+      open={Boolean(comandaAppointmentId)}
+      onOpenChange={(open) => !open && setComandaAppointmentId(null)}
+      onClosed={() => {
+        void queryClient.invalidateQueries({ queryKey: ["admin", "tabs", companyId, dateYmd] });
+        void queryClient.invalidateQueries({ queryKey: ["admin", "agenda", "day", companyId, dateYmd] });
+        void queryClient.invalidateQueries({ queryKey: ["admin", "cash-register", companyId] });
+      }}
+      cashOpen={Boolean(cashQuery.data)}
+    />
+    </>
   );
 }
 

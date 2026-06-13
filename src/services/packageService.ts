@@ -117,4 +117,10 @@ export const packageService = {
       p_client_package_id: clientPackageId,
     });
   },
+
+  consumeSession(appointmentId: string) {
+    return getSupabase().rpc("consume_client_package_session", {
+      p_appointment_id: appointmentId,
+    });
+  },
 };

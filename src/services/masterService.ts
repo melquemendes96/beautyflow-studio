@@ -1,4 +1,5 @@
 import { fixPlanFeatureLabel, sanitizePlanList } from "@/lib/plan-feature-labels";
+import type { DashboardRangeData } from "@/lib/intelligent-calendar-range";
 import { getSupabase } from "@/lib/supabaseClient";
 
 type GateError = { message: string; status?: number; code?: string };
@@ -440,5 +441,41 @@ export const masterService = {
     const gate = await requireMasterSession();
     if (!gate.ok) return { data: null, error: gate.error };
     return getSupabase().from("coupons").select("*").order("created_at", { ascending: false });
+  },
+
+  async getDashboardSummary() {
+    const gate = await requireMasterSession();
+    if (!gate.ok) return { data: null, error: gate.error };
+    const res = await getSupabase().rpc("platform_dashboard_summary");
+    return {
+      ...res,
+      data: res.data as {
+        ok?: boolean;
+        error?: string;
+        summary?: {
+          companies_count: number;
+          active_subscriptions: number;
+          past_due_subscriptions: number;
+          mrr: number;
+          open_tickets: number;
+          today_payments: number;
+          week_payments: number;
+          month_payments: number;
+          today_new_companies: number;
+          upcoming_renewals_30d: number;
+          upcoming_renewal_revenue_30d: number;
+        };
+      } | null,
+    };
+  },
+
+  async getDashboardRange(startDate: string, endDate: string) {
+    const gate = await requireMasterSession();
+    if (!gate.ok) return { data: null, error: gate.error };
+    const res = await getSupabase().rpc("platform_dashboard_range", {
+      p_start_date: startDate,
+      p_end_date: endDate,
+    });
+    return { ...res, data: res.data as DashboardRangeData | null };
   },
 };

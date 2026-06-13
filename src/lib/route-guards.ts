@@ -106,9 +106,13 @@ const PLAN_GATED_ADMIN_ROUTES: { prefix: string; feature: FeatureKey }[] = [
   { prefix: "/admin/relatorios", feature: "reports" },
   { prefix: "/admin/whatsapp", feature: "whatsapp" },
   { prefix: "/admin/equipe", feature: "team" },
+  { prefix: "/admin/produtos", feature: "inventory" },
+  { prefix: "/admin/repasses", feature: "commissions" },
+  { prefix: "/admin/financeiro", feature: "finance" },
 ];
 
 const PROVIDER_BLOCKED_PREFIXES = [
+  "/admin/comandas",
   "/admin/equipe",
   "/admin/plano",
   "/admin/branding",
@@ -117,6 +121,8 @@ const PROVIDER_BLOCKED_PREFIXES = [
   "/admin/servicos",
   "/admin/configuracoes",
   "/admin/lista-espera",
+  "/admin/produtos",
+  "/admin/financeiro",
   "/admin/plano/checkout",
   "/billing",
   "/onboarding",
@@ -142,7 +148,9 @@ export async function guardProviderPanelAccess(pathname: string): Promise<void> 
     p === "/admin/agenda" ||
     p.startsWith("/admin/agenda/") ||
     p === "/admin/clientes" ||
-    p.startsWith("/admin/clientes/");
+    p.startsWith("/admin/clientes/") ||
+    p === "/admin/repasses" ||
+    p.startsWith("/admin/repasses/");
 
   if (!allowed && PROVIDER_BLOCKED_PREFIXES.some((pre) => p === pre || p.startsWith(`${pre}/`))) {
     throw redirect({ to: "/admin" });
@@ -157,17 +165,21 @@ export async function guardCompanyPlanFeatureAccess(pathname: string): Promise<v
 
   const profile = await loadAuthProfile();
   if (!profile.session || profile.isPlatformAdmin) return;
-  if (isProviderMembership(profile)) {
+
+  const isProvider = isProviderMembership(profile);
+  const isProviderRepasses = isProvider && hit.prefix === "/admin/repasses";
+  if (isProvider && !isProviderRepasses) {
     throw redirect({ to: "/admin" });
   }
 
   const companyId = profile.companyMemberships[0]?.company_id;
   if (!companyId) return;
 
-  const sub = await loadTenantSubscription(companyId);
-  const st = String(sub?.status ?? "");
-  if (!isSubscriptionDashboardAllowed(sub)) {
-    throw redirect({ to: "/billing/plans", search: { billing: "renew" } });
+  if (!isProvider) {
+    const sub = await loadTenantSubscription(companyId);
+    if (!isSubscriptionDashboardAllowed(sub)) {
+      throw redirect({ to: "/billing/plans", search: { billing: "renew" } });
+    }
   }
 
   const allowed = await hasFeatureAccess(companyId, hit.feature);

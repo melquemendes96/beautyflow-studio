@@ -18,6 +18,7 @@ import {
   LogOut,
 } from "lucide-react";
 import { MasterNotificationsBell } from "@/components/master/MasterNotificationsBell";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
 
@@ -102,7 +103,10 @@ export function MasterShell() {
             <Menu className="size-5" />
           </button>
           <Logo onLight className="h-9 max-w-[160px]" />
-          <MasterNotificationsBell />
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <MasterNotificationsBell />
+          </div>
         </div>
 
       <div className="flex">
@@ -170,6 +174,7 @@ export function MasterShell() {
               Olá, <span className="font-medium text-foreground">{user?.email ?? "Master"}</span>
             </div>
             <div className="flex items-center gap-2">
+              <ThemeToggle />
               <MasterNotificationsBell />
               <button
                 type="button"

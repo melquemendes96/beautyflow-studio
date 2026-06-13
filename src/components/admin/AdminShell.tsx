@@ -10,19 +10,25 @@ import { displayStudioName } from "@/lib/branding-utils";
 import { Logo } from "@/components/brand/Logo";
 import {
   LayoutDashboard, Calendar, Users, Scissors, Clock, BarChart3,
-  Palette, MessageCircle, CreditCard, Settings, Menu, X, LogOut, UserRound,
+  Palette, MessageCircle, CreditCard, Settings, Menu, X, LogOut, UserRound, Receipt,
+  Package, HandCoins, Landmark,
 } from "lucide-react";
 import { AdminNotificationsBell } from "@/components/admin/AdminNotificationsBell";
+import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
 const nav: NavItem[] = [
   { to: "/admin", label: "Dashboard", icon: LayoutDashboard, exact: true },
   { to: "/admin/agenda", label: "Agenda", icon: Calendar },
+  { to: "/admin/comandas", label: "Comandas", icon: Receipt },
+  { to: "/admin/produtos", label: "Produtos", icon: Package },
+  { to: "/admin/repasses", label: "Repasses", icon: HandCoins },
   { to: "/admin/clientes", label: "Clientes", icon: Users },
   { to: "/admin/servicos", label: "Serviços", icon: Scissors },
   { to: "/admin/equipe", label: "Equipe", icon: UserRound },
   { to: "/admin/lista-espera", label: "Lista de espera", icon: Clock },
   { to: "/admin/relatorios", label: "Relatórios", icon: BarChart3 },
+  { to: "/admin/financeiro", label: "Financeiro", icon: Landmark },
   { to: "/admin/branding", label: "Aparência da marca", icon: Palette },
   { to: "/admin/whatsapp", label: "WhatsApp Oficial", icon: MessageCircle },
   { to: "/admin/plano", label: "Plano e assinatura", icon: CreditCard },
@@ -76,7 +82,12 @@ export function AdminShell() {
 
   const visibleNav = useMemo(() => {
     if (!isProvider) return nav;
-    return nav.filter((item) => item.to === "/admin" || item.to === "/admin/agenda");
+    return nav.filter(
+      (item) =>
+        item.to === "/admin" ||
+        item.to === "/admin/agenda" ||
+        item.to === "/admin/repasses",
+    );
   }, [isProvider]);
 
   const subscriptionQuery = useQuery({
@@ -176,7 +187,10 @@ export function AdminShell() {
           <Menu className="size-5" />
         </button>
         <Logo onLight className="h-9 max-w-[160px]" />
-        <AdminNotificationsBell companyId={companyId} hasCompany={hasCompany} />
+        <div className="flex items-center gap-2">
+          <ThemeToggle />
+          <AdminNotificationsBell companyId={companyId} hasCompany={hasCompany} />
+        </div>
       </div>
 
       <div className="flex">
@@ -266,7 +280,8 @@ export function AdminShell() {
                 </Link>
               )}
             </div>
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2">
+              <ThemeToggle />
               <AdminNotificationsBell companyId={companyId} hasCompany={hasCompany} />
               <button
                 type="button"

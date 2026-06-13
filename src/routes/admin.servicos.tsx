@@ -7,6 +7,7 @@ import { AdminEmptyState, AdminServiceCardSkeleton } from "@/components/admin/Ad
 import { useCurrentCompany } from "@/lib/current-company";
 import { hasFeatureAccess } from "@/lib/plan-access";
 import { serviceService } from "@/services/serviceService";
+import { ServiceConsumablesEditor } from "@/components/admin/ServiceConsumablesEditor";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -58,6 +59,13 @@ function Servicos() {
     queryFn: () => hasFeatureAccess(companyId!, "packages"),
   });
   const packagesEnabled = Boolean(packagesQuery.data);
+
+  const inventoryQuery = useQuery({
+    queryKey: ["admin", "feature", "inventory", companyId],
+    enabled: hasCompany && Boolean(companyId),
+    queryFn: () => hasFeatureAccess(companyId!, "inventory"),
+  });
+  const inventoryEnabled = Boolean(inventoryQuery.data);
 
   const servicesQuery = useQuery({
     queryKey: ["admin", "services", companyId],
@@ -452,6 +460,10 @@ function Servicos() {
                   Não foi possível salvar. Verifique os campos e tente novamente.
                 </div>
               )}
+
+              {editing?.id ? (
+                <ServiceConsumablesEditor serviceId={editing.id} enabled={inventoryEnabled} />
+              ) : null}
               </div>
 
               <DialogFooter className={adminMobileDialogFooterClass}>

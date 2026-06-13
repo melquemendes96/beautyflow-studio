@@ -756,7 +756,7 @@ function Agendar() {
                     setPackageLookup(null);
                     setClientPackageId(null);
                     setPackageLookupError(
-                      "Seu pacote está aguardando confirmação de pagamento no salão. Compareça no horário agendado.",
+                      "Pacote aguardando confirmação de pagamento no salão. Peça ao caixa/admin para confirmar em Admin → Clientes ou Agenda.",
                     );
                     return;
                   }

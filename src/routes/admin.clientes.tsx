@@ -9,7 +9,7 @@ import { hasFeatureAccess } from "@/lib/plan-access";
 import { clientService } from "@/services/clientService";
 import { serviceService } from "@/services/serviceService";
 import { packageService } from "@/services/packageService";
-import { PendingPackagePaymentsPanel } from "@/components/admin/PendingPackagePaymentsPanel";
+import { ClientPackagesOverviewPanel } from "@/components/admin/ClientPackagesOverviewPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -129,9 +129,10 @@ function Clientes() {
       const payload = res.data as { ok?: boolean; error?: string };
       if (!payload?.ok) throw new Error(payload?.error ?? "Erro ao ativar pacote");
     },
-    onSuccess: () => {
-      toast.success("Pacote ativado — cliente já pode agendar sessões");
+    onSuccess: async () => {
+      toast.success("Pacote ativado manualmente — confirme pagamentos de pacotes online ao fechar a comanda.");
       setPkgForm({ serviceId: "", totalSessions: "", notes: "" });
+      await queryClient.invalidateQueries({ queryKey: ["admin", "packages", "list", companyId] });
     },
     onError: (e: Error) => toast.error(e.message || "Erro ao ativar pacote"),
   });
@@ -201,7 +202,14 @@ function Clientes() {
                 </div>
 
                 {editing && packagesEnabled ? (
-                  <div className="mt-4 rounded-xl border border-gold/30 bg-gold-soft/20 p-4">
+                  <>
+                    <ClientPackagesOverviewPanel
+                      companyId={companyId}
+                      packagesEnabled={packagesEnabled}
+                      clientId={editing.id}
+                      compact
+                    />
+                    <div className="mt-4 rounded-xl border border-gold/30 bg-gold-soft/20 p-4">
                     <h4 className="text-sm font-medium">Ativar pacote pago</h4>
                     <p className="mt-1 text-xs text-muted-foreground">
                       Marque o pacote como pago para liberar agendamento online das sessões.
@@ -233,7 +241,8 @@ function Clientes() {
                         {activatePackageMutation.isPending ? "Ativando…" : "Marcar pacote como pago"}
                       </Button>
                     </div>
-                  </div>
+                    </div>
+                  </>
                 ) : null}
 
                 {saveMutation.error && (
@@ -255,8 +264,6 @@ function Clientes() {
           </Dialog>
         }
       />
-
-      <PendingPackagePaymentsPanel companyId={companyId} packagesEnabled={packagesEnabled} />
 
       <div className="mb-4 relative">
         <Search className="absolute left-4 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />

@@ -9,6 +9,51 @@ export type ProviderCommissionPeriod = {
   appointments: number;
 };
 
+export type ProviderCommissionDay = {
+  date: string;
+  realized_revenue: number;
+  realized_commission: number;
+  realized_appointments: number;
+  upcoming_revenue: number;
+  upcoming_commission: number;
+  upcoming_appointments: number;
+  is_today: boolean;
+  is_past: boolean;
+  is_future: boolean;
+};
+
+export type ProviderCommissionRange = {
+  ok: boolean;
+  error?: string;
+  commission_pct?: number;
+  start_date?: string;
+  end_date?: string;
+  today?: string;
+  realized?: {
+    revenue: number;
+    commission: number;
+    appointments: number;
+    product_sales: number;
+    product_commission: number;
+  };
+  today_block?: {
+    realized_revenue: number;
+    realized_commission: number;
+    realized_appointments: number;
+    upcoming_revenue: number;
+    upcoming_commission: number;
+    upcoming_appointments: number;
+  };
+  upcoming?: {
+    revenue: number;
+    commission: number;
+    appointments: number;
+    product_sales: number;
+    product_commission: number;
+  };
+  days?: ProviderCommissionDay[];
+};
+
 export type ProviderCommissionDashboard = {
   ok: boolean;
   error?: string;
@@ -41,6 +86,15 @@ export const providerService = {
   async getCommissionDashboard(companyId: string) {
     const res = await getSupabase().rpc("provider_commission_dashboard", { p_company_id: companyId });
     return { ...res, data: res.data as ProviderCommissionDashboard | null };
+  },
+
+  async getCommissionRange(companyId: string, startDate: string, endDate: string) {
+    const res = await getSupabase().rpc("provider_commission_range", {
+      p_company_id: companyId,
+      p_start_date: startDate,
+      p_end_date: endDate,
+    });
+    return { ...res, data: res.data as ProviderCommissionRange | null };
   },
 };
 

@@ -19,6 +19,7 @@ export const FEATURE_KEYS = [
   "team",
   "packages",
   "commissions",
+  "inventory",
 ] as const;
 
 export type FeatureKey = (typeof FEATURE_KEYS)[number];
@@ -50,7 +51,7 @@ export function legacyPlanNameAllowsFeature(
   if (feature === "whatsapp" || feature === "automation" || feature === "finance") {
     return isElite;
   }
-  if (feature === "team" || feature === "packages" || feature === "commissions") {
+  if (feature === "team" || feature === "packages" || feature === "commissions" || feature === "inventory") {
     return isElite;
   }
   if (feature === "branding" || feature === "waitlist" || feature === "reports") {
@@ -97,10 +98,11 @@ export function featureToPortugueseLabel(feature: FeatureKey | PlanGatedFeature)
     reports: "relatórios",
     whatsapp: "WhatsApp oficial",
     automation: "automação",
-    finance: "financeiro",
+    finance: "gestão financeira",
     team: "equipe",
     packages: "pacotes",
     commissions: "comissões",
+    inventory: "produtos e estoque",
   };
   return labels[feature] ?? feature;
 }

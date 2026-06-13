@@ -46,11 +46,15 @@ import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
 import { Route as AgendarSlugRouteImport } from './routes/agendar.$slug'
 import { Route as AdminWhatsappRouteImport } from './routes/admin.whatsapp'
 import { Route as AdminServicosRouteImport } from './routes/admin.servicos'
+import { Route as AdminRepassesRouteImport } from './routes/admin.repasses'
 import { Route as AdminRelatoriosRouteImport } from './routes/admin.relatorios'
+import { Route as AdminProdutosRouteImport } from './routes/admin.produtos'
 import { Route as AdminPlanoRouteImport } from './routes/admin.plano'
 import { Route as AdminListaEsperaRouteImport } from './routes/admin.lista-espera'
+import { Route as AdminFinanceiroRouteImport } from './routes/admin.financeiro'
 import { Route as AdminEquipeRouteImport } from './routes/admin.equipe'
 import { Route as AdminConfiguracoesRouteImport } from './routes/admin.configuracoes'
+import { Route as AdminComandasRouteImport } from './routes/admin.comandas'
 import { Route as AdminClientesRouteImport } from './routes/admin.clientes'
 import { Route as AdminBrandingRouteImport } from './routes/admin.branding'
 import { Route as AdminAgendaRouteImport } from './routes/admin.agenda'
@@ -242,9 +246,19 @@ const AdminServicosRoute = AdminServicosRouteImport.update({
   path: '/servicos',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminRepassesRoute = AdminRepassesRouteImport.update({
+  id: '/repasses',
+  path: '/repasses',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminRelatoriosRoute = AdminRelatoriosRouteImport.update({
   id: '/relatorios',
   path: '/relatorios',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminProdutosRoute = AdminProdutosRouteImport.update({
+  id: '/produtos',
+  path: '/produtos',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminPlanoRoute = AdminPlanoRouteImport.update({
@@ -257,6 +271,11 @@ const AdminListaEsperaRoute = AdminListaEsperaRouteImport.update({
   path: '/lista-espera',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminFinanceiroRoute = AdminFinanceiroRouteImport.update({
+  id: '/financeiro',
+  path: '/financeiro',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminEquipeRoute = AdminEquipeRouteImport.update({
   id: '/equipe',
   path: '/equipe',
@@ -265,6 +284,11 @@ const AdminEquipeRoute = AdminEquipeRouteImport.update({
 const AdminConfiguracoesRoute = AdminConfiguracoesRouteImport.update({
   id: '/configuracoes',
   path: '/configuracoes',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminComandasRoute = AdminComandasRouteImport.update({
+  id: '/comandas',
+  path: '/comandas',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminClientesRoute = AdminClientesRouteImport.update({
@@ -314,11 +338,15 @@ export interface FileRoutesByFullPath {
   '/admin/agenda': typeof AdminAgendaRoute
   '/admin/branding': typeof AdminBrandingRoute
   '/admin/clientes': typeof AdminClientesRoute
+  '/admin/comandas': typeof AdminComandasRoute
   '/admin/configuracoes': typeof AdminConfiguracoesRoute
   '/admin/equipe': typeof AdminEquipeRoute
+  '/admin/financeiro': typeof AdminFinanceiroRoute
   '/admin/lista-espera': typeof AdminListaEsperaRoute
   '/admin/plano': typeof AdminPlanoRouteWithChildren
+  '/admin/produtos': typeof AdminProdutosRoute
   '/admin/relatorios': typeof AdminRelatoriosRoute
+  '/admin/repasses': typeof AdminRepassesRoute
   '/admin/servicos': typeof AdminServicosRoute
   '/admin/whatsapp': typeof AdminWhatsappRoute
   '/agendar/$slug': typeof AgendarSlugRoute
@@ -361,11 +389,15 @@ export interface FileRoutesByTo {
   '/admin/agenda': typeof AdminAgendaRoute
   '/admin/branding': typeof AdminBrandingRoute
   '/admin/clientes': typeof AdminClientesRoute
+  '/admin/comandas': typeof AdminComandasRoute
   '/admin/configuracoes': typeof AdminConfiguracoesRoute
   '/admin/equipe': typeof AdminEquipeRoute
+  '/admin/financeiro': typeof AdminFinanceiroRoute
   '/admin/lista-espera': typeof AdminListaEsperaRoute
   '/admin/plano': typeof AdminPlanoRouteWithChildren
+  '/admin/produtos': typeof AdminProdutosRoute
   '/admin/relatorios': typeof AdminRelatoriosRoute
+  '/admin/repasses': typeof AdminRepassesRoute
   '/admin/servicos': typeof AdminServicosRoute
   '/admin/whatsapp': typeof AdminWhatsappRoute
   '/agendar/$slug': typeof AgendarSlugRoute
@@ -411,11 +443,15 @@ export interface FileRoutesById {
   '/admin/agenda': typeof AdminAgendaRoute
   '/admin/branding': typeof AdminBrandingRoute
   '/admin/clientes': typeof AdminClientesRoute
+  '/admin/comandas': typeof AdminComandasRoute
   '/admin/configuracoes': typeof AdminConfiguracoesRoute
   '/admin/equipe': typeof AdminEquipeRoute
+  '/admin/financeiro': typeof AdminFinanceiroRoute
   '/admin/lista-espera': typeof AdminListaEsperaRoute
   '/admin/plano': typeof AdminPlanoRouteWithChildren
+  '/admin/produtos': typeof AdminProdutosRoute
   '/admin/relatorios': typeof AdminRelatoriosRoute
+  '/admin/repasses': typeof AdminRepassesRoute
   '/admin/servicos': typeof AdminServicosRoute
   '/admin/whatsapp': typeof AdminWhatsappRoute
   '/agendar/$slug': typeof AgendarSlugRoute
@@ -462,11 +498,15 @@ export interface FileRouteTypes {
     | '/admin/agenda'
     | '/admin/branding'
     | '/admin/clientes'
+    | '/admin/comandas'
     | '/admin/configuracoes'
     | '/admin/equipe'
+    | '/admin/financeiro'
     | '/admin/lista-espera'
     | '/admin/plano'
+    | '/admin/produtos'
     | '/admin/relatorios'
+    | '/admin/repasses'
     | '/admin/servicos'
     | '/admin/whatsapp'
     | '/agendar/$slug'
@@ -509,11 +549,15 @@ export interface FileRouteTypes {
     | '/admin/agenda'
     | '/admin/branding'
     | '/admin/clientes'
+    | '/admin/comandas'
     | '/admin/configuracoes'
     | '/admin/equipe'
+    | '/admin/financeiro'
     | '/admin/lista-espera'
     | '/admin/plano'
+    | '/admin/produtos'
     | '/admin/relatorios'
+    | '/admin/repasses'
     | '/admin/servicos'
     | '/admin/whatsapp'
     | '/agendar/$slug'
@@ -558,11 +602,15 @@ export interface FileRouteTypes {
     | '/admin/agenda'
     | '/admin/branding'
     | '/admin/clientes'
+    | '/admin/comandas'
     | '/admin/configuracoes'
     | '/admin/equipe'
+    | '/admin/financeiro'
     | '/admin/lista-espera'
     | '/admin/plano'
+    | '/admin/produtos'
     | '/admin/relatorios'
+    | '/admin/repasses'
     | '/admin/servicos'
     | '/admin/whatsapp'
     | '/agendar/$slug'
@@ -875,11 +923,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminServicosRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/repasses': {
+      id: '/admin/repasses'
+      path: '/repasses'
+      fullPath: '/admin/repasses'
+      preLoaderRoute: typeof AdminRepassesRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/relatorios': {
       id: '/admin/relatorios'
       path: '/relatorios'
       fullPath: '/admin/relatorios'
       preLoaderRoute: typeof AdminRelatoriosRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/produtos': {
+      id: '/admin/produtos'
+      path: '/produtos'
+      fullPath: '/admin/produtos'
+      preLoaderRoute: typeof AdminProdutosRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/plano': {
@@ -896,6 +958,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminListaEsperaRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/financeiro': {
+      id: '/admin/financeiro'
+      path: '/financeiro'
+      fullPath: '/admin/financeiro'
+      preLoaderRoute: typeof AdminFinanceiroRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/equipe': {
       id: '/admin/equipe'
       path: '/equipe'
@@ -908,6 +977,13 @@ declare module '@tanstack/react-router' {
       path: '/configuracoes'
       fullPath: '/admin/configuracoes'
       preLoaderRoute: typeof AdminConfiguracoesRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/comandas': {
+      id: '/admin/comandas'
+      path: '/comandas'
+      fullPath: '/admin/comandas'
+      preLoaderRoute: typeof AdminComandasRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/clientes': {
@@ -964,11 +1040,15 @@ interface AdminRouteChildren {
   AdminAgendaRoute: typeof AdminAgendaRoute
   AdminBrandingRoute: typeof AdminBrandingRoute
   AdminClientesRoute: typeof AdminClientesRoute
+  AdminComandasRoute: typeof AdminComandasRoute
   AdminConfiguracoesRoute: typeof AdminConfiguracoesRoute
   AdminEquipeRoute: typeof AdminEquipeRoute
+  AdminFinanceiroRoute: typeof AdminFinanceiroRoute
   AdminListaEsperaRoute: typeof AdminListaEsperaRoute
   AdminPlanoRoute: typeof AdminPlanoRouteWithChildren
+  AdminProdutosRoute: typeof AdminProdutosRoute
   AdminRelatoriosRoute: typeof AdminRelatoriosRoute
+  AdminRepassesRoute: typeof AdminRepassesRoute
   AdminServicosRoute: typeof AdminServicosRoute
   AdminWhatsappRoute: typeof AdminWhatsappRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -978,11 +1058,15 @@ const AdminRouteChildren: AdminRouteChildren = {
   AdminAgendaRoute: AdminAgendaRoute,
   AdminBrandingRoute: AdminBrandingRoute,
   AdminClientesRoute: AdminClientesRoute,
+  AdminComandasRoute: AdminComandasRoute,
   AdminConfiguracoesRoute: AdminConfiguracoesRoute,
   AdminEquipeRoute: AdminEquipeRoute,
+  AdminFinanceiroRoute: AdminFinanceiroRoute,
   AdminListaEsperaRoute: AdminListaEsperaRoute,
   AdminPlanoRoute: AdminPlanoRouteWithChildren,
+  AdminProdutosRoute: AdminProdutosRoute,
   AdminRelatoriosRoute: AdminRelatoriosRoute,
+  AdminRepassesRoute: AdminRepassesRoute,
   AdminServicosRoute: AdminServicosRoute,
   AdminWhatsappRoute: AdminWhatsappRoute,
   AdminIndexRoute: AdminIndexRoute,
