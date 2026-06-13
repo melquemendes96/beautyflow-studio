@@ -49,18 +49,20 @@ export function buildClientManifest(opts: PwaManifestOptions): Record<string, un
     scope: "/",
     display: "standalone",
     orientation: "portrait-primary",
-    background_color: opts.backgroundColor || "#faf9f7",
-    theme_color: opts.themeColor || "#1a1a1a",
+    background_color: opts.backgroundColor || "#000000",
+    theme_color: opts.themeColor || "#000000",
     icons: [
       { src: icon, sizes: "512x512", type: "image/png", purpose: "any" },
-      { src: icon, sizes: "512x512", type: "image/png", purpose: "maskable" },
     ],
   };
 }
 
-export function persistPwaProfile(profile: PwaProfile, slug?: string) {
+export function persistPwaProfile(profile: PwaProfile, slug?: string, iconUrl?: string) {
   try {
-    localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify({ profile, slug: slug ?? null }));
+    localStorage.setItem(
+      PROFILE_STORAGE_KEY,
+      JSON.stringify({ profile, slug: slug ?? null, iconUrl: iconUrl?.trim() || null }),
+    );
   } catch {
     /* ignore */
   }
@@ -69,7 +71,7 @@ export function persistPwaProfile(profile: PwaProfile, slug?: string) {
 export function applyPwaManifest(opts: PwaManifestOptions) {
   if (typeof document === "undefined") return;
 
-  persistPwaProfile(opts.profile, opts.slug);
+  persistPwaProfile(opts.profile, opts.slug, opts.iconUrl);
 
   let href: string;
 
@@ -100,14 +102,13 @@ export function applyPwaManifest(opts: PwaManifestOptions) {
   }
   apple.href = icon;
 
-  const theme = opts.themeColor || "#1a1a1a";
   let themeMeta = document.querySelector<HTMLMetaElement>('meta[name="theme-color"]');
   if (!themeMeta) {
     themeMeta = document.createElement("meta");
     themeMeta.name = "theme-color";
     document.head.appendChild(themeMeta);
   }
-  themeMeta.content = theme;
+  themeMeta.content = opts.themeColor || "#000000";
 
   let appleTitle = document.querySelector<HTMLMetaElement>('meta[name="apple-mobile-web-app-title"]');
   if (!appleTitle) {

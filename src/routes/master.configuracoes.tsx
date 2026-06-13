@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { MasterPageTitle } from "@/components/master/MasterShell";
 import { Settings, CreditCard, Bell, Shield, ExternalLink } from "lucide-react";
 import { PwaInstallTrigger } from "@/components/pwa/PwaInstallTrigger";
+import { PWA_PLATFORM_SPLASH_LOGO } from "@/lib/pwa-splash";
 import { AdminConfigSectionSkeleton } from "@/components/admin/AdminPageStates";
 import { useState } from "react";
 
@@ -34,6 +35,7 @@ function MasterConfiguracoes() {
           profile: "master",
           appName: "JM BeautyFlow Master",
           shortName: "Master",
+          iconUrl: PWA_PLATFORM_SPLASH_LOGO,
         }}
         label="Instalar app master"
         variant="card"

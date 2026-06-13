@@ -15,6 +15,8 @@ import { AuthSessionGate } from "@/components/auth/AuthSessionGate";
 import { OAuthUrlRecovery } from "@/components/auth/OAuthUrlRecovery";
 import { AppToaster } from "@/components/ui/AppToaster";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
+import { PWA_SPLASH_INIT_SCRIPT } from "@/lib/pwa-splash";
+import { PwaSplashOverlay } from "@/components/pwa/PwaSplashOverlay";
 
 function NotFoundComponent() {
   return (
@@ -109,9 +111,11 @@ function RootShell({ children }: { children: React.ReactNode }) {
       <head>
         <HeadContent />
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: PWA_SPLASH_INIT_SCRIPT }} />
         <link rel="manifest" href="/pwa/manifest-admin.webmanifest" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
+        <meta name="theme-color" content="#000000" />
       </head>
       <body>
         {children}
@@ -129,6 +133,7 @@ function RootComponent() {
       <ThemeProvider>
         <AuthProvider>
           <OAuthUrlRecovery />
+          <PwaSplashOverlay />
           <AuthSessionGate>
             <Outlet />
           </AuthSessionGate>

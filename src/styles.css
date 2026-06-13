@@ -250,3 +250,23 @@ div[style*="Edit with Lovable"],
   transform-origin: top center;
 }
 
+@keyframes pwa-splash-logo-in {
+  from {
+    opacity: 0;
+    transform: scale(0.92);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.animate-pwa-splash-logo-in {
+  animation: pwa-splash-logo-in 0.42s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+html.bf-pwa-splash-pending,
+html.bf-pwa-splash-pending body {
+  background-color: #000000 !important;
+}
+
