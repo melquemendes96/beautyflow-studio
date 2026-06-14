@@ -270,3 +270,23 @@ html.bf-pwa-splash-pending body {
   background-color: #000000 !important;
 }
 
+/* Mobile: evita scroll horizontal acidental (tabelas usam .bf-scroll-x) */
+html {
+  overflow-x: clip;
+  width: 100%;
+  max-width: 100%;
+}
+
+body {
+  overflow-x: clip;
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.bf-scroll-x {
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+

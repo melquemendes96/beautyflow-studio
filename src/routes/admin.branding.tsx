@@ -122,12 +122,13 @@ function Branding() {
   const adminManifest = useMemo(
     () => ({
       profile: "admin" as const,
+      slug: publicSlug || undefined,
       appName: b.nome.trim() || "JM BeautyFlow Admin",
       shortName: "Admin",
       iconUrl: b.logo_url || undefined,
       themeColor: b.cor,
     }),
-    [b.nome, b.logo_url, b.cor],
+    [publicSlug, b.nome, b.logo_url, b.cor],
   );
 
   const clientManifest = useMemo(

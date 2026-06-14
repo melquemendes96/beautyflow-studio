@@ -25,7 +25,7 @@ export function AuthSessionGate({ children }: AuthSessionGateProps) {
 
   return (
     <div
-      className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background px-4"
+      className="flex min-h-dvh min-w-0 flex-col items-center justify-center gap-4 overflow-x-clip bg-background px-4"
       role="status"
       aria-live="polite"
     >

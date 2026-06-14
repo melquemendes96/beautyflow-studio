@@ -118,7 +118,7 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
 
   return (
     <div
-      className="relative grid min-h-screen lg:grid-cols-2"
+      className="relative grid min-h-dvh min-w-0 overflow-x-clip lg:grid-cols-2"
       style={{ background: "var(--gradient-hero)" }}
     >
       {redirecting && (
@@ -157,8 +157,8 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
         <div className="text-xs text-background/40">© 2026 JM BeautyFlow</div>
       </div>
 
-      <div className="relative z-10 flex items-center justify-center p-6">
-        <div className="pointer-events-auto w-full max-w-md rounded-3xl border border-border bg-card p-8 shadow-elegant">
+      <div className="relative z-10 flex min-w-0 items-center justify-center overflow-x-clip p-4 sm:p-6">
+        <div className="pointer-events-auto w-full max-w-md min-w-0 rounded-3xl border border-border bg-card p-6 shadow-elegant sm:p-8">
           <div className="mb-6 lg:hidden">
             <Logo onLight className="h-14 max-w-[260px]" />
           </div>

@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { PageTitle } from "@/components/admin/AdminShell";
 import { PwaInstallTrigger } from "@/components/pwa/PwaInstallTrigger";
 import { displayStudioName } from "@/lib/branding-utils";
+import { normalizePublicBookingSlug } from "@/lib/public-booking-slug";
 import { useCurrentCompany } from "@/lib/current-company";
 import { useQuery } from "@tanstack/react-query";
 import { brandingService } from "@/services/brandingService";
@@ -40,12 +41,15 @@ function AdminAppInstall() {
   const manifest = useMemo(
     () => ({
       profile: "staff" as const,
+      slug: companyQuery.data?.slug
+        ? normalizePublicBookingSlug(String(companyQuery.data.slug))
+        : undefined,
       appName: `${studioName} — Equipe`,
       shortName: "Equipe",
       iconUrl: (brandingQuery.data as { logo_url?: string } | null)?.logo_url,
       themeColor: (brandingQuery.data as { primary_color?: string } | null)?.primary_color ?? "#1a1a1a",
     }),
-    [studioName, brandingQuery.data],
+    [companyQuery.data?.slug, studioName, brandingQuery.data],
   );
 
   return (

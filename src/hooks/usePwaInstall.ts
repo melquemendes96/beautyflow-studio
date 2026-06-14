@@ -50,6 +50,10 @@ export function usePwaInstall(options: PwaManifestOptions | null) {
   }, []);
 
   const install = useCallback(async () => {
+    if (options) {
+      applyPwaManifest(options);
+    }
+
     if (installed) return { ok: true as const, already: true };
 
     if (isIos) {
@@ -72,7 +76,7 @@ export function usePwaInstall(options: PwaManifestOptions | null) {
       return { ok: true as const };
     }
     return { ok: false as const, reason: "dismissed" as const };
-  }, [installed, isIos]);
+  }, [installed, isIos, options]);
 
   return {
     installed,

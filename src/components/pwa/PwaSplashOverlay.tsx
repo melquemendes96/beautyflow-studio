@@ -2,12 +2,13 @@ import { useEffect, useState } from "react";
 import { cn } from "@/lib/utils";
 import { isPwaStandalone } from "@/lib/pwa-install";
 import {
+  PWA_SPLASH_ENTER_MS,
   PWA_SPLASH_FADE_MS,
   PWA_SPLASH_HOLD_MS,
   PWA_SPLASH_SESSION_KEY,
   preloadSplashImage,
   readStoredPwaProfile,
-  resolveSplashLogoUrl,
+  resolveSplashLogoUrlAsync,
 } from "@/lib/pwa-splash";
 
 type Phase = "loading" | "enter" | "hold" | "fade" | "done";
@@ -30,31 +31,34 @@ export function PwaSplashOverlay() {
       return;
     }
 
-    const stored = readStoredPwaProfile();
-    const src = resolveSplashLogoUrl(stored?.iconUrl);
-    setLogoUrl(src);
-
     let holdTimer: ReturnType<typeof window.setTimeout> | undefined;
     let fadeTimer: ReturnType<typeof window.setTimeout> | undefined;
     let doneTimer: ReturnType<typeof window.setTimeout> | undefined;
     let cancelled = false;
 
-    void preloadSplashImage(src).then(() => {
+    void (async () => {
+      const stored = readStoredPwaProfile();
+      const src = await resolveSplashLogoUrlAsync(stored);
       if (cancelled) return;
+
+      setLogoUrl(src);
+      await preloadSplashImage(src);
+      if (cancelled) return;
+
       setPhase("enter");
       holdTimer = window.setTimeout(() => {
         if (!cancelled) setPhase("hold");
-      }, 180);
+      }, PWA_SPLASH_ENTER_MS);
       fadeTimer = window.setTimeout(() => {
         if (!cancelled) setPhase("fade");
-      }, 180 + PWA_SPLASH_HOLD_MS);
+      }, PWA_SPLASH_ENTER_MS + PWA_SPLASH_HOLD_MS);
       doneTimer = window.setTimeout(() => {
         if (cancelled) return;
         sessionStorage.setItem(PWA_SPLASH_SESSION_KEY, "1");
         setPhase("done");
         cleanupHtml();
-      }, 180 + PWA_SPLASH_HOLD_MS + PWA_SPLASH_FADE_MS);
-    });
+      }, PWA_SPLASH_ENTER_MS + PWA_SPLASH_HOLD_MS + PWA_SPLASH_FADE_MS);
+    })();
 
     return () => {
       cancelled = true;
@@ -70,7 +74,16 @@ export function PwaSplashOverlay() {
   }
 
   if (phase === "loading" || !logoUrl) {
-    return <div className="fixed inset-0 z-[99999] bg-black" aria-hidden />;
+    return (
+      <div
+        className="fixed inset-0 z-[99999] bg-black"
+        style={{
+          paddingTop: "env(safe-area-inset-top)",
+          paddingBottom: "env(safe-area-inset-bottom)",
+        }}
+        aria-hidden
+      />
+    );
   }
 
   const isFading = phase === "fade";
@@ -82,20 +95,27 @@ export function PwaSplashOverlay() {
         "transition-opacity ease-out",
         isFading ? "pointer-events-none opacity-0" : "opacity-100",
       )}
-      style={{ transitionDuration: `${PWA_SPLASH_FADE_MS}ms` }}
+      style={{
+        transitionDuration: `${PWA_SPLASH_FADE_MS}ms`,
+        paddingTop: "env(safe-area-inset-top)",
+        paddingBottom: "env(safe-area-inset-bottom)",
+        paddingLeft: "env(safe-area-inset-left)",
+        paddingRight: "env(safe-area-inset-right)",
+      }}
       aria-hidden={isFading}
     >
-      <img
-        src={logoUrl}
-        alt=""
-        className={cn(
-          "block max-h-[min(44vh,300px)] w-auto max-w-[min(90vw,360px)] object-contain px-6",
-          phase === "enter" && "animate-pwa-splash-logo-in",
-          (phase === "hold" || phase === "fade") && "opacity-100",
-        )}
-        decoding="sync"
-        fetchPriority="high"
-      />
+      <div className="flex max-h-full max-w-full items-center justify-center px-8 py-10">
+        <img
+          src={logoUrl}
+          alt=""
+          className={cn(
+            "block h-auto w-auto max-h-[min(52dvh,340px)] max-w-[min(88vw,380px)] object-contain",
+            phase === "enter" && "animate-pwa-splash-logo-in",
+          )}
+          decoding="sync"
+          fetchPriority="high"
+        />
+      </div>
     </div>
   );
 }

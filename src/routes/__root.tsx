@@ -20,7 +20,7 @@ import { PwaSplashOverlay } from "@/components/pwa/PwaSplashOverlay";
 
 function NotFoundComponent() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+    <div className="flex min-h-screen min-w-0 flex-col items-center justify-center overflow-x-clip bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-7xl font-bold text-foreground">404</h1>
         <h2 className="mt-4 text-xl font-semibold text-foreground">Page not found</h2>
@@ -45,7 +45,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   const router = useRouter();
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-background px-4">
+    <div className="flex min-h-screen min-w-0 flex-col items-center justify-center overflow-x-clip bg-background px-4">
       <div className="max-w-md text-center">
         <h1 className="text-xl font-semibold tracking-tight text-foreground">
           This page didn't load
@@ -79,7 +79,7 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
   head: () => ({
     meta: [
       { charSet: "utf-8" },
-      { name: "viewport", content: "width=device-width, initial-scale=1" },
+      { name: "viewport", content: "width=device-width, initial-scale=1, viewport-fit=cover" },
       { title: "JM BeautyFlow — Agenda inteligente para negócios de beleza" },
       { name: "description", content: "Sistema de agendamento online premium para salões, studios de beleza, lash designers, manicures e profissionais autônomas." },
       { property: "og:title", content: "JM BeautyFlow — Agenda inteligente para negócios de beleza" },
@@ -117,7 +117,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="theme-color" content="#000000" />
       </head>
-      <body>
+      <body className="min-h-dvh overflow-x-clip antialiased">
         {children}
         <Scripts />
       </body>

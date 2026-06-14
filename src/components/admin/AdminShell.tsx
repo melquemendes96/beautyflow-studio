@@ -161,8 +161,8 @@ export function AdminShell() {
 
   if (!profileReady || isLoading || !session) {
     return (
-      <div className="min-h-screen bg-secondary/30">
-        <div className="mx-auto flex min-h-screen max-w-md items-center justify-center px-6 text-center">
+      <div className="min-h-dvh overflow-x-clip bg-secondary/30">
+        <div className="mx-auto flex min-h-dvh max-w-md min-w-0 items-center justify-center px-6 text-center">
           <div className="rounded-3xl border border-border bg-card p-8 shadow-elegant">
             <Logo onLight className="mx-auto h-11 max-w-[240px]" />
             <div className="mt-4 font-display text-xl">Carregando seu painel…</div>
@@ -176,7 +176,7 @@ export function AdminShell() {
   }
 
   return (
-    <div className="min-h-screen bg-secondary/30">
+    <div className="min-h-dvh min-w-0 overflow-x-clip bg-secondary/30">
       {/* Mobile topbar */}
       <div className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur lg:hidden">
         <button
@@ -194,7 +194,7 @@ export function AdminShell() {
         </div>
       </div>
 
-      <div className="flex">
+      <div className="flex min-w-0 overflow-x-clip">
         {/* Sidebar */}
         <aside
           className={`fixed inset-y-0 left-0 z-40 w-72 transform border-r border-sidebar-border bg-sidebar transition-transform lg:sticky lg:top-0 lg:h-screen lg:translate-x-0 ${
@@ -293,7 +293,7 @@ export function AdminShell() {
               </button>
             </div>
           </div>
-          <div className="p-5 md:p-8">
+          <div className="min-w-0 overflow-x-clip p-4 sm:p-5 md:p-8">
             <Outlet />
           </div>
         </main>
