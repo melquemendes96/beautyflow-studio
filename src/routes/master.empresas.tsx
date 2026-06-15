@@ -25,6 +25,7 @@ import {
 } from "@/lib/plan-select-value";
 import { toast } from "sonner";
 import { formatSupabaseApiError } from "@/lib/format-supabase-api-error";
+import { isValidPublicBookingSlug, normalizePublicBookingSlug } from "@/lib/public-booking-slug";
 
 export const Route = createFileRoute("/master/empresas")({
   component: MasterEmpresas,
@@ -330,13 +331,29 @@ function MasterEmpresas() {
                   const orphanPlan =
                     Boolean(pid) && pid !== NO_PLAN_SELECT_VALUE && !planCatalogIds.has(pid);
                   const selectValue = planIdToSelectValue(c.plan_id);
+                  const bookingSlug = normalizePublicBookingSlug(c.slug ?? "");
+                  const bookingSlugValid = bookingSlug.length > 0 && isValidPublicBookingSlug(bookingSlug);
 
                   return (
                     <tr key={c.id} className="border-b border-border/60 last:border-b-0">
                       <td className="px-5 py-4">
                         <div className="font-medium text-foreground">{c.name ?? "—"}</div>
                       </td>
-                      <td className="px-5 py-4 text-muted-foreground">{c.slug ?? "—"}</td>
+                      <td className="px-5 py-4">
+                        {bookingSlugValid ? (
+                          <a
+                            href={`/agendar/${encodeURIComponent(bookingSlug)}`}
+                            target="_blank"
+                            rel="noreferrer"
+                            title={`Abrir agendamento de ${c.name ?? bookingSlug}`}
+                            className="font-mono text-primary hover:underline"
+                          >
+                            {bookingSlug}
+                          </a>
+                        ) : (
+                          <span className="text-muted-foreground">—</span>
+                        )}
+                      </td>
                       <td className="px-5 py-4 text-muted-foreground">{c.email ?? "—"}</td>
                       <td className="px-5 py-4 text-muted-foreground">{c.phone ?? "—"}</td>
                       <td className="px-5 py-4">
