@@ -1,6 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageTitle } from "@/components/admin/AdminShell";
 import { PwaInstallTrigger } from "@/components/pwa/PwaInstallTrigger";
+import { PushNotificationSetup } from "@/components/admin/PushNotificationSetup";
 import { displayStudioName } from "@/lib/branding-utils";
 import { normalizePublicBookingSlug } from "@/lib/public-booking-slug";
 import { useCurrentCompany } from "@/lib/current-company";
@@ -63,6 +64,11 @@ function AdminAppInstall() {
         }
       />
       <PwaInstallTrigger manifest={manifest} label="Instalar app da equipe" variant="card" />
+      <PushNotificationSetup
+        companyId={companyId}
+        hasCompany={hasCompany}
+        profile="staff"
+      />
       <div className="rounded-2xl border border-dashed border-border bg-secondary/20 p-4 text-xs leading-relaxed text-muted-foreground">
         Após instalar, abra pelo ícone na home e entre com seu e-mail de colaborador. O app abre direto na agenda e
         repasses.

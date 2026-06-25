@@ -14,18 +14,27 @@ import { cn } from "@/lib/utils";
 
 export type AdminFeedItem = {
   id: string;
-  kind: "payment" | "ticket" | "booking";
+  kind: "payment" | "ticket" | "booking" | "cancellation";
   title: string;
   subtitle: string;
   at: string;
   href?: string;
 };
 
-function buildAdminFeed(payments: unknown[], tickets: unknown[], appointments: unknown[]): AdminFeedItem[] {
+function buildAdminFeed(
+  payments: unknown[],
+  tickets: unknown[],
+  appointments: unknown[],
+  cancellations: unknown[],
+): AdminFeedItem[] {
   const out: AdminFeedItem[] = [];
+  const bookingIds = new Set<string>();
 
   for (const raw of appointments) {
     const a = raw as Record<string, unknown>;
+    if (String(a.status ?? "") === "cancelled") continue;
+    const id = String(a.id ?? "");
+    bookingIds.add(id);
     const client = a.client as Record<string, unknown> | null | undefined;
     const service = a.service as Record<string, unknown> | null | undefined;
     const dateYmd = formatAppointmentDateYmd(a.appointment_date);
@@ -36,11 +45,34 @@ function buildAdminFeed(payments: unknown[], tickets: unknown[], appointments: u
       ? new Date(`${dateYmd}T12:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })
       : "";
     out.push({
-      id: `appt:${String(a.id ?? "")}`,
+      id: `appt:${id}`,
       kind: "booking",
       title: "Novo agendamento recebido",
       subtitle: `${clientName} · ${serviceName}${dateLabel && timeHm ? ` · ${dateLabel} ${timeHm}` : ""}`,
       at: String(a.created_at ?? ""),
+      href: "/admin/agenda",
+    });
+  }
+
+  for (const raw of cancellations) {
+    const a = raw as Record<string, unknown>;
+    const id = String(a.id ?? "");
+    if (!id || bookingIds.has(id)) continue;
+    const client = a.client as Record<string, unknown> | null | undefined;
+    const service = a.service as Record<string, unknown> | null | undefined;
+    const dateYmd = formatAppointmentDateYmd(a.appointment_date);
+    const timeHm = formatAppointmentTimeHm(a.appointment_time);
+    const clientName = String(client?.name ?? "Cliente");
+    const serviceName = String(service?.name ?? "Serviço");
+    const dateLabel = dateYmd
+      ? new Date(`${dateYmd}T12:00:00`).toLocaleDateString("pt-BR", { day: "2-digit", month: "short" })
+      : "";
+    out.push({
+      id: `cancel:${id}`,
+      kind: "cancellation",
+      title: "Agendamento cancelado",
+      subtitle: `${clientName} · ${serviceName}${dateLabel && timeHm ? ` · ${dateLabel} ${timeHm}` : ""}`,
+      at: String(a.updated_at ?? a.created_at ?? ""),
       href: "/admin/agenda",
     });
   }
@@ -93,18 +125,21 @@ export function AdminNotificationsBell({ companyId, hasCompany }: AdminNotificat
     enabled: hasCompany && Boolean(companyId),
     queryFn: async () => {
       const cid = companyId!;
-      const [payRes, tickRes, apptRes] = await Promise.all([
+      const [payRes, tickRes, apptRes, cancelRes] = await Promise.all([
         paymentService.listRecentPaidForCompany(cid, 40),
         supportTicketService.listRecentForCompany(cid, 40),
         appointmentService.listRecentByCompany(cid, 40),
+        appointmentService.listRecentCancellationsByCompany(cid, 25),
       ]);
       if (payRes.error) throw payRes.error;
       if (tickRes.error) throw tickRes.error;
       if (apptRes.error) throw apptRes.error;
+      if (cancelRes.error) throw cancelRes.error;
       return {
         payments: payRes.data ?? [],
         tickets: tickRes.data ?? [],
         appointments: apptRes.data ?? [],
+        cancellations: cancelRes.data ?? [],
       };
     },
     refetchInterval: 45_000,
@@ -117,8 +152,9 @@ export function AdminNotificationsBell({ companyId, hasCompany }: AdminNotificat
         feedQuery.data?.payments ?? [],
         feedQuery.data?.tickets ?? [],
         feedQuery.data?.appointments ?? [],
+        feedQuery.data?.cancellations ?? [],
       ),
-    [feedQuery.data?.payments, feedQuery.data?.tickets, feedQuery.data?.appointments],
+    [feedQuery.data?.payments, feedQuery.data?.tickets, feedQuery.data?.appointments, feedQuery.data?.cancellations],
   );
 
   const unreadCount = useMemo(

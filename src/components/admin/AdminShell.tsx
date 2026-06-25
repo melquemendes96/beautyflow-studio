@@ -14,6 +14,7 @@ import {
   Package, HandCoins, Landmark, Smartphone,
 } from "lucide-react";
 import { AdminNotificationsBell } from "@/components/admin/AdminNotificationsBell";
+import { PushNotificationSetup } from "@/components/admin/PushNotificationSetup";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
@@ -190,6 +191,7 @@ export function AdminShell() {
         <Logo onLight className="h-9 max-w-[160px]" />
         <div className="flex items-center gap-2">
           <ThemeToggle />
+          <PushNotificationSetup companyId={companyId} hasCompany={hasCompany} compact />
           <AdminNotificationsBell companyId={companyId} hasCompany={hasCompany} />
         </div>
       </div>
@@ -283,6 +285,7 @@ export function AdminShell() {
             </div>
             <div className="flex items-center gap-2">
               <ThemeToggle />
+              <PushNotificationSetup companyId={companyId} hasCompany={hasCompany} compact />
               <AdminNotificationsBell companyId={companyId} hasCompany={hasCompany} />
               <button
                 type="button"

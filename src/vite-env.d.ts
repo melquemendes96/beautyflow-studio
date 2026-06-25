@@ -7,6 +7,8 @@ interface ImportMetaEnv {
   readonly VITE_SUPABASE_PROJECT_ID: string | undefined;
   /** Chave pública Mercado Pago (não confundir com access token). */
   readonly VITE_MERCADO_PAGO_PUBLIC_KEY: string | undefined;
+  /** Chave pública VAPID (Web Push). */
+  readonly VITE_VAPID_PUBLIC_KEY: string | undefined;
 }
 
 interface ImportMeta {

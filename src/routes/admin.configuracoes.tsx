@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageTitle } from "@/components/admin/AdminShell";
+import { PushNotificationSetup } from "@/components/admin/PushNotificationSetup";
 import { useEffect, useMemo, useState } from "react";
 import { useCurrentCompany } from "@/lib/current-company";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -163,6 +164,10 @@ function Config() {
   return (
     <div>
       <PageTitle title="Configurações" subtitle="Ajustes da sua empresa e preferências de agendamento" />
+
+      <div className="mb-8">
+        <PushNotificationSetup companyId={companyId} hasCompany={hasCompany} />
+      </div>
 
       {(settingsQuery.isError || companyQuery.isError) && (
         <div className="mb-6 rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">

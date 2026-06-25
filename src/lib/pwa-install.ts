@@ -1,3 +1,5 @@
+import { normalizePublicBookingSlug, isValidPublicBookingSlug } from "@/lib/public-booking-slug";
+
 export type PwaProfile = "client" | "admin" | "staff" | "master";
 
 export type PwaManifestOptions = {
@@ -18,8 +20,6 @@ const STATIC_MANIFEST: Record<Exclude<PwaProfile, "client">, string> = {
 
 const PROFILE_STORAGE_KEY = "bf_pwa_profile_v1";
 
-let manifestObjectUrl: string | null = null;
-
 function truncateShortName(name: string, max = 12): string {
   const t = name.trim();
   if (t.length <= max) return t;
@@ -34,17 +34,23 @@ function absoluteIcon(iconUrl: string | undefined): string {
   return `${window.location.origin}${raw.startsWith("/") ? raw : `/${raw}`}`;
 }
 
+/** URL do manifest estático por salão (iOS respeita melhor que blob). */
+export function getClientManifestHref(slug: string): string {
+  const normalized = normalizePublicBookingSlug(slug);
+  return `/pwa/manifest-client/${encodeURIComponent(normalized)}.webmanifest`;
+}
+
 export function buildClientManifest(opts: PwaManifestOptions): Record<string, unknown> {
   const name = opts.appName?.trim() || "Meu salão";
   const short = truncateShortName(opts.shortName?.trim() || name, 14);
-  const slug = opts.slug?.trim() || "";
-  const startUrl = slug ? `/cliente?slug=${encodeURIComponent(slug)}` : "/cliente";
+  const slug = normalizePublicBookingSlug(opts.slug ?? "");
+  const startUrl = slug && isValidPublicBookingSlug(slug) ? `/agendar/${encodeURIComponent(slug)}` : "/";
   const icon = absoluteIcon(opts.iconUrl);
 
   return {
     name: `${name} — Agendamentos`,
     short_name: short,
-    description: `App de agendamentos — ${name}`,
+    description: `Agende horários em ${name}`,
     start_url: startUrl,
     scope: "/",
     display: "standalone",
@@ -53,6 +59,7 @@ export function buildClientManifest(opts: PwaManifestOptions): Record<string, un
     theme_color: opts.themeColor || "#000000",
     icons: [
       { src: icon, sizes: "512x512", type: "image/png", purpose: "any" },
+      { src: icon, sizes: "192x192", type: "image/png", purpose: "any" },
     ],
   };
 }
@@ -75,12 +82,10 @@ export function applyPwaManifest(opts: PwaManifestOptions) {
 
   let href: string;
 
-  if (opts.profile === "client") {
-    const manifest = buildClientManifest(opts);
-    const blob = new Blob([JSON.stringify(manifest)], { type: "application/json" });
-    if (manifestObjectUrl) URL.revokeObjectURL(manifestObjectUrl);
-    manifestObjectUrl = URL.createObjectURL(blob);
-    href = manifestObjectUrl;
+  if (opts.profile === "client" && opts.slug && isValidPublicBookingSlug(normalizePublicBookingSlug(opts.slug))) {
+    href = getClientManifestHref(opts.slug);
+  } else if (opts.profile === "client") {
+    href = getClientManifestHref("exemplo");
   } else {
     href = STATIC_MANIFEST[opts.profile];
   }
@@ -147,4 +152,14 @@ export function isIosSafari(): boolean {
   const isIos = /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   const isSafari = /Safari/.test(ua) && !/CriOS|FxiOS|EdgiOS|OPiOS/.test(ua);
   return isIos && isSafari;
+}
+
+export function isIosDevice(): boolean {
+  if (typeof navigator === "undefined") return false;
+  const ua = navigator.userAgent;
+  return /iPad|iPhone|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+}
+
+export function getPwaInstallLabel(isIos: boolean): string {
+  return isIos ? "Instalar na tela inicial" : "Baixar app";
 }

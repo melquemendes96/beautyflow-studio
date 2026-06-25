@@ -1,7 +1,10 @@
-import { Download, Smartphone, Share, PlusSquare } from "lucide-react";
+import { useState } from "react";
+import { Download, Smartphone, Share, PlusSquare, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { usePwaInstall } from "@/hooks/usePwaInstall";
 import type { PwaManifestOptions } from "@/lib/pwa-install";
+import { getPwaInstallLabel, isIosDevice } from "@/lib/pwa-install";
+import { IosInstallGuideVisual } from "@/components/pwa/IosInstallGuideVisual";
 import {
   Dialog,
   DialogContent,
@@ -21,12 +24,14 @@ type Props = {
 
 export function PwaInstallTrigger({
   manifest,
-  label = "Baixar app",
+  label,
   variant = "pill",
   className,
   primaryColor,
 }: Props) {
-  const { installed, install, iosGuideOpen, setIosGuideOpen, isIos } = usePwaInstall(manifest);
+  const isIos = isIosDevice();
+  const installLabel = label ?? getPwaInstallLabel(isIos);
+  const { installed, install, iosGuideOpen, setIosGuideOpen } = usePwaInstall(manifest);
 
   const onClick = () => {
     void install();
@@ -54,6 +59,15 @@ export function PwaInstallTrigger({
     );
   }
 
+  const iosDialog = (
+    <IosInstallDialog
+      open={iosGuideOpen}
+      onOpenChange={setIosGuideOpen}
+      appName={manifest.appName}
+      isIos={isIos}
+    />
+  );
+
   if (variant === "pill") {
     return (
       <>
@@ -70,10 +84,14 @@ export function PwaInstallTrigger({
               : undefined
           }
         >
-          <Download className="size-4 shrink-0 opacity-90" />
-          <span className="font-medium">{label}</span>
+          {isIos ? (
+            <PlusSquare className="size-4 shrink-0 opacity-90" />
+          ) : (
+            <Download className="size-4 shrink-0 opacity-90" />
+          )}
+          <span className="font-medium">{installLabel}</span>
         </button>
-        <IosInstallDialog open={iosGuideOpen} onOpenChange={setIosGuideOpen} appName={manifest.appName} isIos={isIos} />
+        {iosDialog}
       </>
     );
   }
@@ -82,10 +100,10 @@ export function PwaInstallTrigger({
     return (
       <>
         <Button type="button" onClick={onClick} className={cn("rounded-full gap-2", className)}>
-          <Download className="size-4" />
-          {label}
+          {isIos ? <PlusSquare className="size-4" /> : <Download className="size-4" />}
+          {installLabel}
         </Button>
-        <IosInstallDialog open={iosGuideOpen} onOpenChange={setIosGuideOpen} appName={manifest.appName} isIos={isIos} />
+        {iosDialog}
       </>
     );
   }
@@ -105,16 +123,18 @@ export function PwaInstallTrigger({
           <div className="min-w-0 flex-1">
             <h3 className="font-display text-base font-semibold">Instalar aplicativo</h3>
             <p className="mt-1 text-sm text-muted-foreground">
-              Acesso rápido na tela inicial do celular — funciona como um app nativo.
+              {isIos
+                ? "Atalho na tela inicial — abre direto a página de agendamento do salão."
+                : "Acesso rápido na tela inicial do celular — funciona como um app nativo."}
             </p>
             <Button type="button" className="mt-4 rounded-full gap-2" onClick={onClick}>
-              <Download className="size-4" />
-              {label}
+              {isIos ? <PlusSquare className="size-4" /> : <Download className="size-4" />}
+              {installLabel}
             </Button>
           </div>
         </div>
       </div>
-      <IosInstallDialog open={iosGuideOpen} onOpenChange={setIosGuideOpen} appName={manifest.appName} isIos={isIos} />
+      {iosDialog}
     </>
   );
 }
@@ -130,33 +150,85 @@ function IosInstallDialog({
   appName?: string;
   isIos: boolean;
 }) {
+  const [step, setStep] = useState<1 | 2 | 3>(1);
+
+  const handleOpenChange = (v: boolean) => {
+    if (!v) setStep(1);
+    onOpenChange(v);
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="max-h-[90vh] max-w-sm overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Instalar {appName?.trim() || "o app"}</DialogTitle>
+          <DialogTitle>
+            {isIos ? "Instalar na tela inicial" : "Instalar app"}
+            {appName?.trim() ? ` — ${appName.trim()}` : ""}
+          </DialogTitle>
           <DialogDescription>
             {isIos
-              ? "No iPhone, use o menu Compartilhar do Safari:"
-              : "Se o botão de instalação não apareceu, use o menu do navegador:"}
+              ? "Use o Safari (não o navegador do Instagram/WhatsApp). Siga os 3 passos:"
+              : "Se o botão de instalação não apareceu, use o menu do navegador."}
           </DialogDescription>
         </DialogHeader>
-        <ol className="space-y-3 text-sm text-muted-foreground">
-          <li className="flex items-start gap-2">
-            <Share className="mt-0.5 size-4 shrink-0 text-primary" />
-            <span>Toque em <strong className="text-foreground">Compartilhar</strong> (ícone na barra inferior do Safari)</span>
-          </li>
-          <li className="flex items-start gap-2">
-            <PlusSquare className="mt-0.5 size-4 shrink-0 text-primary" />
-            <span>
-              Escolha <strong className="text-foreground">Adicionar à Tela de Início</strong>
-            </span>
-          </li>
-          <li className="flex items-start gap-2">
-            <Smartphone className="mt-0.5 size-4 shrink-0 text-primary" />
-            <span>Confirme — o ícone aparecerá na home do celular</span>
-          </li>
-        </ol>
+
+        {isIos ? (
+          <>
+            <div className="flex gap-1">
+              {([1, 2, 3] as const).map((n) => (
+                <button
+                  key={n}
+                  type="button"
+                  onClick={() => setStep(n)}
+                  className={cn(
+                    "flex-1 rounded-full py-1.5 text-xs font-medium transition",
+                    step === n ? "bg-primary text-primary-foreground" : "bg-secondary text-muted-foreground",
+                  )}
+                >
+                  Passo {n}
+                </button>
+              ))}
+            </div>
+            <IosInstallGuideVisual appName={appName} step={step} />
+            <ol className="space-y-2 text-sm text-muted-foreground">
+              <li className="flex items-start gap-2">
+                <Share className="mt-0.5 size-4 shrink-0 text-primary" />
+                <span>
+                  <strong className="text-foreground">Compartilhar</strong> — ícone na barra inferior do Safari
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <PlusSquare className="mt-0.5 size-4 shrink-0 text-primary" />
+                <span>
+                  <strong className="text-foreground">Adicionar à Tela de Início</strong>
+                </span>
+              </li>
+              <li className="flex items-start gap-2">
+                <Smartphone className="mt-0.5 size-4 shrink-0 text-primary" />
+                <span>
+                  Toque em <strong className="text-foreground">Adicionar</strong> — o ícone abrirá o agendamento do
+                  salão
+                </span>
+              </li>
+            </ol>
+            {step < 3 ? (
+              <Button type="button" className="w-full rounded-full gap-2" onClick={() => setStep((s) => (s < 3 ? ((s + 1) as 1 | 2 | 3) : s))}>
+                Próximo passo
+                <ChevronRight className="size-4" />
+              </Button>
+            ) : null}
+          </>
+        ) : (
+          <ol className="space-y-3 text-sm text-muted-foreground">
+            <li className="flex items-start gap-2">
+              <Share className="mt-0.5 size-4 shrink-0 text-primary" />
+              <span>
+                Menu do navegador → <strong className="text-foreground">Instalar app</strong> ou{" "}
+                <strong className="text-foreground">Adicionar à tela inicial</strong>
+              </span>
+            </li>
+          </ol>
+        )}
       </DialogContent>
     </Dialog>
   );

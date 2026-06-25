@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import {
   applyPwaManifest,
-  isIosSafari,
+  isIosDevice,
   isPwaStandalone,
   registerPwaServiceWorker,
   type PwaManifestOptions,
@@ -17,7 +17,7 @@ export function usePwaInstall(options: PwaManifestOptions | null) {
   const [installed, setInstalled] = useState(false);
   const [canNativeInstall, setCanNativeInstall] = useState(false);
   const [iosGuideOpen, setIosGuideOpen] = useState(false);
-  const isIos = isIosSafari();
+  const isIos = isIosDevice();
 
   useEffect(() => {
     setInstalled(isPwaStandalone());

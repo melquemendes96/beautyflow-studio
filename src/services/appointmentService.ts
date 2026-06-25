@@ -63,9 +63,19 @@ export const appointmentService = {
   listRecentByCompany(companyId: string, limit = 40) {
     return getSupabase()
       .from("appointments")
-      .select("id,created_at,appointment_date,appointment_time,status,client:clients(name,whatsapp,email),service:services(name)")
+      .select("id,created_at,updated_at,appointment_date,appointment_time,status,client:clients(name,whatsapp,email),service:services(name)")
       .eq("company_id", companyId)
       .order("created_at", { ascending: false })
+      .limit(limit);
+  },
+
+  listRecentCancellationsByCompany(companyId: string, limit = 25) {
+    return getSupabase()
+      .from("appointments")
+      .select("id,created_at,updated_at,appointment_date,appointment_time,status,client:clients(name,whatsapp,email),service:services(name)")
+      .eq("company_id", companyId)
+      .eq("status", "cancelled")
+      .order("updated_at", { ascending: false })
       .limit(limit);
   },
 
