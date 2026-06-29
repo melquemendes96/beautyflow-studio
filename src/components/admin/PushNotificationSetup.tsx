@@ -54,7 +54,7 @@ export function PushNotificationSetup({
     const res = await subscribe();
     if (res.ok) {
       toast.success("Notificações ativadas", {
-        description: "Você receberá alertas de agendamentos, pagamentos e cancelamentos.",
+        description: "Com o app fechado, alertas aparecem na barra do celular com som. Com o app aberto, o sino avisa.",
       });
     } else if (res.error === "denied") {
       toast.error("Permissão negada. Ative notificações nas configurações do aparelho.");
@@ -88,7 +88,8 @@ export function PushNotificationSetup({
         <div>
           <p className="text-sm font-medium">Notificações no celular</p>
           <p className="mt-1 text-xs text-muted-foreground">
-            Alertas na barra do sistema para novos agendamentos, pagamentos e cancelamentos (iOS e Android).
+            Com o app <strong>fechado</strong>: alerta na barra do sistema com som (pagamentos com som de caixa).
+            Com o app <strong>aberto</strong>: use o sino no topo.
           </p>
         </div>
         <Button

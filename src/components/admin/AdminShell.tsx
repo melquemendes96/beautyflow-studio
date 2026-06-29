@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { AdminNotificationsBell } from "@/components/admin/AdminNotificationsBell";
 import { PushNotificationSetup } from "@/components/admin/PushNotificationSetup";
+import { useServiceWorkerPushBridge } from "@/hooks/useServiceWorkerPushBridge";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
@@ -52,6 +53,7 @@ export function AdminShell() {
     ensureFullProfile,
   } = useAuth();
   const { companyId, hasCompany, isProvider } = useCurrentCompany();
+  useServiceWorkerPushBridge(companyId, hasCompany);
   const membershipSyncRef = useRef(0);
 
   const companyQuery = useQuery({

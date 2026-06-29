@@ -8,6 +8,7 @@ import { appointmentService } from "@/services/appointmentService";
 import { paymentService } from "@/services/paymentService";
 import { supportTicketService } from "@/services/supportTicketService";
 import { addReadAdminNotificationIds, getReadAdminNotificationIds } from "@/lib/admin-notification-read";
+import { playPaymentNotificationSound } from "@/lib/notification-sounds";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
@@ -178,6 +179,9 @@ export function AdminNotificationsBell({ companyId, hasCompany }: AdminNotificat
       const key = `${companyId}:${it.id}`;
       if (toastedOnSession.current.has(key)) continue;
       toastedOnSession.current.add(key);
+      if (it.kind === "payment") {
+        playPaymentNotificationSound();
+      }
       toast(it.title, {
         description: it.subtitle,
         duration: 6500,

@@ -11,6 +11,7 @@ type PushPayload = {
   mode?: "direct" | "process_outbox";
   secret?: string;
   company_id?: string;
+  kind?: string;
   title?: string;
   body?: string;
   url?: string;
@@ -27,6 +28,7 @@ type SubscriptionRow = {
 type OutboxRow = {
   id: string;
   company_id: string;
+  kind: string;
   title: string;
   body: string;
   url: string;
@@ -64,6 +66,7 @@ async function sendToCompany(
   title: string,
   body: string,
   url: string,
+  kind = "booking",
 ): Promise<{ sent: number; failed: number; removed: number }> {
   const { data: subs, error } = await supabase
     .from("push_subscriptions")
@@ -80,7 +83,17 @@ async function sendToCompany(
     body,
     url: url || "/admin/agenda",
     icon: "/logo-beautyflow.png",
+    kind,
+    tag: `bf-${kind}-${companyId}`,
   });
+
+  const pushOptions: { TTL: number; urgency: "high" | "normal" | "low" | "very-low"; topic?: string } = {
+    TTL: 86400,
+    urgency: kind === "payment" ? "high" : "normal",
+  };
+  if (kind === "payment") {
+    pushOptions.topic = "payment";
+  }
 
   let sent = 0;
   let failed = 0;
@@ -94,7 +107,7 @@ async function sendToCompany(
           keys: { p256dh: sub.p256dh, auth: sub.auth },
         },
         payload,
-        { TTL: 86400 },
+        pushOptions,
       );
       sent += 1;
     } catch (e) {
@@ -164,7 +177,7 @@ Deno.serve(async (req) => {
     const limit = Math.min(Math.max(body.limit ?? 30, 1), 100);
     const { data: rows, error } = await supabase
       .from("push_notification_outbox")
-      .select("id,company_id,title,body,url")
+      .select("id,company_id,kind,title,body,url")
       .is("delivered_at", null)
       .order("created_at", { ascending: true })
       .limit(limit);
@@ -175,7 +188,14 @@ Deno.serve(async (req) => {
 
     let totalSent = 0;
     for (const row of (rows ?? []) as OutboxRow[]) {
-      const result = await sendToCompany(supabase, row.company_id, row.title, row.body, row.url);
+      const result = await sendToCompany(
+        supabase,
+        row.company_id,
+        row.title,
+        row.body,
+        row.url,
+        row.kind || "booking",
+      );
       totalSent += result.sent;
       await supabase
         .from("push_notification_outbox")
@@ -196,6 +216,14 @@ Deno.serve(async (req) => {
     return json({ ok: false, error: "dados_incompletos" }, 400);
   }
 
-  const result = await sendToCompany(supabase, companyId, title, msgBody, body.url?.trim() || "/admin/agenda");
+  const kind = body.kind?.trim() || "booking";
+  const result = await sendToCompany(
+    supabase,
+    companyId,
+    title,
+    msgBody,
+    body.url?.trim() || "/admin/agenda",
+    kind,
+  );
   return json({ ok: true, ...result });
 });

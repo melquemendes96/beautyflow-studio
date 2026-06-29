@@ -60,4 +60,13 @@ Eventos que disparam push:
 ## Android
 
 - Chrome + PWA instalado ou site com service worker
-- Permissão de notificações ao ativar no painel
+- Permissão de notificações ao ativar no painel (ícone de sino no topo)
+- **Ative as notificações** — sem isso só funciona o sino com o app aberto
+- Pagamentos usam som de caixa na barra do sistema (quando suportado pelo Chrome)
+
+## Entrega com app fechado
+
+Os triggers SQL enfileiram e chamam `deliver-web-push` via `pg_net`. A migration
+`20260617010000_push_delivery_reliability.sql` adiciona cron de backup (1 min).
+
+Confirme `platform_push_config` com `url_ok` e `secret_ok` após `setup_web_push_prod.sql`.

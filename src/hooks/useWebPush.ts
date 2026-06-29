@@ -38,9 +38,17 @@ export function useWebPush({ companyId, enabled = true, profile = "admin" }: Use
     const tick = () => {
       void pushService.requestOutboxDelivery(20);
     };
+    // Backup: processa fila se pg_net/cron falhar (principal é push com app fechado).
     tick();
-    const id = window.setInterval(tick, 60_000);
-    return () => window.clearInterval(id);
+    const id = window.setInterval(tick, 120_000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") tick();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
   }, [enabled, companyId, supported]);
 
   const subscribe = useCallback(async () => {
