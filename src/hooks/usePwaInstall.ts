@@ -6,18 +6,26 @@ import {
   registerPwaServiceWorker,
   type PwaManifestOptions,
 } from "@/lib/pwa-install";
+import {
+  clearDeferredInstallPrompt,
+  getDeferredInstallPrompt,
+  isAndroidDevice,
+  isInAppBrowser,
+  subscribeInstallPromptReady,
+  triggerNativeInstallPrompt,
+  waitForDeferredInstallPrompt,
+} from "@/lib/pwa-install-prompt";
 
-type BeforeInstallPromptEvent = Event & {
-  prompt: () => Promise<void>;
-  userChoice: Promise<{ outcome: "accepted" | "dismissed" }>;
-};
+export type ManualInstallGuide = "ios" | "android" | "inapp" | null;
 
 export function usePwaInstall(options: PwaManifestOptions | null) {
-  const deferredRef = useRef<BeforeInstallPromptEvent | null>(null);
   const [installed, setInstalled] = useState(false);
   const [canNativeInstall, setCanNativeInstall] = useState(false);
-  const [iosGuideOpen, setIosGuideOpen] = useState(false);
+  const [manualGuide, setManualGuide] = useState<ManualInstallGuide>(null);
+  const [installing, setInstalling] = useState(false);
   const isIos = isIosDevice();
+  const isAndroid = isAndroidDevice();
+  const installAttemptRef = useRef(0);
 
   useEffect(() => {
     setInstalled(isPwaStandalone());
@@ -30,60 +38,84 @@ export function usePwaInstall(options: PwaManifestOptions | null) {
   }, [options]);
 
   useEffect(() => {
-    const onBeforeInstall = (e: Event) => {
-      e.preventDefault();
-      deferredRef.current = e as BeforeInstallPromptEvent;
-      setCanNativeInstall(true);
+    const sync = () => {
+      setCanNativeInstall(Boolean(getDeferredInstallPrompt()));
     };
+    sync();
+    return subscribeInstallPromptReady(sync);
+  }, []);
+
+  useEffect(() => {
     const onInstalled = () => {
       setInstalled(true);
       setCanNativeInstall(false);
-      deferredRef.current = null;
+      clearDeferredInstallPrompt();
+      setManualGuide(null);
     };
-
-    window.addEventListener("beforeinstallprompt", onBeforeInstall);
     window.addEventListener("appinstalled", onInstalled);
-    return () => {
-      window.removeEventListener("beforeinstallprompt", onBeforeInstall);
-      window.removeEventListener("appinstalled", onInstalled);
-    };
+    return () => window.removeEventListener("appinstalled", onInstalled);
   }, []);
 
   const install = useCallback(async () => {
+    const attempt = ++installAttemptRef.current;
     if (options) {
       applyPwaManifest(options);
     }
 
     if (installed) return { ok: true as const, already: true };
 
+    if (isInAppBrowser()) {
+      setManualGuide("inapp");
+      return { ok: false as const, reason: "inapp_browser" as const };
+    }
+
     if (isIos) {
-      setIosGuideOpen(true);
+      setManualGuide("ios");
       return { ok: true as const, ios: true };
     }
 
-    const deferred = deferredRef.current;
-    if (!deferred) {
-      setIosGuideOpen(true);
-      return { ok: false as const, reason: "unavailable" as const };
-    }
+    setInstalling(true);
+    try {
+      let deferred = getDeferredInstallPrompt();
+      if (!deferred) {
+        deferred = await waitForDeferredInstallPrompt(2800);
+      }
 
-    await deferred.prompt();
-    const choice = await deferred.userChoice;
-    if (choice.outcome === "accepted") {
-      setInstalled(true);
-      setCanNativeInstall(false);
-      deferredRef.current = null;
-      return { ok: true as const };
+      if (attempt !== installAttemptRef.current) {
+        return { ok: false as const, reason: "cancelled" as const };
+      }
+
+      if (deferred) {
+        const outcome = await triggerNativeInstallPrompt(deferred);
+        setCanNativeInstall(false);
+        if (outcome === "accepted") {
+          setInstalled(true);
+          setManualGuide(null);
+          return { ok: true as const, native: true };
+        }
+        return { ok: false as const, reason: "dismissed" as const };
+      }
+
+      if (isAndroid) {
+        setManualGuide("android");
+        return { ok: false as const, reason: "manual_android" as const };
+      }
+
+      setManualGuide("android");
+      return { ok: false as const, reason: "unavailable" as const };
+    } finally {
+      setInstalling(false);
     }
-    return { ok: false as const, reason: "dismissed" as const };
-  }, [installed, isIos, options]);
+  }, [installed, isIos, isAndroid, options]);
 
   return {
     installed,
     canNativeInstall,
     isIos,
-    iosGuideOpen,
-    setIosGuideOpen,
+    isAndroid,
+    manualGuide,
+    setManualGuide,
+    installing,
     install,
   };
 }

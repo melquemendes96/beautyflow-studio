@@ -16,7 +16,10 @@ import { OAuthUrlRecovery } from "@/components/auth/OAuthUrlRecovery";
 import { AppToaster } from "@/components/ui/AppToaster";
 import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import { PWA_SPLASH_INIT_SCRIPT } from "@/lib/pwa-splash";
+import { PWA_INSTALL_CAPTURE_SCRIPT } from "@/lib/pwa-install-prompt";
 import { PwaSplashOverlay } from "@/components/pwa/PwaSplashOverlay";
+import { registerPwaServiceWorker } from "@/lib/pwa-install";
+import { useEffect } from "react";
 
 function NotFoundComponent() {
   return (
@@ -112,6 +115,7 @@ function RootShell({ children }: { children: React.ReactNode }) {
         <HeadContent />
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: PWA_SPLASH_INIT_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: PWA_INSTALL_CAPTURE_SCRIPT }} />
         <link rel="manifest" href="/pwa/manifest-admin.webmanifest" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -127,6 +131,10 @@ function RootShell({ children }: { children: React.ReactNode }) {
 
 function RootComponent() {
   const { queryClient } = Route.useRouteContext();
+
+  useEffect(() => {
+    registerPwaServiceWorker();
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

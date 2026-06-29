@@ -35,9 +35,19 @@ export function buildClientManifestJson(opts: {
   const name = opts.appName.trim() || "Meu salão";
   const short = truncateShortName(name, 14);
   const startUrl = `/agendar/${encodeURIComponent(slug)}`;
-  const icon = absoluteIcon(opts.origin, opts.iconUrl);
+  const localIcon = `${opts.origin}/logo-beautyflow.png`;
+  const brandIcon = opts.iconUrl?.trim() ? absoluteIcon(opts.origin, opts.iconUrl) : null;
+
+  const icons: { src: string; sizes: string; type: string; purpose: string }[] = [
+    { src: localIcon, sizes: "192x192", type: "image/png", purpose: "any" },
+    { src: localIcon, sizes: "512x512", type: "image/png", purpose: "any" },
+  ];
+  if (brandIcon && brandIcon !== localIcon && brandIcon.startsWith("https://")) {
+    icons.push({ src: brandIcon, sizes: "512x512", type: "image/png", purpose: "any" });
+  }
 
   return {
+    id: `/pwa/client/${slug}`,
     name: `${name} — Agendamentos`,
     short_name: short,
     description: `Agende horários em ${name}`,
@@ -47,10 +57,7 @@ export function buildClientManifestJson(opts: {
     orientation: "portrait-primary",
     background_color: "#000000",
     theme_color: opts.themeColor?.trim() || "#000000",
-    icons: [
-      { src: icon, sizes: "512x512", type: "image/png", purpose: "any" },
-      { src: icon, sizes: "192x192", type: "image/png", purpose: "any" },
-    ],
+    icons,
   };
 }
 

@@ -45,9 +45,19 @@ export function buildClientManifest(opts: PwaManifestOptions): Record<string, un
   const short = truncateShortName(opts.shortName?.trim() || name, 14);
   const slug = normalizePublicBookingSlug(opts.slug ?? "");
   const startUrl = slug && isValidPublicBookingSlug(slug) ? `/agendar/${encodeURIComponent(slug)}` : "/";
-  const icon = absoluteIcon(opts.iconUrl);
+  const localIcon = typeof window !== "undefined" ? `${window.location.origin}/logo-beautyflow.png` : "/logo-beautyflow.png";
+  const brandIcon = absoluteIcon(opts.iconUrl);
+
+  const icons: { src: string; sizes: string; type: string; purpose: string }[] = [
+    { src: localIcon, sizes: "192x192", type: "image/png", purpose: "any" },
+    { src: localIcon, sizes: "512x512", type: "image/png", purpose: "any" },
+  ];
+  if (brandIcon !== localIcon && brandIcon.startsWith("http")) {
+    icons.push({ src: brandIcon, sizes: "512x512", type: "image/png", purpose: "any" });
+  }
 
   return {
+    ...(slug && isValidPublicBookingSlug(slug) ? { id: `/pwa/client/${slug}` } : {}),
     name: `${name} — Agendamentos`,
     short_name: short,
     description: `Agende horários em ${name}`,
@@ -57,10 +67,7 @@ export function buildClientManifest(opts: PwaManifestOptions): Record<string, un
     orientation: "portrait-primary",
     background_color: opts.backgroundColor || "#000000",
     theme_color: opts.themeColor || "#000000",
-    icons: [
-      { src: icon, sizes: "512x512", type: "image/png", purpose: "any" },
-      { src: icon, sizes: "192x192", type: "image/png", purpose: "any" },
-    ],
+    icons,
   };
 }
 
