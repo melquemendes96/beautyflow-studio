@@ -18,7 +18,14 @@ import { THEME_INIT_SCRIPT } from "@/lib/theme";
 import { PWA_SPLASH_INIT_SCRIPT } from "@/lib/pwa-splash";
 import { PWA_INSTALL_CAPTURE_SCRIPT } from "@/lib/pwa-install-prompt";
 import { PwaSplashOverlay } from "@/components/pwa/PwaSplashOverlay";
+import { MarketingTracker } from "@/components/site/MarketingTracker";
 import { registerPwaServiceWorker } from "@/lib/pwa-install";
+import {
+  GA4_MEASUREMENT_ID,
+  META_PIXEL_ID,
+  buildGa4BootstrapScript,
+  buildMetaPixelBootstrapScript,
+} from "@/lib/marketing-analytics";
 import { useEffect } from "react";
 
 function NotFoundComponent() {
@@ -116,6 +123,17 @@ function RootShell({ children }: { children: React.ReactNode }) {
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: PWA_SPLASH_INIT_SCRIPT }} />
         <script dangerouslySetInnerHTML={{ __html: PWA_INSTALL_CAPTURE_SCRIPT }} />
+        {GA4_MEASUREMENT_ID ? (
+          <>
+            <script async src={`https://www.googletagmanager.com/gtag/js?id=${GA4_MEASUREMENT_ID}`} />
+            <script
+              dangerouslySetInnerHTML={{ __html: buildGa4BootstrapScript(GA4_MEASUREMENT_ID) }}
+            />
+          </>
+        ) : null}
+        {META_PIXEL_ID ? (
+          <script dangerouslySetInnerHTML={{ __html: buildMetaPixelBootstrapScript(META_PIXEL_ID) }} />
+        ) : null}
         <link rel="manifest" href="/pwa/manifest-admin.webmanifest" />
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -142,6 +160,7 @@ function RootComponent() {
         <AuthProvider>
           <OAuthUrlRecovery />
           <PwaSplashOverlay />
+          <MarketingTracker />
           <AuthSessionGate>
             <Outlet />
           </AuthSessionGate>

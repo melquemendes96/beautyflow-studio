@@ -29,6 +29,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as MasterIndexRouteImport } from './routes/master.index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as OnboardingCompanyRouteImport } from './routes/onboarding.company'
+import { Route as MasterTrafegoRouteImport } from './routes/master.trafego'
 import { Route as MasterSuporteRouteImport } from './routes/master.suporte'
 import { Route as MasterRenovacoesRouteImport } from './routes/master.renovacoes'
 import { Route as MasterPlanosRouteImport } from './routes/master.planos'
@@ -161,6 +162,11 @@ const OnboardingCompanyRoute = OnboardingCompanyRouteImport.update({
   id: '/company',
   path: '/company',
   getParentRoute: () => OnboardingRoute,
+} as any)
+const MasterTrafegoRoute = MasterTrafegoRouteImport.update({
+  id: '/trafego',
+  path: '/trafego',
+  getParentRoute: () => MasterRoute,
 } as any)
 const MasterSuporteRoute = MasterSuporteRouteImport.update({
   id: '/suporte',
@@ -371,6 +377,7 @@ export interface FileRoutesByFullPath {
   '/master/planos': typeof MasterPlanosRoute
   '/master/renovacoes': typeof MasterRenovacoesRoute
   '/master/suporte': typeof MasterSuporteRoute
+  '/master/trafego': typeof MasterTrafegoRoute
   '/onboarding/company': typeof OnboardingCompanyRoute
   '/admin/': typeof AdminIndexRoute
   '/master/': typeof MasterIndexRoute
@@ -423,6 +430,7 @@ export interface FileRoutesByTo {
   '/master/planos': typeof MasterPlanosRoute
   '/master/renovacoes': typeof MasterRenovacoesRoute
   '/master/suporte': typeof MasterSuporteRoute
+  '/master/trafego': typeof MasterTrafegoRoute
   '/onboarding/company': typeof OnboardingCompanyRoute
   '/admin': typeof AdminIndexRoute
   '/master': typeof MasterIndexRoute
@@ -478,6 +486,7 @@ export interface FileRoutesById {
   '/master/planos': typeof MasterPlanosRoute
   '/master/renovacoes': typeof MasterRenovacoesRoute
   '/master/suporte': typeof MasterSuporteRoute
+  '/master/trafego': typeof MasterTrafegoRoute
   '/onboarding/company': typeof OnboardingCompanyRoute
   '/admin/': typeof AdminIndexRoute
   '/master/': typeof MasterIndexRoute
@@ -534,6 +543,7 @@ export interface FileRouteTypes {
     | '/master/planos'
     | '/master/renovacoes'
     | '/master/suporte'
+    | '/master/trafego'
     | '/onboarding/company'
     | '/admin/'
     | '/master/'
@@ -586,6 +596,7 @@ export interface FileRouteTypes {
     | '/master/planos'
     | '/master/renovacoes'
     | '/master/suporte'
+    | '/master/trafego'
     | '/onboarding/company'
     | '/admin'
     | '/master'
@@ -640,6 +651,7 @@ export interface FileRouteTypes {
     | '/master/planos'
     | '/master/renovacoes'
     | '/master/suporte'
+    | '/master/trafego'
     | '/onboarding/company'
     | '/admin/'
     | '/master/'
@@ -815,6 +827,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/onboarding/company'
       preLoaderRoute: typeof OnboardingCompanyRouteImport
       parentRoute: typeof OnboardingRoute
+    }
+    '/master/trafego': {
+      id: '/master/trafego'
+      path: '/trafego'
+      fullPath: '/master/trafego'
+      preLoaderRoute: typeof MasterTrafegoRouteImport
+      parentRoute: typeof MasterRoute
     }
     '/master/suporte': {
       id: '/master/suporte'
@@ -1105,6 +1124,7 @@ interface MasterRouteChildren {
   MasterPlanosRoute: typeof MasterPlanosRoute
   MasterRenovacoesRoute: typeof MasterRenovacoesRoute
   MasterSuporteRoute: typeof MasterSuporteRoute
+  MasterTrafegoRoute: typeof MasterTrafegoRoute
   MasterIndexRoute: typeof MasterIndexRoute
 }
 
@@ -1118,6 +1138,7 @@ const MasterRouteChildren: MasterRouteChildren = {
   MasterPlanosRoute: MasterPlanosRoute,
   MasterRenovacoesRoute: MasterRenovacoesRoute,
   MasterSuporteRoute: MasterSuporteRoute,
+  MasterTrafegoRoute: MasterTrafegoRoute,
   MasterIndexRoute: MasterIndexRoute,
 }
 

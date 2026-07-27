@@ -16,6 +16,7 @@ import {
   Menu,
   X,
   LogOut,
+  BarChart3,
 } from "lucide-react";
 import { MasterNotificationsBell } from "@/components/master/MasterNotificationsBell";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
@@ -24,6 +25,7 @@ type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?
 
 const nav: NavItem[] = [
   { to: "/master", label: "Visão geral", icon: LayoutDashboard, exact: true },
+  { to: "/master/trafego", label: "Tráfego", icon: BarChart3 },
   { to: "/master/empresas", label: "Empresas", icon: Building2 },
   { to: "/master/planos", label: "Planos", icon: CreditCard },
   { to: "/master/assinaturas", label: "Assinaturas", icon: Repeat },

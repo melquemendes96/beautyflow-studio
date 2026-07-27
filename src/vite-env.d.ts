@@ -9,6 +9,10 @@ interface ImportMetaEnv {
   readonly VITE_MERCADO_PAGO_PUBLIC_KEY: string | undefined;
   /** Chave pública VAPID (Web Push). */
   readonly VITE_VAPID_PUBLIC_KEY: string | undefined;
+  /** Google Analytics 4 Measurement ID (G-XXXX). */
+  readonly VITE_GA4_MEASUREMENT_ID: string | undefined;
+  /** Meta (Facebook) Pixel ID. */
+  readonly VITE_META_PIXEL_ID: string | undefined;
 }
 
 interface ImportMeta {

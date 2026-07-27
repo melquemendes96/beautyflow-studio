@@ -1,11 +1,14 @@
 import { Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { Menu, X } from "lucide-react";
+import { Menu, MessageCircle, X } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
-import { DEMO_BOOKING_PATH } from "@/lib/app-constants";
+import { DEMO_BOOKING_PATH, corporateWhatsAppHref } from "@/lib/app-constants";
+import { trackMarketingEvent } from "@/lib/marketing-analytics";
 
 export function SiteHeader() {
   const [menuOpen, setMenuOpen] = useState(false);
+
+  const onWhatsApp = () => trackMarketingEvent("whatsapp_click", { placement: "header" });
 
   return (
     <header className="sticky top-0 z-40 border-b border-border/60 bg-background/80 backdrop-blur-xl">
@@ -26,6 +29,16 @@ export function SiteHeader() {
           </a>
           <a href="#depoimentos" className="transition-colors hover:text-foreground">
             Depoimentos
+          </a>
+          <a
+            href={corporateWhatsAppHref()}
+            target="_blank"
+            rel="noopener noreferrer"
+            onClick={onWhatsApp}
+            className="inline-flex items-center gap-1.5 transition-colors hover:text-foreground"
+          >
+            <MessageCircle className="size-3.5" aria-hidden />
+            Fale conosco
           </a>
         </nav>
 
@@ -73,6 +86,19 @@ export function SiteHeader() {
             </a>
             <a href="#depoimentos" onClick={() => setMenuOpen(false)} className="text-muted-foreground">
               Depoimentos
+            </a>
+            <a
+              href={corporateWhatsAppHref()}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={() => {
+                onWhatsApp();
+                setMenuOpen(false);
+              }}
+              className="inline-flex items-center gap-2 font-medium text-foreground"
+            >
+              <MessageCircle className="size-4 text-[#25D366]" aria-hidden />
+              Fale conosco
             </a>
           </nav>
           <div className="mt-4 flex flex-col gap-2">

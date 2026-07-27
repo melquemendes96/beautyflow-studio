@@ -469,13 +469,47 @@ export const masterService = {
     };
   },
 
-  async getDashboardRange(startDate: string, endDate: string) {
+  async getMarketingFunnelSummary(days = 30) {
     const gate = await requireMasterSession();
     if (!gate.ok) return { data: null, error: gate.error };
-    const res = await getSupabase().rpc("platform_dashboard_range", {
-      p_start_date: startDate,
-      p_end_date: endDate,
-    });
-    return { ...res, data: res.data as DashboardRangeData | null };
+    const res = await getSupabase().rpc("master_marketing_funnel_summary", { p_days: days });
+    return {
+      ...res,
+      data: res.data as {
+        ok?: boolean;
+        error?: string;
+        days?: number;
+        since?: string;
+        summary?: {
+          demo_views: number;
+          whatsapp_clicks: number;
+          signup_starts: number;
+          signup_completes: number;
+          companies_created: number;
+          purchases_client: number;
+          payments_confirmed: number;
+          revenue_confirmed: number;
+        };
+        by_utm_source?: Array<{
+          utm_source: string;
+          events: number;
+          whatsapp_clicks: number;
+          signups: number;
+          payments: number;
+          revenue: number;
+        }>;
+        recent?: Array<{
+          id: string;
+          event_name: string;
+          path: string | null;
+          company_id: string | null;
+          amount: number | null;
+          utm_source: string | null;
+          utm_medium: string | null;
+          utm_campaign: string | null;
+          created_at: string;
+        }>;
+      } | null,
+    };
   },
 };

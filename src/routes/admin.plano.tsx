@@ -28,6 +28,7 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { trackMarketingEvent } from "@/lib/marketing-analytics";
 
 export const Route = createFileRoute("/admin/plano")({
   component: Plano,
@@ -54,6 +55,7 @@ function Plano() {
     if (!checkout) return;
     if (checkout === "success") {
       toast.success("Plano ativado. Sua assinatura foi atualizada com sucesso.");
+      trackMarketingEvent("purchase", { oncePerSession: true, company_id: companyId ?? undefined });
       void queryClient.invalidateQueries({ queryKey: ["admin", "subscription"] });
       void queryClient.invalidateQueries({ queryKey: ["admin", "payments"] });
       if (companyId) {

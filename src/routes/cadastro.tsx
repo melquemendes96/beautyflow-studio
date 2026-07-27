@@ -14,6 +14,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/AuthProvider";
 import { readStudioNameFromUrl } from "@/lib/oauth-signup-intent";
 import { usePublicAuthRedirect } from "@/lib/use-public-auth-redirect";
+import { trackMarketingEvent } from "@/lib/marketing-analytics";
 
 function CadastroRouteError({ error, reset }: { error: Error; reset: () => void }) {
   if (import.meta.env.DEV) {
@@ -163,6 +164,7 @@ function Cadastro() {
       setError(null);
       setFieldErrors({});
       setStep("verify_email");
+      trackMarketingEvent("signup_complete", { oncePerSession: true, method: "password" });
     },
     onError: (err: unknown) => {
       setError(formatSignupError(err));

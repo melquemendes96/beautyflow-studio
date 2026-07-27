@@ -1,12 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { SiteHeader } from "@/components/site/SiteHeader";
-import { DEMO_BOOKING_PATH } from "@/lib/app-constants";
+import { DEMO_BOOKING_PATH, corporateWhatsAppHref } from "@/lib/app-constants";
 import { SiteFooter } from "@/components/site/SiteFooter";
+import { WhatsAppFloatingButton } from "@/components/site/WhatsAppFloatingButton";
 import { SocialProofBrands } from "@/components/site/SocialProofBrands";
 import { Logo } from "@/components/brand/Logo";
 import { fetchPublicPlans } from "@/lib/fetch-public-plans";
 import { PublicPlansLoadError } from "@/components/site/PublicPlansLoadError";
+import { trackMarketingEvent } from "@/lib/marketing-analytics";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Sparkles, Calendar, Smartphone, Heart, Star, Check,
@@ -332,12 +334,23 @@ function Landing() {
               >
                 Ver demonstração
               </Link>
+              <a
+                href={corporateWhatsAppHref()}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => trackMarketingEvent("whatsapp_click", { placement: "cta_final" })}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-[#25D366]/40 bg-[#25D366]/15 px-6 py-3 text-sm font-medium text-background transition hover:bg-[#25D366]/25 sm:px-7 sm:py-3.5"
+              >
+                <MessageCircle className="size-4" aria-hidden />
+                Falar no WhatsApp
+              </a>
             </div>
           </div>
         </div>
       </section>
 
       <SiteFooter />
+      <WhatsAppFloatingButton />
     </div>
   );
 }

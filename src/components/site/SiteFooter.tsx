@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { WordMark } from "@/components/brand/Logo";
-import { DEMO_BOOKING_PATH } from "@/lib/app-constants";
+import { DEMO_BOOKING_PATH, corporateWhatsAppHref } from "@/lib/app-constants";
+import { trackMarketingEvent } from "@/lib/marketing-analytics";
 
 export function SiteFooter() {
   return (
@@ -33,9 +34,28 @@ export function SiteFooter() {
         <div>
           <h4 className="mb-3 text-sm font-semibold">Empresa</h4>
           <ul className="space-y-2 text-sm text-muted-foreground">
-            <li>Sobre</li>
-            <li>Contato</li>
-            <li>Blog</li>
+            <li>
+              <a
+                href={corporateWhatsAppHref()}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => trackMarketingEvent("whatsapp_click", { placement: "footer" })}
+                className="hover:text-foreground"
+              >
+                Fale conosco
+              </a>
+            </li>
+            <li>
+              <a
+                href={corporateWhatsAppHref()}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => trackMarketingEvent("whatsapp_click", { placement: "footer_contato" })}
+                className="hover:text-foreground"
+              >
+                Contato (WhatsApp)
+              </a>
+            </li>
           </ul>
         </div>
         <div>
