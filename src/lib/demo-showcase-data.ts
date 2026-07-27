@@ -66,18 +66,18 @@ export const DEMO_ASSETS = {
 } as const;
 
 export const DEMO_BARBER_ASSETS = {
-  banner: "/demo/barbearia/banner.png",
-  logo: "/demo/barbearia/logo.png",
+  banner: "/demo/barbearia/banner.webp",
+  logo: "/demo/barbearia/logo.webp",
   footer: null as string | null,
-  serviceCut: "/demo/barbearia/service-cut.png",
-  serviceBeard: "/demo/barbearia/service-beard.png",
-  serviceShave: "/demo/barbearia/service-shave.png",
-  serviceCombo: "/demo/barbearia/service-combo.png",
-  barberRafael: "/demo/barbearia/barber-rafael.png",
-  barberLucas: "/demo/barbearia/barber-lucas.png",
-  barberAndre: "/demo/barbearia/barber-andre.png",
-  barberDiego: "/demo/barbearia/barber-diego.png",
-  barberThiago: "/demo/barbearia/barber-thiago.png",
+  serviceCut: "/demo/barbearia/service-cut.webp",
+  serviceBeard: "/demo/barbearia/service-beard.webp",
+  serviceShave: "/demo/barbearia/service-shave.webp",
+  serviceCombo: "/demo/barbearia/service-combo.webp",
+  barberRafael: "/demo/barbearia/barber-rafael.webp",
+  barberLucas: "/demo/barbearia/barber-lucas.webp",
+  barberAndre: "/demo/barbearia/barber-andre.webp",
+  barberDiego: "/demo/barbearia/barber-diego.webp",
+  barberThiago: "/demo/barbearia/barber-thiago.webp",
 } as const;
 
 /** Demo feminina — La Belle (rota /demo). */

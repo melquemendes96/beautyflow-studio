@@ -287,6 +287,7 @@ function DemoHero({ mobile, demo }: { mobile: boolean; demo: DemoShowcase }) {
         src={demo.assets.banner}
         alt=""
         className="absolute inset-0 size-full object-cover object-center"
+        fetchPriority="high"
         decoding="async"
       />
       <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/55 to-transparent" />
