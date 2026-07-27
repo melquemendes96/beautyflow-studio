@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { Menu, MessageCircle, X } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
-import { DEMO_BOOKING_PATH, corporateWhatsAppHref } from "@/lib/app-constants";
+import { DEMO_BOOKING_PATH, DEMO_BARBER_PATH, corporateWhatsAppHref } from "@/lib/app-constants";
 import { trackMarketingEvent } from "@/lib/marketing-analytics";
 
 export function SiteHeader() {
@@ -57,9 +57,15 @@ export function SiteHeader() {
           </Link>
           <Link
             to={DEMO_BOOKING_PATH}
+            className="hidden rounded-full border border-foreground/15 bg-background/60 px-3 py-2 text-xs font-medium hover:bg-background lg:inline-flex lg:px-4 lg:text-sm"
+          >
+            Demo salão
+          </Link>
+          <Link
+            to={DEMO_BARBER_PATH}
             className="hidden rounded-full bg-foreground px-3 py-2 text-xs font-medium text-background shadow-soft transition hover:opacity-90 sm:inline-flex sm:px-4 sm:text-sm"
           >
-            Demonstração
+            Demo barbearia
           </Link>
           <button
             type="button"
@@ -119,9 +125,16 @@ export function SiteHeader() {
             <Link
               to={DEMO_BOOKING_PATH}
               onClick={() => setMenuOpen(false)}
+              className="rounded-xl border border-border px-4 py-3 text-center text-sm font-medium"
+            >
+              Demo salão / beleza
+            </Link>
+            <Link
+              to={DEMO_BARBER_PATH}
+              onClick={() => setMenuOpen(false)}
               className="rounded-xl bg-foreground px-4 py-3 text-center text-sm font-medium text-background"
             >
-              Ver demonstração
+              Demo barbearia
             </Link>
           </div>
         </div>

@@ -18,7 +18,8 @@ export function MarketingTracker() {
     trackMarketingEvent("page_view", { path: pathname });
 
     if (pathname === "/demo" || pathname.startsWith("/demo/")) {
-      trackMarketingEvent("demo_view", { oncePerSession: true });
+      const kind = pathname.includes("barbearia") ? "barbearia" : "salao";
+      trackMarketingEvent("demo_view", { oncePerSession: true, demo_kind: kind });
     }
     if (pathname === "/cadastro" || pathname.startsWith("/cadastro")) {
       trackMarketingEvent("signup_start", { oncePerSession: true });

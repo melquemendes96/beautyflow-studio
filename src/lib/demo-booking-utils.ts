@@ -1,6 +1,6 @@
-import { DEMO_SHOWCASE, toYmd } from "@/lib/demo-showcase-data";
+import { DEMO_SHOWCASE, toYmd, type DemoService } from "@/lib/demo-showcase-data";
 
-export type DemoService = (typeof DEMO_SHOWCASE.services)[number];
+export type { DemoService };
 
 export type DemoOccupiedSlot = {
   start: string;
@@ -36,16 +36,19 @@ export function generateDemoTimeSlots() {
   return slots;
 }
 
-export function getSelectedServices(serviceIds: string[]) {
-  return DEMO_SHOWCASE.services.filter((s) => serviceIds.includes(s.id));
+export function getSelectedServices(serviceIds: string[], services: DemoService[] = DEMO_SHOWCASE.services) {
+  return services.filter((s) => serviceIds.includes(s.id));
 }
 
-export function getTotalDurationMinutes(serviceIds: string[]) {
-  return getSelectedServices(serviceIds).reduce((sum, s) => sum + s.duration_minutes, 0);
+export function getTotalDurationMinutes(
+  serviceIds: string[],
+  services: DemoService[] = DEMO_SHOWCASE.services,
+) {
+  return getSelectedServices(serviceIds, services).reduce((sum, s) => sum + s.duration_minutes, 0);
 }
 
-export function getTotalPrice(serviceIds: string[]) {
-  return getSelectedServices(serviceIds).reduce((sum, s) => sum + s.price, 0);
+export function getTotalPrice(serviceIds: string[], services: DemoService[] = DEMO_SHOWCASE.services) {
+  return getSelectedServices(serviceIds, services).reduce((sum, s) => sum + s.price, 0);
 }
 
 export function getOccupiedIntervals() {

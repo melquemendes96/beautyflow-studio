@@ -1,7 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useQuery } from "@tanstack/react-query";
 import { SiteHeader } from "@/components/site/SiteHeader";
-import { DEMO_BOOKING_PATH, corporateWhatsAppHref } from "@/lib/app-constants";
+import { DEMO_BOOKING_PATH, DEMO_BARBER_PATH, corporateWhatsAppHref } from "@/lib/app-constants";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { WhatsAppFloatingButton } from "@/components/site/WhatsAppFloatingButton";
 import { SocialProofBrands } from "@/components/site/SocialProofBrands";
@@ -100,7 +100,13 @@ function Landing() {
                 to={DEMO_BOOKING_PATH}
                 className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-foreground/15 bg-background/60 px-6 py-3 text-sm font-medium transition hover:bg-background sm:w-auto sm:px-7 sm:py-3.5"
               >
-                Ver demonstração
+                Demo salão
+              </Link>
+              <Link
+                to={DEMO_BARBER_PATH}
+                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-foreground/15 bg-background/60 px-6 py-3 text-sm font-medium transition hover:bg-background sm:w-auto sm:px-7 sm:py-3.5"
+              >
+                Demo barbearia
               </Link>
             </div>
             <SocialProofBrands className="mt-10" />
@@ -332,7 +338,13 @@ function Landing() {
                 to={DEMO_BOOKING_PATH}
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-background/20 px-6 py-3 text-sm font-medium transition hover:bg-background/10 sm:px-7 sm:py-3.5"
               >
-                Ver demonstração
+                Demo salão
+              </Link>
+              <Link
+                to={DEMO_BARBER_PATH}
+                className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-background/20 px-6 py-3 text-sm font-medium transition hover:bg-background/10 sm:px-7 sm:py-3.5"
+              >
+                Demo barbearia
               </Link>
               <a
                 href={corporateWhatsAppHref()}

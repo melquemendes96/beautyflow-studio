@@ -1,25 +1,60 @@
 import { DemoBookingPreview } from "@/components/demo/DemoBookingPreview";
 import { DemoPhoneMockup } from "@/components/demo/DemoPhoneMockup";
+import type { DemoShowcase } from "@/lib/demo-showcase-data";
+import { DEMO_BEAUTY_SHOWCASE } from "@/lib/demo-showcase-data";
+import { Link } from "@tanstack/react-router";
+import { ArrowLeft } from "lucide-react";
 
-/** Vitrine /demo — desktop largo + mockup mobile à direita. */
-export function DemoShowcasePage() {
+type Props = {
+  demo?: DemoShowcase;
+};
+
+/**
+ * Vitrine comercial.
+ * Mobile: só a demonstração no celular.
+ * Desktop (lg+): PC + mockup do celular lado a lado.
+ */
+export function DemoShowcasePage({ demo = DEMO_BEAUTY_SHOWCASE }: Props) {
+  const dark = demo.theme === "dark";
+
   return (
-    <div className="demo-showcase-page min-h-screen w-full bg-[#fdf9f4]">
-      <div className="w-full px-2 py-6 sm:px-3 md:py-8 lg:px-4 xl:px-5">
-        <div className="flex flex-col items-stretch gap-8 xl:flex-row xl:items-start xl:gap-6 2xl:gap-8">
-          <div className="min-w-0 w-full flex-1">
-            <DemoBookingPreview variant="desktop" />
-          </div>
+    <div
+      className="demo-showcase-page min-h-screen w-full"
+      style={{ backgroundColor: demo.pageBg }}
+    >
+      <div className="mx-auto flex w-full max-w-[1400px] items-center justify-between gap-3 px-4 py-4 sm:px-6">
+        <Link
+          to="/"
+          className={`inline-flex items-center gap-1.5 text-sm transition hover:opacity-80 ${
+            dark ? "text-[#bbb]" : "text-muted-foreground"
+          }`}
+        >
+          <ArrowLeft className="size-4" />
+          Voltar ao site
+        </Link>
+        <p className={`text-xs font-medium uppercase tracking-wider ${dark ? "text-[#888]" : "text-muted-foreground"}`}>
+          Demonstração · {demo.studio.name}
+        </p>
+      </div>
 
-          <div className="hidden shrink-0 xl:block">
-            <DemoPhoneMockup>
-              <DemoBookingPreview variant="mobile" />
-            </DemoPhoneMockup>
-          </div>
+      <div className="w-full px-3 pb-10 sm:px-4 md:px-6 lg:px-8">
+        {/* Mobile / tablet: apenas celular */}
+        <div className="flex justify-center lg:hidden">
+          <DemoPhoneMockup frameBg={demo.previewBg} dark={dark}>
+            <DemoBookingPreview variant="mobile" demo={demo} />
+          </DemoPhoneMockup>
         </div>
 
-        <div className="mx-auto mt-6 w-full max-w-[400px] overflow-hidden rounded-[20px] shadow-[0_4px_24px_rgba(0,0,0,0.08)] xl:hidden">
-          <DemoBookingPreview variant="mobile" />
+        {/* Desktop: PC + celular */}
+        <div className="hidden lg:flex lg:items-start lg:justify-center lg:gap-8 xl:gap-10">
+          <div className="min-w-0 max-w-[920px] flex-1">
+            <DemoBookingPreview variant="desktop" demo={demo} />
+          </div>
+          <div className="shrink-0 pt-2">
+            <DemoPhoneMockup frameBg={demo.previewBg} dark={dark}>
+              <DemoBookingPreview variant="mobile" demo={demo} />
+            </DemoPhoneMockup>
+          </div>
         </div>
       </div>
     </div>

@@ -119,7 +119,10 @@ export function trackMarketingEvent(
   meta?: Record<string, unknown> & { persist?: boolean; oncePerSession?: boolean },
 ) {
   const { persist, oncePerSession, ...rest } = meta ?? {};
-  if (oncePerSession && !markOnce(name)) return;
+  if (oncePerSession) {
+    const onceKey = typeof rest.demo_kind === "string" ? `${name}:${rest.demo_kind}` : name;
+    if (!markOnce(onceKey)) return;
+  }
 
   const utm = getStoredMarketingUtm();
   const params = {

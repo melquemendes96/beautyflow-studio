@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="320" height="96" viewBox="0 0 320 96" fill="none">
+  <rect width="320" height="96" rx="12" fill="#141414"/>
+  <path d="M28 28h12v40H28V28zm18 8h8v24h-8V36zm18-4h10v32H64V32zm18 6h8v20h-8V38z" fill="#c9a227"/>
+  <text x="110" y="42" fill="#f5f5f5" font-family="Georgia, 'Times New Roman', serif" font-size="22" font-weight="700">Corte &amp; Barba</text>
+  <text x="110" y="66" fill="#c9a227" font-family="Arial, sans-serif" font-size="11" letter-spacing="2">BARBEARIA</text>
+</svg>

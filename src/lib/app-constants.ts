@@ -1,5 +1,6 @@
 /** Rota da demonstração interativa (não depende de empresa no Supabase). */
 export const DEMO_BOOKING_PATH = "/demo" as const;
+export const DEMO_BARBER_PATH = "/demo/barbearia" as const;
 
 /** WhatsApp corporativo JM BeautyFlow (comercial / dúvidas de planos). */
 export const CORPORATE_WHATSAPP_DIGITS = "5511920142382" as const;

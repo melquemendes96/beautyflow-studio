@@ -39,6 +39,7 @@ import { Route as MasterEmpresasRouteImport } from './routes/master.empresas'
 import { Route as MasterCuponsRouteImport } from './routes/master.cupons'
 import { Route as MasterConfiguracoesRouteImport } from './routes/master.configuracoes'
 import { Route as MasterAssinaturasRouteImport } from './routes/master.assinaturas'
+import { Route as DemoBarbeariaRouteImport } from './routes/demo.barbearia'
 import { Route as BillingSuccessRouteImport } from './routes/billing.success'
 import { Route as BillingPlansRouteImport } from './routes/billing.plans'
 import { Route as BillingCheckoutRouteImport } from './routes/billing.checkout'
@@ -213,6 +214,11 @@ const MasterAssinaturasRoute = MasterAssinaturasRouteImport.update({
   path: '/assinaturas',
   getParentRoute: () => MasterRoute,
 } as any)
+const DemoBarbeariaRoute = DemoBarbeariaRouteImport.update({
+  id: '/barbearia',
+  path: '/barbearia',
+  getParentRoute: () => DemoRoute,
+} as any)
 const BillingSuccessRoute = BillingSuccessRouteImport.update({
   id: '/billing/success',
   path: '/billing/success',
@@ -336,7 +342,7 @@ export interface FileRoutesByFullPath {
   '/checkout': typeof CheckoutRoute
   '/cliente': typeof ClienteRoute
   '/dashboard': typeof DashboardRoute
-  '/demo': typeof DemoRoute
+  '/demo': typeof DemoRouteWithChildren
   '/entrar': typeof EntrarRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
@@ -368,6 +374,7 @@ export interface FileRoutesByFullPath {
   '/billing/checkout': typeof BillingCheckoutRoute
   '/billing/plans': typeof BillingPlansRoute
   '/billing/success': typeof BillingSuccessRoute
+  '/demo/barbearia': typeof DemoBarbeariaRoute
   '/master/assinaturas': typeof MasterAssinaturasRoute
   '/master/configuracoes': typeof MasterConfiguracoesRoute
   '/master/cupons': typeof MasterCuponsRoute
@@ -390,7 +397,7 @@ export interface FileRoutesByTo {
   '/checkout': typeof CheckoutRoute
   '/cliente': typeof ClienteRoute
   '/dashboard': typeof DashboardRoute
-  '/demo': typeof DemoRoute
+  '/demo': typeof DemoRouteWithChildren
   '/entrar': typeof EntrarRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
@@ -421,6 +428,7 @@ export interface FileRoutesByTo {
   '/billing/checkout': typeof BillingCheckoutRoute
   '/billing/plans': typeof BillingPlansRoute
   '/billing/success': typeof BillingSuccessRoute
+  '/demo/barbearia': typeof DemoBarbeariaRoute
   '/master/assinaturas': typeof MasterAssinaturasRoute
   '/master/configuracoes': typeof MasterConfiguracoesRoute
   '/master/cupons': typeof MasterCuponsRoute
@@ -445,7 +453,7 @@ export interface FileRoutesById {
   '/checkout': typeof CheckoutRoute
   '/cliente': typeof ClienteRoute
   '/dashboard': typeof DashboardRoute
-  '/demo': typeof DemoRoute
+  '/demo': typeof DemoRouteWithChildren
   '/entrar': typeof EntrarRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
@@ -477,6 +485,7 @@ export interface FileRoutesById {
   '/billing/checkout': typeof BillingCheckoutRoute
   '/billing/plans': typeof BillingPlansRoute
   '/billing/success': typeof BillingSuccessRoute
+  '/demo/barbearia': typeof DemoBarbeariaRoute
   '/master/assinaturas': typeof MasterAssinaturasRoute
   '/master/configuracoes': typeof MasterConfiguracoesRoute
   '/master/cupons': typeof MasterCuponsRoute
@@ -534,6 +543,7 @@ export interface FileRouteTypes {
     | '/billing/checkout'
     | '/billing/plans'
     | '/billing/success'
+    | '/demo/barbearia'
     | '/master/assinaturas'
     | '/master/configuracoes'
     | '/master/cupons'
@@ -587,6 +597,7 @@ export interface FileRouteTypes {
     | '/billing/checkout'
     | '/billing/plans'
     | '/billing/success'
+    | '/demo/barbearia'
     | '/master/assinaturas'
     | '/master/configuracoes'
     | '/master/cupons'
@@ -642,6 +653,7 @@ export interface FileRouteTypes {
     | '/billing/checkout'
     | '/billing/plans'
     | '/billing/success'
+    | '/demo/barbearia'
     | '/master/assinaturas'
     | '/master/configuracoes'
     | '/master/cupons'
@@ -666,7 +678,7 @@ export interface RootRouteChildren {
   CheckoutRoute: typeof CheckoutRoute
   ClienteRoute: typeof ClienteRoute
   DashboardRoute: typeof DashboardRoute
-  DemoRoute: typeof DemoRoute
+  DemoRoute: typeof DemoRouteWithChildren
   EntrarRoute: typeof EntrarRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
@@ -898,6 +910,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MasterAssinaturasRouteImport
       parentRoute: typeof MasterRoute
     }
+    '/demo/barbearia': {
+      id: '/demo/barbearia'
+      path: '/barbearia'
+      fullPath: '/demo/barbearia'
+      preLoaderRoute: typeof DemoBarbeariaRouteImport
+      parentRoute: typeof DemoRoute
+    }
     '/billing/success': {
       id: '/billing/success'
       path: '/billing/success'
@@ -1114,6 +1133,16 @@ const AdminRouteChildren: AdminRouteChildren = {
 
 const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
+interface DemoRouteChildren {
+  DemoBarbeariaRoute: typeof DemoBarbeariaRoute
+}
+
+const DemoRouteChildren: DemoRouteChildren = {
+  DemoBarbeariaRoute: DemoBarbeariaRoute,
+}
+
+const DemoRouteWithChildren = DemoRoute._addFileChildren(DemoRouteChildren)
+
 interface MasterRouteChildren {
   MasterAssinaturasRoute: typeof MasterAssinaturasRoute
   MasterConfiguracoesRoute: typeof MasterConfiguracoesRoute
@@ -1164,7 +1193,7 @@ const rootRouteChildren: RootRouteChildren = {
   CheckoutRoute: CheckoutRoute,
   ClienteRoute: ClienteRoute,
   DashboardRoute: DashboardRoute,
-  DemoRoute: DemoRoute,
+  DemoRoute: DemoRouteWithChildren,
   EntrarRoute: EntrarRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,

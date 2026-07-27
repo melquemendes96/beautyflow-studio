@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { WordMark } from "@/components/brand/Logo";
-import { DEMO_BOOKING_PATH, corporateWhatsAppHref } from "@/lib/app-constants";
+import { DEMO_BOOKING_PATH, DEMO_BARBER_PATH, corporateWhatsAppHref } from "@/lib/app-constants";
 import { trackMarketingEvent } from "@/lib/marketing-analytics";
 
 export function SiteFooter() {
@@ -26,7 +26,12 @@ export function SiteFooter() {
             </li>
             <li>
               <Link to={DEMO_BOOKING_PATH} className="hover:text-foreground">
-                Demonstração
+                Demo salão
+              </Link>
+            </li>
+            <li>
+              <Link to={DEMO_BARBER_PATH} className="hover:text-foreground">
+                Demo barbearia
               </Link>
             </li>
           </ul>
