@@ -281,28 +281,27 @@ function DemoHero({ mobile, demo }: { mobile: boolean; demo: DemoShowcase }) {
   return (
     <div
       className={`relative overflow-hidden bg-black ${
-        mobile ? "min-h-[188px]" : "min-h-[220px] rounded-t-[20px]"
+        mobile ? "" : "rounded-t-[20px]"
       }`}
     >
       <img
         src={demo.assets.banner}
         alt=""
-        className="absolute inset-0 size-full object-cover object-center"
+        className="absolute inset-0 size-full object-cover object-top"
         fetchPriority="high"
         decoding="async"
       />
-      <div className="absolute inset-0 bg-gradient-to-r from-black/90 via-black/55 to-transparent" />
+      {/* Overlay mais forte para título, subtítulo e badges legíveis */}
+      <div className="absolute inset-0 bg-gradient-to-t from-black via-black/75 to-black/35" />
       <div
-        className={`relative flex ${
-          mobile
-            ? "min-h-[188px] flex-col justify-end gap-2 p-4 pb-2"
-            : "min-h-[220px] grid-cols-1 items-end gap-2 p-6 pb-3 md:grid-cols-[1fr_38%] md:p-8"
+        className={`relative z-10 flex flex-col justify-end ${
+          mobile ? "gap-2.5 px-4 pb-5 pt-10" : "gap-3 px-6 pb-6 pt-12 md:px-8"
         }`}
       >
-        <div className={mobile ? "z-10 max-w-full" : "z-10 max-w-md pb-4"}>
+        <div className={mobile ? "max-w-full" : "max-w-md"}>
           <h1
-            className={`font-display font-bold leading-[1.12] text-white ${
-              mobile ? "text-[1.2rem]" : "text-[2rem] lg:text-[2.1rem]"
+            className={`font-display font-bold leading-[1.15] text-white ${
+              mobile ? "text-[1.35rem]" : "text-[2rem] lg:text-[2.1rem]"
             }`}
           >
             <span className="block">{demo.hero.titleLine1}</span>
@@ -311,19 +310,23 @@ function DemoHero({ mobile, demo }: { mobile: boolean; demo: DemoShowcase }) {
             </span>
           </h1>
           <p
-            className={`mt-2 whitespace-pre-line leading-snug text-white/85 ${
-              mobile ? "text-[10px]" : "text-sm"
+            className={`mt-2.5 whitespace-pre-line leading-snug text-white/90 ${
+              mobile ? "text-[11px]" : "text-sm"
             }`}
           >
             {demo.hero.subtitle}
           </p>
-          <ul className={`mt-3 flex ${mobile ? "gap-4" : "mt-4 gap-8"}`}>
+          <ul className={`mt-3.5 flex flex-wrap ${mobile ? "gap-5" : "mt-4 gap-8"}`}>
             {demo.hero.badges.map((label, i) => {
               const Icon = BADGE_ICONS[i] ?? Star;
               return (
                 <li key={label} className="flex flex-col items-center gap-1 text-center">
-                  <Icon className="size-5" style={{ color: demo.accent }} strokeWidth={1.75} />
-                  <span className={`font-medium text-white/90 ${mobile ? "text-[9px]" : "text-xs"}`}>
+                  <Icon
+                    className={mobile ? "size-5" : "size-5"}
+                    style={{ color: demo.accent }}
+                    strokeWidth={1.75}
+                  />
+                  <span className={`font-medium text-white ${mobile ? "text-[10px]" : "text-xs"}`}>
                     {label}
                   </span>
                 </li>

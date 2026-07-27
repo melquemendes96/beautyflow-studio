@@ -170,7 +170,8 @@ export const DEMO_BEAUTY_SHOWCASE: DemoShowcase = {
 export const DEMO_BARBER_SHOWCASE: DemoShowcase = {
   id: "barbearia",
   theme: "dark",
-  pageBg: "#0c0c0c",
+  // Fora do celular: branco, para contrastar com a tela escura
+  pageBg: "#ffffff",
   previewBg: "#111111",
   accent: "#c9a227",
   assets: {

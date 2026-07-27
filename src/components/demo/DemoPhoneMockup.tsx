@@ -13,13 +13,13 @@ export function DemoPhoneMockup({
   return (
     <div className="demo-phone-mockup relative mx-auto w-[min(100%,320px)] shrink-0 sm:w-[320px] md:w-[340px]">
       <div
-        className={`rounded-[42px] border-[11px] p-[7px] shadow-[0_28px_64px_-16px_rgba(0,0,0,0.55)] ${
-          dark ? "border-[#0a0a0a] bg-[#0a0a0a]" : "border-[#121212] bg-[#121212]"
+        className={`rounded-[42px] border-[11px] p-[7px] shadow-[0_20px_50px_-12px_rgba(0,0,0,0.35)] ring-1 ring-black/10 ${
+          dark ? "border-[#1a1a1a] bg-[#1a1a1a]" : "border-[#121212] bg-[#121212]"
         }`}
       >
         <div
           className={`pointer-events-none absolute left-1/2 top-[18px] z-20 h-[22px] w-[88px] -translate-x-1/2 rounded-full ${
-            dark ? "bg-[#0a0a0a]" : "bg-[#121212]"
+            dark ? "bg-[#1a1a1a]" : "bg-[#121212]"
           }`}
         />
         <div

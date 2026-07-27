@@ -16,12 +16,13 @@ type Props = {
 
 /**
  * Vitrine comercial — mesma experiência nas duas demos:
- * só o mock de celular (como no studio feminino no mobile),
- * com assets pré-carregados para passos instantâneos.
+ * fundo claro fora do celular + mock de tela (tema interno do salão).
  */
 export function DemoShowcasePage({ demo = DEMO_BEAUTY_SHOWCASE }: Props) {
   const dark = demo.theme === "dark";
   const assetUrls = collectDemoAssetUrls(demo);
+  // Sempre claro fora do aparelho — contraste com a moldura/tela
+  const pageBg = demo.id === "barbearia" ? "#ffffff" : demo.pageBg;
 
   useEffect(() => {
     prefetchDemoAssets(demo);
@@ -31,9 +32,8 @@ export function DemoShowcasePage({ demo = DEMO_BEAUTY_SHOWCASE }: Props) {
     <div
       key={demo.id}
       className="demo-showcase-page min-h-screen w-full"
-      style={{ backgroundColor: demo.pageBg }}
+      style={{ backgroundColor: pageBg }}
     >
-      {/* Preload no HTML: banner + serviços + barbeiros já no cache ao abrir */}
       <div className="sr-only" aria-hidden>
         {assetUrls.map((url) => (
           <img key={url} src={url} alt="" width={1} height={1} decoding="async" />
@@ -43,14 +43,12 @@ export function DemoShowcasePage({ demo = DEMO_BEAUTY_SHOWCASE }: Props) {
       <div className="mx-auto flex w-full max-w-[1400px] items-center justify-between gap-3 px-4 py-4 sm:px-6">
         <Link
           to="/"
-          className={`inline-flex items-center gap-1.5 text-sm transition hover:opacity-80 ${
-            dark ? "text-[#bbb]" : "text-muted-foreground"
-          }`}
+          className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition hover:text-foreground"
         >
           <ArrowLeft className="size-4" />
           Voltar ao site
         </Link>
-        <p className={`text-xs font-medium uppercase tracking-wider ${dark ? "text-[#888]" : "text-muted-foreground"}`}>
+        <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">
           {demo.id === "barbearia" ? "Barbearias" : "Studio feminino"} · {demo.studio.name}
         </p>
       </div>
