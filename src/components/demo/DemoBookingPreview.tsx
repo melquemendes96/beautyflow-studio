@@ -16,9 +16,10 @@ import {
 } from "lucide-react";
 import {
   DEMO_BEAUTY_SHOWCASE,
-  DEMO_BOOKING_STEPS,
   formatDemoPrice,
+  getDemoBookingSteps,
   type DemoBookingStep,
+  type DemoProvider,
   type DemoShowcase,
 } from "@/lib/demo-showcase-data";
 import {
@@ -38,7 +39,7 @@ const BADGE_ICONS = [Zap, Lock, Star] as const;
 
 type Variant = "desktop" | "mobile";
 
-/** DemonstraÃ§Ã£o interativa â€” mesmo visual da referÃªncia, fluxo local (sem Supabase). */
+/** Demonstração interativa — mesmo visual da referência, fluxo local (sem Supabase). */
 export function DemoBookingPreview({
   variant,
   demo = DEMO_BEAUTY_SHOWCASE,
@@ -48,8 +49,11 @@ export function DemoBookingPreview({
 }) {
   const mobile = variant === "mobile";
   const dark = demo.theme === "dark";
+  const bookingSteps = useMemo(() => getDemoBookingSteps(demo), [demo]);
+  const providers = demo.providers ?? [];
   const [step, setStep] = useState<DemoBookingStep>("servico");
   const [serviceIds, setServiceIds] = useState<string[]>([]);
+  const [providerId, setProviderId] = useState<string | null>(null);
   const [date, setDate] = useState<string | null>(null);
   const [time, setTime] = useState<string | null>(null);
   const [form, setForm] = useState({ nome: "", email: "", whatsapp: "" });
@@ -59,6 +63,10 @@ export function DemoBookingPreview({
     () => getSelectedServices(serviceIds, demo.services),
     [serviceIds, demo.services],
   );
+  const selectedProvider = useMemo(
+    () => providers.find((p) => p.id === providerId) ?? null,
+    [providers, providerId],
+  );
   const totalDurationMinutes = useMemo(
     () => getTotalDurationMinutes(serviceIds, demo.services),
     [serviceIds, demo.services],
@@ -67,7 +75,7 @@ export function DemoBookingPreview({
     () => getTotalPrice(serviceIds, demo.services),
     [serviceIds, demo.services],
   );
-  const stepIndex = DEMO_BOOKING_STEPS.indexOf(step === "confirmado" ? "dados" : step);
+  const stepIndex = bookingSteps.indexOf(step === "confirmado" ? "dados" : step);
 
   const dateLabel = useMemo(() => {
     if (!date) return "";
@@ -88,18 +96,20 @@ export function DemoBookingPreview({
   const resetDemo = () => {
     setStep("servico");
     setServiceIds([]);
+    setProviderId(null);
     setDate(null);
     setTime(null);
     setForm({ nome: "", email: "", whatsapp: "" });
   };
 
   const goBack = () => {
-    const i = DEMO_BOOKING_STEPS.indexOf(step as (typeof DEMO_BOOKING_STEPS)[number]);
-    if (i > 0) setStep(DEMO_BOOKING_STEPS[i - 1]!);
+    const i = bookingSteps.indexOf(step as (typeof bookingSteps)[number]);
+    if (i > 0) setStep(bookingSteps[i - 1]!);
   };
 
   const canContinue =
     (step === "servico" && serviceIds.length > 0) ||
+    (step === "profissional" && Boolean(providerId)) ||
     (step === "data" && Boolean(date)) ||
     (step === "horario" && Boolean(time)) ||
     (step === "dados" && Boolean(form.nome.trim() && (form.email.trim() || form.whatsapp.trim())));
@@ -115,16 +125,16 @@ export function DemoBookingPreview({
 
   const handleContinue = async () => {
     if (!canContinue) return;
-    const i = DEMO_BOOKING_STEPS.indexOf(step as (typeof DEMO_BOOKING_STEPS)[number]);
-    if (i < DEMO_BOOKING_STEPS.length - 1) {
-      setStep(DEMO_BOOKING_STEPS[i + 1]!);
+    const i = bookingSteps.indexOf(step as (typeof bookingSteps)[number]);
+    if (i < bookingSteps.length - 1) {
+      setStep(bookingSteps[i + 1]!);
       return;
     }
     setSubmitting(true);
     await new Promise((r) => setTimeout(r, 700));
     setSubmitting(false);
     setStep("confirmado");
-    toast.success("DemonstraÃ§Ã£o: agendamento simulado com sucesso!");
+    toast.success("Demonstração: agendamento simulado com sucesso!");
   };
 
   return (
@@ -142,7 +152,13 @@ export function DemoBookingPreview({
         <>
           <DemoHero mobile={mobile} demo={demo} />
           <DemoStudioCard mobile={mobile} demo={demo} />
-          <DemoStepper activeIndex={stepIndex} mobile={mobile} accent={demo.accent} dark={dark} />
+          <DemoStepper
+            activeIndex={stepIndex}
+            stepsCount={bookingSteps.length}
+            mobile={mobile}
+            accent={demo.accent}
+            dark={dark}
+          />
         </>
       ) : null}
 
@@ -152,6 +168,7 @@ export function DemoBookingPreview({
             mobile={mobile}
             demo={demo}
             services={selectedServices}
+            provider={selectedProvider}
             totalPrice={totalPrice}
             totalDurationMinutes={totalDurationMinutes}
             date={date!}
@@ -164,13 +181,28 @@ export function DemoBookingPreview({
             {step === "servico" && (
               <>
                 <p className={`mb-3 ${dark ? "text-[#aaa]" : "text-[#888]"} ${mobile ? "text-xs" : "text-sm"}`}>
-                  Selecione um ou mais serviÃ§os. A duraÃ§Ã£o total serÃ¡ somada no agendamento.
+                  Selecione um ou mais serviços. A duração total será somada no agendamento.
                 </p>
                 <ServiceGrid
                   mobile={mobile}
                   demo={demo}
                   selectedIds={serviceIds}
                   onToggle={toggleService}
+                />
+              </>
+            )}
+            {step === "profissional" && (
+              <>
+                <p className={`mb-3 ${dark ? "text-[#aaa]" : "text-[#888]"} ${mobile ? "text-xs" : "text-sm"}`}>
+                  Escolha o barbeiro que vai te atender.
+                </p>
+                <ProviderGrid
+                  mobile={mobile}
+                  dark={dark}
+                  accent={demo.accent}
+                  providers={providers}
+                  selectedId={providerId}
+                  onSelect={setProviderId}
                 />
               </>
             )}
@@ -303,7 +335,7 @@ function DemoStudioCard({ mobile, demo }: { mobile: boolean; demo: DemoShowcase 
             <img
               src={demo.assets.logo}
               alt=""
-              className="size-[72px] shrink-0 rounded-xl object-cover"
+              className="size-[72px] shrink-0 rounded-xl object-cover object-center ring-1 ring-black/10"
               width={72}
               height={72}
             />
@@ -323,7 +355,7 @@ function DemoStudioCard({ mobile, demo }: { mobile: boolean; demo: DemoShowcase 
           <img
             src={demo.assets.logo}
             alt=""
-            className="size-[140px] rounded-2xl object-cover md:size-[160px]"
+            className="size-[140px] rounded-2xl object-cover object-center ring-1 ring-black/10 md:size-[160px]"
             width={160}
             height={160}
           />
@@ -396,20 +428,23 @@ function StudioDetails({ centered, demo }: { centered?: boolean; demo: DemoShowc
 
 function DemoStepper({
   activeIndex,
+  stepsCount,
   mobile,
   accent,
   dark,
 }: {
   activeIndex: number;
+  stepsCount: number;
   mobile: boolean;
   accent: string;
   dark: boolean;
 }) {
+  const indices = Array.from({ length: stepsCount }, (_, i) => i);
   return (
     <div className={`flex justify-center ${dark ? "bg-[#111111]" : "bg-[#fdf9f4]"} ${mobile ? "py-4" : "py-5"}`}>
-      <div className="flex items-center gap-2">
-        {[0, 1, 2, 3].map((i) => (
-          <div key={i} className="flex items-center gap-2">
+      <div className="flex items-center gap-1.5 sm:gap-2">
+        {indices.map((i) => (
+          <div key={i} className="flex items-center gap-1.5 sm:gap-2">
             <span
               className={`grid place-items-center rounded-full font-semibold ${
                 mobile ? "size-7 text-[11px]" : "size-8 text-xs"
@@ -426,9 +461,9 @@ function DemoStepper({
             >
               {i + 1}
             </span>
-            {i < 3 ? (
+            {i < stepsCount - 1 ? (
               <span
-                className={`h-px ${mobile ? "w-5" : "w-10"} ${
+                className={`h-px ${mobile ? "w-3.5" : "w-8"} ${
                   i < activeIndex
                     ? dark
                       ? "bg-white/30"
@@ -456,9 +491,10 @@ function StepHeading({
   dark: boolean;
 }) {
   const titles: Record<Exclude<DemoBookingStep, "confirmado">, string> = {
-    servico: "Escolha o serviÃ§o",
+    servico: "Escolha o serviço",
+    profissional: "Escolha o barbeiro",
     data: "Escolha a data",
-    horario: "Escolha o horÃ¡rio de inÃ­cio",
+    horario: "Escolha o horário de início",
     dados: "Seus dados",
   };
   if (step === "confirmado") return null;
@@ -510,6 +546,67 @@ function ServiceThumb({
   );
 }
 
+function ProviderGrid({
+  mobile,
+  dark,
+  accent,
+  providers,
+  selectedId,
+  onSelect,
+}: {
+  mobile: boolean;
+  dark: boolean;
+  accent: string;
+  providers: DemoProvider[];
+  selectedId: string | null;
+  onSelect: (id: string) => void;
+}) {
+  return (
+    <div className={`grid gap-3 ${mobile ? "grid-cols-1" : "grid-cols-2 gap-4 xl:grid-cols-3"}`}>
+      {providers.map((p) => {
+        const selected = selectedId === p.id;
+        return (
+          <button
+            key={p.id}
+            type="button"
+            onClick={() => onSelect(p.id)}
+            className={`flex items-center gap-3 rounded-2xl border p-3 text-left transition ${
+              dark
+                ? selected
+                  ? "border-[#c9a227] bg-[#1c1c1c] shadow-[0_2px_16px_rgba(201,162,39,0.2)]"
+                  : "border-[#2a2a2a] bg-[#171717] hover:border-[#c9a227]/50"
+                : selected
+                  ? "border-[#1a1a1a] bg-white shadow-[0_2px_12px_rgba(0,0,0,0.08)]"
+                  : "border-[#ebe6dc] bg-white hover:border-[#d4af37]/50"
+            }`}
+          >
+            <img
+              src={p.imageUrl}
+              alt=""
+              className="size-16 shrink-0 rounded-xl object-cover object-top sm:size-[4.5rem]"
+              loading="lazy"
+              decoding="async"
+            />
+            <div className="min-w-0 flex-1">
+              <div className={`font-semibold leading-snug ${dark ? "text-white" : "text-[#1a1a1a]"} ${mobile ? "text-sm" : "text-[15px]"}`}>
+                {p.name}
+              </div>
+              <div className={`mt-0.5 ${dark ? "text-[#aaa]" : "text-[#888]"} ${mobile ? "text-[11px]" : "text-xs"}`}>
+                {p.role}
+              </div>
+            </div>
+            {selected ? (
+              <Check className="size-4 shrink-0" style={{ color: accent }} />
+            ) : (
+              <ChevronRight className={`size-4 shrink-0 ${dark ? "text-[#555]" : "text-[#ccc]"}`} />
+            )}
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
 function ServiceGrid({
   mobile,
   demo,
@@ -553,7 +650,7 @@ function ServiceGrid({
                 {s.name}
               </div>
               <div className={`${dark ? "text-[#aaa]" : "text-[#888]"} ${mobile ? "text-xs" : "text-sm"}`}>
-                {s.duration_minutes} min Â· R$ {formatDemoPrice(s.price)}
+                {s.duration_minutes} min · R$ {formatDemoPrice(s.price)}
               </div>
             </div>
             {selected ? (
@@ -606,7 +703,7 @@ function DateGrid({
           className={`grid size-8 place-items-center rounded-full transition disabled:opacity-30 ${
             dark ? "text-[#aaa] hover:bg-[#222]" : "text-[#666] hover:bg-white"
           }`}
-          aria-label="MÃªs anterior"
+          aria-label="Mês anterior"
         >
           <ChevronLeft className="size-4" />
         </button>
@@ -624,14 +721,14 @@ function DateGrid({
           className={`grid size-8 place-items-center rounded-full transition disabled:opacity-30 ${
             dark ? "text-[#aaa] hover:bg-[#222]" : "text-[#666] hover:bg-white"
           }`}
-          aria-label="PrÃ³ximo mÃªs"
+          aria-label="Próximo mês"
         >
           <ChevronRight className="size-4" />
         </button>
       </div>
 
       <div className={`grid grid-cols-7 gap-1.5 ${mobile ? "text-[9px]" : "text-xs"}`}>
-        {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "SÃ¡b"].map((d) => (
+        {["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"].map((d) => (
           <div key={d} className={`text-center font-medium ${dark ? "text-[#777]" : "text-[#999]"}`}>
             {d}
           </div>
@@ -706,7 +803,7 @@ function TimeGrid({
   return (
     <div>
       <p className={`mb-3 ${dark ? "text-[#aaa]" : "text-[#888]"} ${mobile ? "text-xs" : "text-sm"}`}>
-        {serviceCount} serviÃ§o(s) Â· duraÃ§Ã£o total {durationLabel}. Escolha o horÃ¡rio de inÃ­cio.
+        {serviceCount} serviço(s) · duração total {durationLabel}. Escolha o horário de início.
       </p>
       <div className={`grid gap-2 ${mobile ? "grid-cols-3" : "grid-cols-4 md:grid-cols-5"}`}>
         {DEMO_TIME_SLOTS.map((h) => {
@@ -738,7 +835,7 @@ function TimeGrid({
         })}
       </div>
       <p className={`mt-3 ${dark ? "text-[#777]" : "text-[#999]"} ${mobile ? "text-[10px]" : "text-xs"}`}>
-        DemonstraÃ§Ã£o: horÃ¡rios riscados nÃ£o comportam a duraÃ§Ã£o total (ex.: ocupado Ã s 10h).
+        Demonstração: horários riscados não comportam a duração total (ex.: ocupado às 10h).
       </p>
     </div>
   );
@@ -769,7 +866,7 @@ function ClientForm({
   return (
     <div className="space-y-4">
       <p className={`${dark ? "text-[#aaa]" : "text-[#888]"} ${mobile ? "text-[11px]" : "text-sm"}`}>
-        Preencha para confirmarmos seu agendamento (demonstraÃ§Ã£o â€” nada Ã© enviado ao servidor).
+        Preencha para confirmarmos seu agendamento (demonstração — nada é enviado ao servidor).
       </p>
       <DemoField
         label="Nome completo"
@@ -800,7 +897,7 @@ function ClientForm({
         } ${mobile ? "text-xs" : "text-sm"}`}
       >
         <div className="flex justify-between gap-2">
-          <span className={dark ? "text-[#888]" : "text-[#888]"}>ServiÃ§os</span>
+          <span className={dark ? "text-[#888]" : "text-[#888]"}>Serviços</span>
           <span className="text-right font-medium">{services.length}</span>
         </div>
         <ul
@@ -810,7 +907,7 @@ function ClientForm({
             <li key={s.id} className={`flex justify-between gap-2 ${dark ? "text-[#bbb]" : "text-[#555]"}`}>
               <span className="min-w-0 truncate">{s.name}</span>
               <span className="shrink-0">
-                {s.duration_minutes} min Â· R$ {formatDemoPrice(s.price)}
+                {s.duration_minutes} min · R$ {formatDemoPrice(s.price)}
               </span>
             </li>
           ))}
@@ -820,7 +917,7 @@ function ClientForm({
           <span className="text-right">{dateLabel}</span>
         </div>
         <div className="mt-1.5 flex justify-between gap-2">
-          <span className="text-[#888]">HorÃ¡rio</span>
+          <span className="text-[#888]">Horário</span>
           <span>{time}</span>
         </div>
         <div
@@ -912,7 +1009,7 @@ function DemoActions({
           <ArrowLeft className="size-3.5" /> Voltar
         </button>
       ) : (
-        <span className={`text-[#bbb] ${mobile ? "text-xs" : "text-sm"}`}>â† Voltar</span>
+        <span className={`text-[#bbb] ${mobile ? "text-xs" : "text-sm"}`}>← Voltar</span>
       )}
       <button
         type="button"
@@ -923,7 +1020,7 @@ function DemoActions({
         } ${mobile ? "min-h-10 flex-1 px-4 text-xs" : "min-h-11 px-6 text-sm"}`}
         style={dark ? { backgroundColor: accent } : undefined}
       >
-        {submitting ? "Confirmandoâ€¦" : isLast ? "Confirmar agendamento" : "Continuar"}
+        {submitting ? "Confirmando…" : isLast ? "Confirmar agendamento" : "Continuar"}
         <ArrowRight className={mobile ? "size-3.5" : "size-4"} />
       </button>
     </div>
@@ -934,6 +1031,7 @@ function DemoConfirmed({
   mobile,
   demo,
   services,
+  provider,
   totalPrice,
   totalDurationMinutes,
   date,
@@ -943,6 +1041,7 @@ function DemoConfirmed({
   mobile: boolean;
   demo: DemoShowcase;
   services: ReturnType<typeof getSelectedServices>;
+  provider: DemoProvider | null;
   totalPrice: number;
   totalDurationMinutes: number;
   date: string;
@@ -969,7 +1068,7 @@ function DemoConfirmed({
         Agendamento confirmado!
       </h2>
       <p className={`mt-2 ${dark ? "text-[#aaa]" : "text-[#888]"} ${mobile ? "text-xs" : "text-sm"}`}>
-        DemonstraÃ§Ã£o concluÃ­da â€” nenhum dado foi enviado ao sistema.
+        Demonstração concluída — nenhum dado foi enviado ao sistema.
       </p>
       <div
         className={`mt-5 space-y-2 rounded-xl p-4 text-left ring-1 ${
@@ -977,11 +1076,17 @@ function DemoConfirmed({
         } ${mobile ? "text-xs" : "text-sm"}`}
       >
         <div className="flex justify-between gap-2">
-          <span className="text-[#888]">EstÃºdio</span>
+          <span className="text-[#888]">Estúdio</span>
           <span className="font-medium">{demo.studio.name}</span>
         </div>
+        {provider ? (
+          <div className="flex justify-between gap-2">
+            <span className="text-[#888]">Barbeiro</span>
+            <span className="font-medium">{provider.name}</span>
+          </div>
+        ) : null}
         <div className="flex justify-between gap-2">
-          <span className="text-[#888]">ServiÃ§os</span>
+          <span className="text-[#888]">Serviços</span>
           <span>{services.length}</span>
         </div>
         <ul className={`space-y-1 border-b pb-2 ${dark ? "border-[#333]" : "border-[#ebe6dc]"}`}>
@@ -997,11 +1102,11 @@ function DemoConfirmed({
           <span>{dateFmt}</span>
         </div>
         <div className="flex justify-between gap-2">
-          <span className="text-[#888]">InÃ­cio</span>
+          <span className="text-[#888]">Início</span>
           <span>{time}</span>
         </div>
         <div className="flex justify-between gap-2">
-          <span className="text-[#888]">DuraÃ§Ã£o</span>
+          <span className="text-[#888]">Duração</span>
           <span>{totalDurationMinutes} min</span>
         </div>
         <div
@@ -1031,7 +1136,7 @@ function DemoConfirmed({
             dark ? "text-[#aaa] hover:text-white" : "text-[#888] hover:text-[#1a1a1a]"
           } ${mobile ? "text-xs" : "text-sm"}`}
         >
-          Refazer demonstraÃ§Ã£o
+          Refazer demonstração
         </button>
       </div>
     </div>

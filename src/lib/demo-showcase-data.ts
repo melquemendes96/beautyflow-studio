@@ -8,6 +8,13 @@ export type DemoService = {
   imageUrl: string;
 };
 
+export type DemoProvider = {
+  id: string;
+  name: string;
+  role: string;
+  imageUrl: string;
+};
+
 export type DemoShowcase = {
   id: "beauty" | "barbearia";
   theme: "cream" | "dark";
@@ -37,6 +44,7 @@ export type DemoShowcase = {
     hours: string;
   };
   services: DemoService[];
+  providers?: DemoProvider[];
   slots: readonly string[];
   features: readonly {
     title: string;
@@ -59,12 +67,17 @@ export const DEMO_ASSETS = {
 
 export const DEMO_BARBER_ASSETS = {
   banner: "/demo/barbearia/banner.png",
-  logo: "/demo/barbearia/logo.svg",
+  logo: "/demo/barbearia/logo.png",
   footer: null as string | null,
   serviceCut: "/demo/barbearia/service-cut.png",
   serviceBeard: "/demo/barbearia/service-beard.png",
   serviceShave: "/demo/barbearia/service-shave.png",
   serviceCombo: "/demo/barbearia/service-combo.png",
+  barberRafael: "/demo/barbearia/barber-rafael.png",
+  barberLucas: "/demo/barbearia/barber-lucas.png",
+  barberAndre: "/demo/barbearia/barber-andre.png",
+  barberDiego: "/demo/barbearia/barber-diego.png",
+  barberThiago: "/demo/barbearia/barber-thiago.png",
 } as const;
 
 /** Demo feminina — La Belle (rota /demo). */
@@ -213,6 +226,38 @@ export const DEMO_BARBER_SHOWCASE: DemoShowcase = {
       imageUrl: DEMO_BARBER_ASSETS.serviceShave,
     },
   ],
+  providers: [
+    {
+      id: "rafael",
+      name: "Rafael Costa",
+      role: "Master Barber · Fade",
+      imageUrl: DEMO_BARBER_ASSETS.barberRafael,
+    },
+    {
+      id: "lucas",
+      name: "Lucas Mendes",
+      role: "Especialista em degradê",
+      imageUrl: DEMO_BARBER_ASSETS.barberLucas,
+    },
+    {
+      id: "andre",
+      name: "André Silva",
+      role: "Barba & navalha",
+      imageUrl: DEMO_BARBER_ASSETS.barberAndre,
+    },
+    {
+      id: "diego",
+      name: "Diego Alves",
+      role: "Corte contemporâneo",
+      imageUrl: DEMO_BARBER_ASSETS.barberDiego,
+    },
+    {
+      id: "thiago",
+      name: "Thiago Rocha",
+      role: "Skin fade & design",
+      imageUrl: DEMO_BARBER_ASSETS.barberThiago,
+    },
+  ],
   slots: ["09:00", "09:40", "10:20", "11:00", "14:00", "15:20", "16:40", "18:00"],
   features: [
     {
@@ -242,8 +287,16 @@ export const DEMO_BARBER_SHOWCASE: DemoShowcase = {
 /** Alias legado — demo feminina padrão. */
 export const DEMO_SHOWCASE = DEMO_BEAUTY_SHOWCASE;
 
-export type DemoBookingStep = "servico" | "data" | "horario" | "dados" | "confirmado";
+export type DemoBookingStep = "servico" | "profissional" | "data" | "horario" | "dados" | "confirmado";
 
+export function getDemoBookingSteps(demo: DemoShowcase): DemoBookingStep[] {
+  const hasProviders = Boolean(demo.providers && demo.providers.length > 0);
+  return hasProviders
+    ? ["servico", "profissional", "data", "horario", "dados"]
+    : ["servico", "data", "horario", "dados"];
+}
+
+/** @deprecated use getDemoBookingSteps(demo) */
 export const DEMO_BOOKING_STEPS: DemoBookingStep[] = ["servico", "data", "horario", "dados"];
 
 export function formatDemoPrice(value: number) {
