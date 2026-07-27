@@ -1,14 +1,27 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, type CSSProperties } from "react";
 import useEmblaCarousel from "embla-carousel-react";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import type { PublicBookingProvider } from "@/services/publicBookingService";
 import { cn } from "@/lib/utils";
 
+/** Formato compartilhado: agenda pública + demonstração comercial. */
+export type ProviderPickerItem = {
+  id: string;
+  display_name: string;
+  photo_url: string | null;
+  color?: string | null;
+  is_owner?: boolean;
+  subtitle?: string | null;
+};
+
 type ProviderPickerCarouselProps = {
-  providers: PublicBookingProvider[];
+  providers: ProviderPickerItem[];
   selectedId: string | null;
   onSelect: (id: string) => void;
   primaryColor: string;
+  className?: string;
+  hint?: string;
+  /** Visual da demo escura (barbearia) sem depender do tema global. */
+  tone?: "default" | "dark";
 };
 
 export function ProviderPickerCarousel({
@@ -16,7 +29,11 @@ export function ProviderPickerCarousel({
   selectedId,
   onSelect,
   primaryColor,
+  className,
+  hint = "Deslize para escolher o profissional",
+  tone = "default",
 }: ProviderPickerCarouselProps) {
+  const dark = tone === "dark";
   const [emblaRef, emblaApi] = useEmblaCarousel({
     align: "center",
     containScroll: "trimSnaps",
@@ -62,7 +79,7 @@ export function ProviderPickerCarousel({
   if (providers.length === 0) return null;
 
   return (
-    <div className="mt-6">
+    <div className={cn("mt-6", className)}>
       <div
         className="relative px-1"
         style={{
@@ -74,6 +91,8 @@ export function ProviderPickerCarousel({
           <div className="flex touch-pan-y">
             {providers.map((p, index) => {
               const isActive = index === selectedIndex;
+              const subtitle =
+                p.subtitle?.trim() || (p.is_owner ? "Responsável pelo studio" : null);
               return (
                 <div
                   key={p.id}
@@ -85,8 +104,12 @@ export function ProviderPickerCarousel({
                     className={cn(
                       "mx-auto flex w-full max-w-[280px] flex-col items-center rounded-3xl border px-4 py-6 text-center transition-all duration-300 ease-out",
                       isActive
-                        ? "scale-100 border-2 bg-card shadow-[0_12px_40px_-12px_rgba(0,0,0,0.25)]"
-                        : "scale-[0.88] border-border/60 bg-secondary/30 opacity-60 hover:opacity-80",
+                        ? dark
+                          ? "scale-100 border-2 bg-[#1c1c1c] shadow-[0_12px_40px_-12px_rgba(0,0,0,0.55)]"
+                          : "scale-100 border-2 bg-card shadow-[0_12px_40px_-12px_rgba(0,0,0,0.25)]"
+                        : dark
+                          ? "scale-[0.88] border-[#2a2a2a] bg-[#171717] opacity-60 hover:opacity-80"
+                          : "scale-[0.88] border-border/60 bg-secondary/30 opacity-60 hover:opacity-80",
                     )}
                     style={isActive ? { borderColor: primaryColor } : undefined}
                   >
@@ -95,10 +118,19 @@ export function ProviderPickerCarousel({
                         src={p.photo_url}
                         alt=""
                         className={cn(
-                          "rounded-full object-cover transition-all duration-300",
-                          isActive ? "size-28 ring-4 ring-offset-2" : "size-20",
+                          "rounded-full object-cover object-top transition-all duration-300",
+                          isActive
+                            ? cn(
+                                "size-28 ring-4 ring-offset-2",
+                                dark ? "ring-offset-[#1c1c1c]" : "ring-offset-background",
+                              )
+                            : "size-20",
                         )}
-                        style={isActive ? { ringColor: `${primaryColor}55` } : undefined}
+                        style={
+                          isActive
+                            ? ({ ["--tw-ring-color"]: `${primaryColor}55` } as CSSProperties)
+                            : undefined
+                        }
                       />
                     ) : (
                       <div
@@ -115,12 +147,15 @@ export function ProviderPickerCarousel({
                       className={cn(
                         "mt-4 font-display font-semibold transition-all duration-300",
                         isActive ? "text-xl" : "text-base",
+                        dark ? "text-white" : undefined,
                       )}
                     >
                       {p.display_name}
                     </div>
-                    {p.is_owner ? (
-                      <div className="mt-1 text-xs text-muted-foreground">Responsável pelo studio</div>
+                    {subtitle ? (
+                      <div className={cn("mt-1 text-xs", dark ? "text-[#aaa]" : "text-muted-foreground")}>
+                        {subtitle}
+                      </div>
                     ) : null}
                   </button>
                 </div>
@@ -132,9 +167,14 @@ export function ProviderPickerCarousel({
 
       {providers.length > 1 ? (
         <>
-          <p className="mt-5 flex items-center justify-center gap-2 text-xs text-muted-foreground">
+          <p
+            className={cn(
+              "mt-5 flex items-center justify-center gap-2 text-xs",
+              dark ? "text-[#aaa]" : "text-muted-foreground",
+            )}
+          >
             <ChevronLeft className="size-4 animate-pulse" aria-hidden />
-            Deslize para escolher o profissional
+            {hint}
             <ChevronRight className="size-4 animate-pulse" aria-hidden />
           </p>
           <div className="mt-3 flex justify-center gap-1.5">
@@ -146,7 +186,7 @@ export function ProviderPickerCarousel({
                 onClick={() => scrollToProvider(index)}
                 className={cn(
                   "h-1.5 rounded-full transition-all duration-300",
-                  index === selectedIndex ? "w-6" : "w-1.5 bg-border",
+                  index === selectedIndex ? "w-6" : dark ? "w-1.5 bg-[#333]" : "w-1.5 bg-border",
                 )}
                 style={index === selectedIndex ? { backgroundColor: primaryColor } : undefined}
               />

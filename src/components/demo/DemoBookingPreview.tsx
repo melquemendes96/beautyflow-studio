@@ -14,6 +14,7 @@ import {
   Star,
   Zap,
 } from "lucide-react";
+import { ProviderPickerCarousel } from "@/components/booking/ProviderPickerCarousel";
 import {
   DEMO_BEAUTY_SHOWCASE,
   formatDemoPrice,
@@ -66,6 +67,18 @@ export function DemoBookingPreview({
   const selectedProvider = useMemo(
     () => providers.find((p) => p.id === providerId) ?? null,
     [providers, providerId],
+  );
+  const carouselProviders = useMemo(
+    () =>
+      providers.map((p, index) => ({
+        id: p.id,
+        display_name: p.name,
+        photo_url: p.imageUrl,
+        color: demo.accent,
+        is_owner: index === 0,
+        subtitle: p.role,
+      })),
+    [providers, demo.accent],
   );
   const totalDurationMinutes = useMemo(
     () => getTotalDurationMinutes(serviceIds, demo.services),
@@ -196,13 +209,14 @@ export function DemoBookingPreview({
                 <p className={`mb-3 ${dark ? "text-[#aaa]" : "text-[#888]"} ${mobile ? "text-xs" : "text-sm"}`}>
                   Escolha o barbeiro que vai te atender.
                 </p>
-                <ProviderGrid
-                  mobile={mobile}
-                  dark={dark}
-                  accent={demo.accent}
-                  providers={providers}
+                <ProviderPickerCarousel
+                  providers={carouselProviders}
                   selectedId={providerId}
                   onSelect={setProviderId}
+                  primaryColor={demo.accent}
+                  tone={dark ? "dark" : "default"}
+                  className="mt-2"
+                  hint="Deslize para escolher o profissional"
                 />
               </>
             )}
@@ -543,67 +557,6 @@ function ServiceThumb({
       onError={() => setFailed(true)}
       className={`${size} shrink-0 rounded-xl object-cover object-center shadow-[0_1px_6px_rgba(0,0,0,0.08)]`}
     />
-  );
-}
-
-function ProviderGrid({
-  mobile,
-  dark,
-  accent,
-  providers,
-  selectedId,
-  onSelect,
-}: {
-  mobile: boolean;
-  dark: boolean;
-  accent: string;
-  providers: DemoProvider[];
-  selectedId: string | null;
-  onSelect: (id: string) => void;
-}) {
-  return (
-    <div className={`grid gap-3 ${mobile ? "grid-cols-1" : "grid-cols-2 gap-4 xl:grid-cols-3"}`}>
-      {providers.map((p) => {
-        const selected = selectedId === p.id;
-        return (
-          <button
-            key={p.id}
-            type="button"
-            onClick={() => onSelect(p.id)}
-            className={`flex items-center gap-3 rounded-2xl border p-3 text-left transition ${
-              dark
-                ? selected
-                  ? "border-[#c9a227] bg-[#1c1c1c] shadow-[0_2px_16px_rgba(201,162,39,0.2)]"
-                  : "border-[#2a2a2a] bg-[#171717] hover:border-[#c9a227]/50"
-                : selected
-                  ? "border-[#1a1a1a] bg-white shadow-[0_2px_12px_rgba(0,0,0,0.08)]"
-                  : "border-[#ebe6dc] bg-white hover:border-[#d4af37]/50"
-            }`}
-          >
-            <img
-              src={p.imageUrl}
-              alt=""
-              className="size-16 shrink-0 rounded-xl object-cover object-top sm:size-[4.5rem]"
-              loading="lazy"
-              decoding="async"
-            />
-            <div className="min-w-0 flex-1">
-              <div className={`font-semibold leading-snug ${dark ? "text-white" : "text-[#1a1a1a]"} ${mobile ? "text-sm" : "text-[15px]"}`}>
-                {p.name}
-              </div>
-              <div className={`mt-0.5 ${dark ? "text-[#aaa]" : "text-[#888]"} ${mobile ? "text-[11px]" : "text-xs"}`}>
-                {p.role}
-              </div>
-            </div>
-            {selected ? (
-              <Check className="size-4 shrink-0" style={{ color: accent }} />
-            ) : (
-              <ChevronRight className={`size-4 shrink-0 ${dark ? "text-[#555]" : "text-[#ccc]"}`} />
-            )}
-          </button>
-        );
-      })}
-    </div>
   );
 }
 
