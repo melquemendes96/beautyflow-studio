@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-/** Moldura de celular — vitrine /demo */
+/** Moldura de celular — vitrine /demo (beauty e barbearia). */
 export function DemoPhoneMockup({
   children,
   frameBg = "#fdf9f4",
@@ -11,7 +11,7 @@ export function DemoPhoneMockup({
   dark?: boolean;
 }) {
   return (
-    <div className="demo-phone-mockup relative mx-auto w-[min(100%,292px)] shrink-0 sm:w-[292px]">
+    <div className="demo-phone-mockup relative mx-auto w-[min(100%,320px)] shrink-0 sm:w-[320px] md:w-[340px]">
       <div
         className={`rounded-[42px] border-[11px] p-[7px] shadow-[0_28px_64px_-16px_rgba(0,0,0,0.55)] ${
           dark ? "border-[#0a0a0a] bg-[#0a0a0a]" : "border-[#121212] bg-[#121212]"
@@ -23,7 +23,7 @@ export function DemoPhoneMockup({
           }`}
         />
         <div
-          className="relative h-[min(72vh,720px)] overflow-hidden rounded-[32px] sm:h-[720px]"
+          className="relative h-[min(78vh,740px)] overflow-hidden rounded-[32px] sm:h-[740px]"
           style={{ backgroundColor: frameBg }}
         >
           <div className="demo-phone-scroll pointer-events-auto h-full overflow-x-hidden overflow-y-auto overscroll-contain">

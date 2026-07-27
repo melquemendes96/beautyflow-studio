@@ -1,7 +1,12 @@
+import { useEffect } from "react";
 import { DemoBookingPreview } from "@/components/demo/DemoBookingPreview";
 import { DemoPhoneMockup } from "@/components/demo/DemoPhoneMockup";
 import type { DemoShowcase } from "@/lib/demo-showcase-data";
-import { DEMO_BEAUTY_SHOWCASE } from "@/lib/demo-showcase-data";
+import {
+  DEMO_BEAUTY_SHOWCASE,
+  collectDemoAssetUrls,
+  prefetchDemoAssets,
+} from "@/lib/demo-showcase-data";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 
@@ -10,12 +15,17 @@ type Props = {
 };
 
 /**
- * Vitrine comercial.
- * Mobile: só a demonstração no celular.
- * Desktop (lg+): PC + mockup do celular lado a lado.
+ * Vitrine comercial — mesma experiência nas duas demos:
+ * só o mock de celular (como no studio feminino no mobile),
+ * com assets pré-carregados para passos instantâneos.
  */
 export function DemoShowcasePage({ demo = DEMO_BEAUTY_SHOWCASE }: Props) {
   const dark = demo.theme === "dark";
+  const assetUrls = collectDemoAssetUrls(demo);
+
+  useEffect(() => {
+    prefetchDemoAssets(demo);
+  }, [demo]);
 
   return (
     <div
@@ -23,6 +33,13 @@ export function DemoShowcasePage({ demo = DEMO_BEAUTY_SHOWCASE }: Props) {
       className="demo-showcase-page min-h-screen w-full"
       style={{ backgroundColor: demo.pageBg }}
     >
+      {/* Preload no HTML: banner + serviços + barbeiros já no cache ao abrir */}
+      <div className="sr-only" aria-hidden>
+        {assetUrls.map((url) => (
+          <img key={url} src={url} alt="" width={1} height={1} decoding="async" />
+        ))}
+      </div>
+
       <div className="mx-auto flex w-full max-w-[1400px] items-center justify-between gap-3 px-4 py-4 sm:px-6">
         <Link
           to="/"
@@ -38,25 +55,10 @@ export function DemoShowcasePage({ demo = DEMO_BEAUTY_SHOWCASE }: Props) {
         </p>
       </div>
 
-      <div className="w-full px-3 pb-10 sm:px-4 md:px-6 lg:px-8">
-        {/* Mobile / tablet: apenas celular */}
-        <div className="flex justify-center lg:hidden">
-          <DemoPhoneMockup frameBg={demo.previewBg} dark={dark}>
-            <DemoBookingPreview key={`${demo.id}-mobile`} variant="mobile" demo={demo} />
-          </DemoPhoneMockup>
-        </div>
-
-        {/* Desktop: PC + celular */}
-        <div className="hidden lg:flex lg:items-start lg:justify-center lg:gap-8 xl:gap-10">
-          <div className="min-w-0 max-w-[920px] flex-1">
-            <DemoBookingPreview key={`${demo.id}-desktop`} variant="desktop" demo={demo} />
-          </div>
-          <div className="shrink-0 pt-2">
-            <DemoPhoneMockup frameBg={demo.previewBg} dark={dark}>
-              <DemoBookingPreview key={`${demo.id}-phone`} variant="mobile" demo={demo} />
-            </DemoPhoneMockup>
-          </div>
-        </div>
+      <div className="flex w-full justify-center px-3 pb-10 sm:px-4 md:px-6 lg:px-8">
+        <DemoPhoneMockup frameBg={demo.previewBg} dark={dark}>
+          <DemoBookingPreview key={demo.id} variant="mobile" demo={demo} />
+        </DemoPhoneMockup>
       </div>
     </div>
   );

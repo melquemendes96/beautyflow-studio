@@ -117,6 +117,11 @@ export function ProviderPickerCarousel({
                       <img
                         src={p.photo_url}
                         alt=""
+                        width={112}
+                        height={112}
+                        loading="eager"
+                        decoding="async"
+                        fetchPriority={isActive || index < 2 ? "high" : "auto"}
                         className={cn(
                           "rounded-full object-cover object-top transition-all duration-300",
                           isActive

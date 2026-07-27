@@ -1,5 +1,5 @@
 ﻿import { Link } from "@tanstack/react-router";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -19,6 +19,7 @@ import {
   DEMO_BEAUTY_SHOWCASE,
   formatDemoPrice,
   getDemoBookingSteps,
+  prefetchDemoAssets,
   type DemoBookingStep,
   type DemoProvider,
   type DemoShowcase,
@@ -58,7 +59,10 @@ export function DemoBookingPreview({
   const [date, setDate] = useState<string | null>(null);
   const [time, setTime] = useState<string | null>(null);
   const [form, setForm] = useState({ nome: "", email: "", whatsapp: "" });
-  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    prefetchDemoAssets(demo);
+  }, [demo]);
 
   const selectedServices = useMemo(
     () => getSelectedServices(serviceIds, demo.services),
@@ -136,16 +140,13 @@ export function DemoBookingPreview({
     setTime(slot);
   };
 
-  const handleContinue = async () => {
+  const handleContinue = () => {
     if (!canContinue) return;
     const i = bookingSteps.indexOf(step as (typeof bookingSteps)[number]);
     if (i < bookingSteps.length - 1) {
       setStep(bookingSteps[i + 1]!);
       return;
     }
-    setSubmitting(true);
-    await new Promise((r) => setTimeout(r, 700));
-    setSubmitting(false);
     setStep("confirmado");
     toast.success("Demonstração: agendamento simulado com sucesso!");
   };
@@ -261,7 +262,7 @@ export function DemoBookingPreview({
               mobile={mobile}
               step={step}
               canContinue={canContinue}
-              submitting={submitting}
+              submitting={false}
               onBack={goBack}
               onContinue={handleContinue}
               dark={dark}
@@ -353,6 +354,9 @@ function DemoStudioCard({ mobile, demo }: { mobile: boolean; demo: DemoShowcase 
               className="size-[72px] shrink-0 rounded-xl object-cover object-center ring-1 ring-black/10"
               width={72}
               height={72}
+              loading="eager"
+              decoding="async"
+              fetchPriority="high"
             />
             <div className="min-w-0 pt-1">
               <h2 className={`font-display text-base font-bold ${dark ? "text-white" : "text-[#1a1a1a]"}`}>
@@ -373,6 +377,8 @@ function DemoStudioCard({ mobile, demo }: { mobile: boolean; demo: DemoShowcase 
             className="size-[140px] rounded-2xl object-cover object-center ring-1 ring-black/10 md:size-[160px]"
             width={160}
             height={160}
+            loading="eager"
+            decoding="async"
           />
           <div>
             <h2
@@ -553,8 +559,9 @@ function ServiceThumb({
     <img
       src={src}
       alt=""
-      loading="lazy"
+      loading="eager"
       decoding="async"
+      fetchPriority="high"
       onError={() => setFailed(true)}
       className={`${size} shrink-0 rounded-xl object-cover object-center shadow-[0_1px_6px_rgba(0,0,0,0.08)]`}
     />

@@ -1,4 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { DEMO_BOOKING_PATH, DEMO_BARBER_PATH, corporateWhatsAppHref } from "@/lib/app-constants";
@@ -10,6 +11,11 @@ import { fetchPublicPlans } from "@/lib/fetch-public-plans";
 import { PublicPlansLoadError } from "@/components/site/PublicPlansLoadError";
 import { trackMarketingEvent } from "@/lib/marketing-analytics";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  DEMO_BARBER_SHOWCASE,
+  DEMO_BEAUTY_SHOWCASE,
+  prefetchDemoAssets,
+} from "@/lib/demo-showcase-data";
 import {
   Sparkles, Calendar, Smartphone, Heart, Star, Check,
   Palette, MessageCircle, BarChart3, ArrowRight,
@@ -64,6 +70,12 @@ function Landing() {
     staleTime: 5 * 60_000,
     retry: 1,
   });
+
+  // Pré-aquece demos na home — ao clicar já abre instantâneo
+  useEffect(() => {
+    prefetchDemoAssets(DEMO_BEAUTY_SHOWCASE);
+    prefetchDemoAssets(DEMO_BARBER_SHOWCASE);
+  }, []);
 
   const plans = (plansQuery.data ?? []) as PublicPlan[];
   const highlightIndex =

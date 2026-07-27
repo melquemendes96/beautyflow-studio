@@ -299,6 +299,28 @@ export function getDemoBookingSteps(demo: DemoShowcase): DemoBookingStep[] {
 /** @deprecated use getDemoBookingSteps(demo) */
 export const DEMO_BOOKING_STEPS: DemoBookingStep[] = ["servico", "data", "horario", "dados"];
 
+/** Todas as URLs de imagem da vitrine (banner, logo, serviços, profissionais). */
+export function collectDemoAssetUrls(demo: DemoShowcase): string[] {
+  const urls = [
+    demo.assets.banner,
+    demo.assets.logo,
+    ...(demo.assets.footer ? [demo.assets.footer] : []),
+    ...demo.services.map((s) => s.imageUrl),
+    ...(demo.providers ?? []).map((p) => p.imageUrl),
+  ];
+  return [...new Set(urls.filter(Boolean))];
+}
+
+/** Pré-aquece o cache do browser para cliques instantâneos nos passos. */
+export function prefetchDemoAssets(demo: DemoShowcase) {
+  if (typeof window === "undefined") return;
+  for (const url of collectDemoAssetUrls(demo)) {
+    const img = new Image();
+    img.decoding = "async";
+    img.src = url;
+  }
+}
+
 export function formatDemoPrice(value: number) {
   return value.toFixed(2).replace(".", ",");
 }

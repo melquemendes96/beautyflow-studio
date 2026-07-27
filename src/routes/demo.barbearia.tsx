@@ -1,6 +1,15 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { DemoShowcasePage } from "@/components/demo/DemoShowcasePage";
-import { DEMO_BARBER_SHOWCASE } from "@/lib/demo-showcase-data";
+import {
+  DEMO_BARBER_SHOWCASE,
+  collectDemoAssetUrls,
+} from "@/lib/demo-showcase-data";
+
+const PRELOAD_LINKS = collectDemoAssetUrls(DEMO_BARBER_SHOWCASE).map((href) => ({
+  rel: "preload" as const,
+  href,
+  as: "image" as const,
+}));
 
 export const Route = createFileRoute("/demo/barbearia")({
   head: () => ({
@@ -12,6 +21,7 @@ export const Route = createFileRoute("/demo/barbearia")({
           "Veja como fica a página de agendamento de uma barbearia no JM BeautyFlow: corte, barba e combo.",
       },
     ],
+    links: PRELOAD_LINKS,
   }),
   component: () => <DemoShowcasePage demo={DEMO_BARBER_SHOWCASE} key="barbearia" />,
 });
