@@ -19,6 +19,7 @@ export function DemoShowcasePage({ demo = DEMO_BEAUTY_SHOWCASE }: Props) {
 
   return (
     <div
+      key={demo.id}
       className="demo-showcase-page min-h-screen w-full"
       style={{ backgroundColor: demo.pageBg }}
     >
@@ -33,7 +34,7 @@ export function DemoShowcasePage({ demo = DEMO_BEAUTY_SHOWCASE }: Props) {
           Voltar ao site
         </Link>
         <p className={`text-xs font-medium uppercase tracking-wider ${dark ? "text-[#888]" : "text-muted-foreground"}`}>
-          Demonstração · {demo.studio.name}
+          {demo.id === "barbearia" ? "Barbearias" : "Studio feminino"} · {demo.studio.name}
         </p>
       </div>
 
@@ -41,18 +42,18 @@ export function DemoShowcasePage({ demo = DEMO_BEAUTY_SHOWCASE }: Props) {
         {/* Mobile / tablet: apenas celular */}
         <div className="flex justify-center lg:hidden">
           <DemoPhoneMockup frameBg={demo.previewBg} dark={dark}>
-            <DemoBookingPreview variant="mobile" demo={demo} />
+            <DemoBookingPreview key={`${demo.id}-mobile`} variant="mobile" demo={demo} />
           </DemoPhoneMockup>
         </div>
 
         {/* Desktop: PC + celular */}
         <div className="hidden lg:flex lg:items-start lg:justify-center lg:gap-8 xl:gap-10">
           <div className="min-w-0 max-w-[920px] flex-1">
-            <DemoBookingPreview variant="desktop" demo={demo} />
+            <DemoBookingPreview key={`${demo.id}-desktop`} variant="desktop" demo={demo} />
           </div>
           <div className="shrink-0 pt-2">
             <DemoPhoneMockup frameBg={demo.previewBg} dark={dark}>
-              <DemoBookingPreview variant="mobile" demo={demo} />
+              <DemoBookingPreview key={`${demo.id}-phone`} variant="mobile" demo={demo} />
             </DemoPhoneMockup>
           </div>
         </div>

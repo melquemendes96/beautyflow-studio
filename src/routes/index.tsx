@@ -100,13 +100,13 @@ function Landing() {
                 to={DEMO_BOOKING_PATH}
                 className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-foreground/15 bg-background/60 px-6 py-3 text-sm font-medium transition hover:bg-background sm:w-auto sm:px-7 sm:py-3.5"
               >
-                Demo salão
+                Studio feminino
               </Link>
               <Link
                 to={DEMO_BARBER_PATH}
                 className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-foreground/15 bg-background/60 px-6 py-3 text-sm font-medium transition hover:bg-background sm:w-auto sm:px-7 sm:py-3.5"
               >
-                Demo barbearia
+                Barbearias
               </Link>
             </div>
             <SocialProofBrands className="mt-10" />
@@ -338,13 +338,13 @@ function Landing() {
                 to={DEMO_BOOKING_PATH}
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-background/20 px-6 py-3 text-sm font-medium transition hover:bg-background/10 sm:px-7 sm:py-3.5"
               >
-                Demo salão
+                Studio feminino
               </Link>
               <Link
                 to={DEMO_BARBER_PATH}
                 className="inline-flex min-h-11 items-center justify-center gap-2 rounded-full border border-background/20 px-6 py-3 text-sm font-medium transition hover:bg-background/10 sm:px-7 sm:py-3.5"
               >
-                Demo barbearia
+                Barbearias
               </Link>
               <a
                 href={corporateWhatsAppHref()}

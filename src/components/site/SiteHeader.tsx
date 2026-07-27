@@ -59,13 +59,13 @@ export function SiteHeader() {
             to={DEMO_BOOKING_PATH}
             className="hidden rounded-full border border-foreground/15 bg-background/60 px-3 py-2 text-xs font-medium hover:bg-background lg:inline-flex lg:px-4 lg:text-sm"
           >
-            Demo salão
+            Studio feminino
           </Link>
           <Link
             to={DEMO_BARBER_PATH}
             className="hidden rounded-full bg-foreground px-3 py-2 text-xs font-medium text-background shadow-soft transition hover:opacity-90 sm:inline-flex sm:px-4 sm:text-sm"
           >
-            Demo barbearia
+            Barbearias
           </Link>
           <button
             type="button"
@@ -127,14 +127,14 @@ export function SiteHeader() {
               onClick={() => setMenuOpen(false)}
               className="rounded-xl border border-border px-4 py-3 text-center text-sm font-medium"
             >
-              Demo salão / beleza
+              Studio feminino
             </Link>
             <Link
               to={DEMO_BARBER_PATH}
               onClick={() => setMenuOpen(false)}
               className="rounded-xl bg-foreground px-4 py-3 text-center text-sm font-medium text-background"
             >
-              Demo barbearia
+              Barbearias
             </Link>
           </div>
         </div>

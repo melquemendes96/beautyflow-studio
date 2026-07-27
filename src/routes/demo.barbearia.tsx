@@ -5,7 +5,7 @@ import { DEMO_BARBER_SHOWCASE } from "@/lib/demo-showcase-data";
 export const Route = createFileRoute("/demo/barbearia")({
   head: () => ({
     meta: [
-      { title: "Demo barbearia — JM BeautyFlow" },
+      { title: "Barbearias — JM BeautyFlow" },
       {
         name: "description",
         content:
@@ -13,5 +13,5 @@ export const Route = createFileRoute("/demo/barbearia")({
       },
     ],
   }),
-  component: () => <DemoShowcasePage demo={DEMO_BARBER_SHOWCASE} />,
+  component: () => <DemoShowcasePage demo={DEMO_BARBER_SHOWCASE} key="barbearia" />,
 });

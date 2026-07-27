@@ -64,7 +64,7 @@ export const DEMO_BARBER_ASSETS = {
   serviceCut: "/demo/barbearia/service-cut.png",
   serviceBeard: "/demo/barbearia/service-beard.png",
   serviceShave: "/demo/barbearia/service-shave.png",
-  serviceCombo: "/demo/barbearia/service-cut.png",
+  serviceCombo: "/demo/barbearia/service-combo.png",
 } as const;
 
 /** Demo feminina — La Belle (rota /demo). */

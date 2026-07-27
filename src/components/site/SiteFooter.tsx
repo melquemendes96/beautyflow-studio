@@ -26,12 +26,12 @@ export function SiteFooter() {
             </li>
             <li>
               <Link to={DEMO_BOOKING_PATH} className="hover:text-foreground">
-                Demo salão
+                Studio feminino
               </Link>
             </li>
             <li>
               <Link to={DEMO_BARBER_PATH} className="hover:text-foreground">
-                Demo barbearia
+                Barbearias
               </Link>
             </li>
           </ul>

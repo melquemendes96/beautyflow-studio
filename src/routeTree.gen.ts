@@ -27,6 +27,7 @@ import { Route as CadastroRouteImport } from './routes/cadastro'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as MasterIndexRouteImport } from './routes/master.index'
+import { Route as DemoIndexRouteImport } from './routes/demo.index'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as OnboardingCompanyRouteImport } from './routes/onboarding.company'
 import { Route as MasterTrafegoRouteImport } from './routes/master.trafego'
@@ -153,6 +154,11 @@ const MasterIndexRoute = MasterIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => MasterRoute,
+} as any)
+const DemoIndexRoute = DemoIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DemoRoute,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
   id: '/',
@@ -387,6 +393,7 @@ export interface FileRoutesByFullPath {
   '/master/trafego': typeof MasterTrafegoRoute
   '/onboarding/company': typeof OnboardingCompanyRoute
   '/admin/': typeof AdminIndexRoute
+  '/demo/': typeof DemoIndexRoute
   '/master/': typeof MasterIndexRoute
   '/admin/plano/checkout': typeof AdminPlanoCheckoutRoute
   '/convite/prestador/$token': typeof ConvitePrestadorTokenRoute
@@ -397,7 +404,6 @@ export interface FileRoutesByTo {
   '/checkout': typeof CheckoutRoute
   '/cliente': typeof ClienteRoute
   '/dashboard': typeof DashboardRoute
-  '/demo': typeof DemoRouteWithChildren
   '/entrar': typeof EntrarRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
@@ -441,6 +447,7 @@ export interface FileRoutesByTo {
   '/master/trafego': typeof MasterTrafegoRoute
   '/onboarding/company': typeof OnboardingCompanyRoute
   '/admin': typeof AdminIndexRoute
+  '/demo': typeof DemoIndexRoute
   '/master': typeof MasterIndexRoute
   '/admin/plano/checkout': typeof AdminPlanoCheckoutRoute
   '/convite/prestador/$token': typeof ConvitePrestadorTokenRoute
@@ -498,6 +505,7 @@ export interface FileRoutesById {
   '/master/trafego': typeof MasterTrafegoRoute
   '/onboarding/company': typeof OnboardingCompanyRoute
   '/admin/': typeof AdminIndexRoute
+  '/demo/': typeof DemoIndexRoute
   '/master/': typeof MasterIndexRoute
   '/admin/plano/checkout': typeof AdminPlanoCheckoutRoute
   '/convite/prestador/$token': typeof ConvitePrestadorTokenRoute
@@ -556,6 +564,7 @@ export interface FileRouteTypes {
     | '/master/trafego'
     | '/onboarding/company'
     | '/admin/'
+    | '/demo/'
     | '/master/'
     | '/admin/plano/checkout'
     | '/convite/prestador/$token'
@@ -566,7 +575,6 @@ export interface FileRouteTypes {
     | '/checkout'
     | '/cliente'
     | '/dashboard'
-    | '/demo'
     | '/entrar'
     | '/forgot-password'
     | '/login'
@@ -610,6 +618,7 @@ export interface FileRouteTypes {
     | '/master/trafego'
     | '/onboarding/company'
     | '/admin'
+    | '/demo'
     | '/master'
     | '/admin/plano/checkout'
     | '/convite/prestador/$token'
@@ -666,6 +675,7 @@ export interface FileRouteTypes {
     | '/master/trafego'
     | '/onboarding/company'
     | '/admin/'
+    | '/demo/'
     | '/master/'
     | '/admin/plano/checkout'
     | '/convite/prestador/$token'
@@ -825,6 +835,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/master/'
       preLoaderRoute: typeof MasterIndexRouteImport
       parentRoute: typeof MasterRoute
+    }
+    '/demo/': {
+      id: '/demo/'
+      path: '/'
+      fullPath: '/demo/'
+      preLoaderRoute: typeof DemoIndexRouteImport
+      parentRoute: typeof DemoRoute
     }
     '/admin/': {
       id: '/admin/'
@@ -1135,10 +1152,12 @@ const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
 
 interface DemoRouteChildren {
   DemoBarbeariaRoute: typeof DemoBarbeariaRoute
+  DemoIndexRoute: typeof DemoIndexRoute
 }
 
 const DemoRouteChildren: DemoRouteChildren = {
   DemoBarbeariaRoute: DemoBarbeariaRoute,
+  DemoIndexRoute: DemoIndexRoute,
 }
 
 const DemoRouteWithChildren = DemoRoute._addFileChildren(DemoRouteChildren)
