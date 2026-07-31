@@ -73,7 +73,11 @@ function ResetPasswordPage() {
       toast.success("Senha atualizada com sucesso.");
       await authService.signOut();
       setTimeout(() => {
-        void navigate({ to: "/login", replace: true });
+        void navigate({
+          to: "/login",
+          search: { planId: undefined, desafio: undefined, leadId: undefined },
+          replace: true,
+        });
       }, 1500);
     } finally {
       setPending(false);
@@ -153,6 +157,7 @@ function ResetPasswordPage() {
 
         <Link
           to="/login"
+          search={{ planId: undefined, desafio: undefined, leadId: undefined }}
           className="mt-6 block text-center text-sm font-medium text-foreground underline underline-offset-4"
         >
           Voltar ao login

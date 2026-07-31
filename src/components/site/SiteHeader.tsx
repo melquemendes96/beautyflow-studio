@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Menu, MessageCircle, X } from "lucide-react";
 import { Logo } from "@/components/brand/Logo";
 import { DEMO_BOOKING_PATH, DEMO_BARBER_PATH, corporateWhatsAppHref } from "@/lib/app-constants";
+import { emptyCadastroSearch } from "@/lib/challenge-60";
 import { trackMarketingEvent } from "@/lib/marketing-analytics";
 
 export function SiteHeader() {
@@ -45,12 +46,14 @@ export function SiteHeader() {
         <div className="flex shrink-0 items-center gap-1 sm:gap-2">
           <Link
             to="/login"
+            search={{ planId: undefined, desafio: undefined, leadId: undefined }}
             className="hidden px-2 py-1.5 text-xs text-muted-foreground hover:text-foreground sm:inline sm:text-sm"
           >
             Entrar
           </Link>
           <Link
             to="/cadastro"
+            search={emptyCadastroSearch}
             className="hidden rounded-full border border-foreground/15 bg-background/60 px-3 py-2 text-xs font-medium hover:bg-background sm:inline-flex sm:px-4 sm:text-sm"
           >
             Criar conta
@@ -110,6 +113,7 @@ export function SiteHeader() {
           <div className="mt-4 flex flex-col gap-2">
             <Link
               to="/login"
+              search={{ planId: undefined, desafio: undefined, leadId: undefined }}
               onClick={() => setMenuOpen(false)}
               className="rounded-xl border border-border px-4 py-3 text-center text-sm"
             >
@@ -117,6 +121,7 @@ export function SiteHeader() {
             </Link>
             <Link
               to="/cadastro"
+              search={emptyCadastroSearch}
               onClick={() => setMenuOpen(false)}
               className="rounded-xl border border-border px-4 py-3 text-center text-sm font-medium"
             >

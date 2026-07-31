@@ -66,6 +66,7 @@ function AuthCallbackPage() {
             </p>
             <Link
               to="/login"
+              search={{ planId: undefined, desafio: undefined, leadId: undefined }}
               className="mt-6 inline-block rounded-full bg-foreground px-6 py-3 text-sm font-medium text-background"
             >
               Voltar para login

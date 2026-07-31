@@ -13,6 +13,7 @@ import {
   resolvePostLoginDestination,
 } from "@/lib/post-login";
 import { navigateToAuthDestination } from "@/lib/auth-routing";
+import { emptyLoginSearch } from "@/lib/challenge-60";
 import { clearOAuthFlowContext } from "@/lib/oauth-signup-intent";
 
 const SEGMENTS = [
@@ -230,7 +231,7 @@ export function OnboardingCompanyScreen() {
                       size="sm"
                       variant="ghost"
                       className="rounded-full"
-                      onClick={() => void signOut().then(() => navigate({ to: "/login" }))}
+                      onClick={() => void signOut().then(() => navigate({ to: "/login", search: emptyLoginSearch }))}
                     >
                       Sair e entrar de novo
                     </Button>
@@ -317,7 +318,7 @@ export function OnboardingCompanyScreen() {
 
               <p className="mt-6 text-center text-xs text-muted-foreground">
                 Já tem conta?{" "}
-                <Link to="/login" className="font-medium text-foreground underline-offset-4 hover:underline">
+                <Link to="/login" search={emptyLoginSearch} className="font-medium text-foreground underline-offset-4 hover:underline">
                   Entrar
                 </Link>
               </p>

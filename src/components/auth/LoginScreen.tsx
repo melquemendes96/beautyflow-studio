@@ -17,9 +17,12 @@ type LoginScreenProps = {
   backTo?: "/" | "/login";
   /** Se informado, após login com acesso ao painel empresa, abre checkout desse plano. */
   planId?: string;
+  /** Desafio 60: não enviar ao checkout; ativa trial via intent. */
+  skipCheckout?: boolean;
+  leadId?: string;
 };
 
-export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
+export function LoginScreen({ backTo = "/", planId, skipCheckout, leadId }: LoginScreenProps) {
   const navigate = useNavigate();
   const {
     session,
@@ -30,7 +33,7 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
   } = useAuth();
   const [redirecting, setRedirecting] = useState(false);
 
-  usePublicAuthRedirect(planId);
+  usePublicAuthRedirect(skipCheckout ? undefined : planId);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -76,6 +79,9 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
         navigate,
         planId,
         refreshAuth,
+        skipCheckout,
+        leadId,
+        preferTrial: skipCheckout ? true : undefined,
       });
       if (!res.ok) setError(res.error);
     } catch {
@@ -180,7 +186,11 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
                 !isMasterAccount(session) && (
                 <Link
                   to="/cadastro"
-                  search={planId ? { planId } : {}}
+                  search={
+                    planId
+                      ? { planId, desafio: undefined, leadId: undefined }
+                      : { planId: undefined, desafio: undefined, leadId: undefined }
+                  }
                   className="mt-2 inline-block font-medium underline underline-offset-2"
                 >
                   Criar conta com nome do studio →
@@ -260,12 +270,24 @@ export function LoginScreen({ backTo = "/", planId }: LoginScreenProps) {
 
           <div className="mt-4 space-y-3 text-xs">
             <div className="flex flex-wrap items-center justify-between gap-2">
-              <Link to={backTo} className="text-muted-foreground hover:text-foreground">
+              <Link
+                to={backTo}
+                search={
+                  backTo === "/login"
+                    ? { planId: undefined, desafio: undefined, leadId: undefined }
+                    : undefined
+                }
+                className="text-muted-foreground hover:text-foreground"
+              >
                 ← Voltar
               </Link>
               <Link
                 to="/cadastro"
-                search={planId ? { planId } : {}}
+                search={
+                  planId
+                    ? { planId, desafio: undefined, leadId: undefined }
+                    : { planId: undefined, desafio: undefined, leadId: undefined }
+                }
                 className="font-medium text-foreground underline-offset-4 hover:underline"
               >
                 Criar conta

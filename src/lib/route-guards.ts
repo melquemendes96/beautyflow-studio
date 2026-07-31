@@ -1,5 +1,6 @@
 import { redirect } from "@tanstack/react-router";
 import { isMasterAccount, loadAuthProfile } from "@/lib/auth-profile";
+import { emptyLoginSearch } from "@/lib/challenge-60";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabaseClient";
 import {
   getSubscriptionAccessReason,
@@ -44,11 +45,11 @@ async function loadTenantSubscription(companyId: string): Promise<SubscriptionSn
 export async function guardCompanyAdminRoute(): Promise<void> {
   if (skipGuardOnServer()) return;
   if (!isSupabaseConfigured()) {
-    throw redirect({ to: "/login" });
+    throw redirect({ to: "/login", search: emptyLoginSearch });
   }
   const profile = await loadAuthProfile();
   if (!profile.session) {
-    throw redirect({ to: "/login" });
+    throw redirect({ to: "/login", search: emptyLoginSearch });
   }
   if (profile.isPlatformAdmin || isMasterAccount(profile.session)) {
     throw redirect({ to: "/master" });
@@ -214,14 +215,14 @@ export async function guardCompanyPlanFeatureAccess(pathname: string): Promise<v
 export async function guardMasterRoute(): Promise<void> {
   if (skipGuardOnServer()) return;
   if (!isSupabaseConfigured()) {
-    throw redirect({ to: "/login" });
+    throw redirect({ to: "/login", search: emptyLoginSearch });
   }
   const profile = await loadAuthProfile();
   if (!profile.session) {
-    throw redirect({ to: "/login" });
+    throw redirect({ to: "/login", search: emptyLoginSearch });
   }
   if (!profile.isPlatformAdmin && !isMasterAccount(profile.session)) {
-    throw redirect({ to: "/login" });
+    throw redirect({ to: "/login", search: emptyLoginSearch });
   }
 }
 
@@ -242,11 +243,11 @@ export const MasterRoute = guardMasterRoute;
 export async function OnboardingGuard(): Promise<void> {
   if (skipGuardOnServer()) return;
   if (!isSupabaseConfigured()) {
-    throw redirect({ to: "/login" });
+    throw redirect({ to: "/login", search: emptyLoginSearch });
   }
   const profile = await loadAuthProfile({ full: true });
   if (!profile.session) {
-    throw redirect({ to: "/login" });
+    throw redirect({ to: "/login", search: emptyLoginSearch });
   }
   if (profile.isPlatformAdmin || isMasterAccount(profile.session)) {
     throw redirect({ to: "/master" });

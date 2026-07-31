@@ -17,6 +17,7 @@ import { AdminNotificationsBell } from "@/components/admin/AdminNotificationsBel
 import { PushNotificationSetup } from "@/components/admin/PushNotificationSetup";
 import { useServiceWorkerPushBridge } from "@/hooks/useServiceWorkerPushBridge";
 import { ThemeToggle } from "@/components/ui/ThemeToggle";
+import { ChallengeAdminBanner } from "@/components/challenge/ChallengeAdminBanner";
 
 type NavItem = { to: string; label: string; icon: typeof LayoutDashboard; exact?: boolean };
 const nav: NavItem[] = [
@@ -136,7 +137,10 @@ export function AdminShell() {
 
     if (!session) {
       membershipSyncRef.current = 0;
-      void navigate({ to: "/login", search: { planId: undefined } });
+      void navigate({
+        to: "/login",
+        search: { planId: undefined, desafio: undefined, leadId: undefined },
+      });
       return;
     }
 
@@ -180,6 +184,7 @@ export function AdminShell() {
 
   return (
     <div className="min-h-dvh min-w-0 overflow-x-clip bg-secondary/30">
+      <ChallengeAdminBanner />
       {/* Mobile topbar */}
       <div className="sticky top-0 z-30 flex h-14 items-center justify-between border-b border-border bg-background/95 px-4 backdrop-blur lg:hidden">
         <button
@@ -256,7 +261,11 @@ export function AdminShell() {
               <div className="mt-1 text-sm text-background/90">
                 {subscriptionQuery.isLoading ? "Carregando…" : planSummary.subtitle}
               </div>
-              <Link to="/admin/plano" className="mt-3 inline-block text-xs text-gold hover:underline">
+              <Link
+                to="/admin/plano"
+                search={{ checkout: undefined, billing: undefined, need: undefined }}
+                className="mt-3 inline-block text-xs text-gold hover:underline"
+              >
                 Gerenciar plano →
               </Link>
             </div>

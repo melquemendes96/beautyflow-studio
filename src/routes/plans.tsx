@@ -93,14 +93,14 @@ function PublicPlansPage() {
               <div className="mt-8 flex flex-col gap-2">
                 <Link
                   to="/cadastro"
-                  search={{ planId: plan.id }}
+                  search={{ planId: plan.id, desafio: undefined, leadId: undefined }}
                   className="rounded-full bg-foreground py-3 text-center text-sm font-medium text-background"
                 >
                   Começar teste grátis
                 </Link>
                 <Link
                   to="/cadastro"
-                  search={{ planId: plan.id }}
+                  search={{ planId: plan.id, desafio: undefined, leadId: undefined }}
                   className="rounded-full border border-border py-3 text-center text-sm font-medium"
                 >
                   Assinar agora
@@ -112,7 +112,7 @@ function PublicPlansPage() {
 
         <p className="mt-12 text-center text-sm text-muted-foreground">
           Já tem conta?{" "}
-          <Link to="/login" className="font-medium text-foreground underline-offset-4 hover:underline">
+          <Link to="/login" search={{ planId: undefined, desafio: undefined, leadId: undefined }} className="font-medium text-foreground underline-offset-4 hover:underline">
             Entrar
           </Link>
         </p>

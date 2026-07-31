@@ -1,12 +1,7 @@
-import { useEffect } from "react";
 import { DemoBookingPreview } from "@/components/demo/DemoBookingPreview";
 import { DemoPhoneMockup } from "@/components/demo/DemoPhoneMockup";
 import type { DemoShowcase } from "@/lib/demo-showcase-data";
-import {
-  DEMO_BEAUTY_SHOWCASE,
-  collectDemoAssetUrls,
-  prefetchDemoAssets,
-} from "@/lib/demo-showcase-data";
+import { DEMO_BEAUTY_SHOWCASE } from "@/lib/demo-showcase-data";
 import { Link } from "@tanstack/react-router";
 import { ArrowLeft } from "lucide-react";
 
@@ -20,13 +15,8 @@ type Props = {
  */
 export function DemoShowcasePage({ demo = DEMO_BEAUTY_SHOWCASE }: Props) {
   const dark = demo.theme === "dark";
-  const assetUrls = collectDemoAssetUrls(demo);
   // Sempre claro fora do aparelho — contraste com a moldura/tela
   const pageBg = demo.id === "barbearia" ? "#ffffff" : demo.pageBg;
-
-  useEffect(() => {
-    prefetchDemoAssets(demo);
-  }, [demo]);
 
   return (
     <div
@@ -34,12 +24,6 @@ export function DemoShowcasePage({ demo = DEMO_BEAUTY_SHOWCASE }: Props) {
       className="demo-showcase-page min-h-screen w-full"
       style={{ backgroundColor: pageBg }}
     >
-      <div className="sr-only" aria-hidden>
-        {assetUrls.map((url) => (
-          <img key={url} src={url} alt="" width={1} height={1} decoding="async" />
-        ))}
-      </div>
-
       <div className="mx-auto flex w-full max-w-[1400px] items-center justify-between gap-3 px-4 py-4 sm:px-6">
         <Link
           to="/"

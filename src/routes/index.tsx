@@ -1,8 +1,9 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { useEffect } from "react";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { SiteHeader } from "@/components/site/SiteHeader";
 import { DEMO_BOOKING_PATH, DEMO_BARBER_PATH, corporateWhatsAppHref } from "@/lib/app-constants";
+import { CHALLENGE_PATH, isChallengeSearchParam } from "@/lib/challenge-60";
 import { SiteFooter } from "@/components/site/SiteFooter";
 import { WhatsAppFloatingButton } from "@/components/site/WhatsAppFloatingButton";
 import { SocialProofBrands } from "@/components/site/SocialProofBrands";
@@ -11,11 +12,7 @@ import { fetchPublicPlans } from "@/lib/fetch-public-plans";
 import { PublicPlansLoadError } from "@/components/site/PublicPlansLoadError";
 import { trackMarketingEvent } from "@/lib/marketing-analytics";
 import { Skeleton } from "@/components/ui/skeleton";
-import {
-  DEMO_BARBER_SHOWCASE,
-  DEMO_BEAUTY_SHOWCASE,
-  prefetchDemoAssets,
-} from "@/lib/demo-showcase-data";
+import { ChallengeHomePromo } from "@/components/challenge/ChallengeHomePromo";
 import {
   Sparkles, Calendar, Smartphone, Heart, Star, Check,
   Palette, MessageCircle, BarChart3, ArrowRight,
@@ -64,6 +61,9 @@ function LandingPlanCardSkeleton() {
 }
 
 function Landing() {
+  const navigate = useNavigate();
+  const [forceChallenge, setForceChallenge] = useState(false);
+
   const plansQuery = useQuery({
     queryKey: ["public", "plans"],
     queryFn: fetchPublicPlans,
@@ -71,11 +71,13 @@ function Landing() {
     retry: 1,
   });
 
-  // Pré-aquece demos na home — ao clicar já abre instantâneo
   useEffect(() => {
-    prefetchDemoAssets(DEMO_BEAUTY_SHOWCASE);
-    prefetchDemoAssets(DEMO_BARBER_SHOWCASE);
-  }, []);
+    const params = new URLSearchParams(window.location.search);
+    if (isChallengeSearchParam(params.get("desafio"))) {
+      setForceChallenge(true);
+      void navigate({ to: CHALLENGE_PATH, search: { desafio: "60" }, replace: true });
+    }
+  }, [navigate]);
 
   const plans = (plansQuery.data ?? []) as PublicPlan[];
   const highlightIndex =
@@ -83,6 +85,7 @@ function Landing() {
 
   return (
     <div className="min-h-screen overflow-x-hidden">
+      <ChallengeHomePromo forceOpen={forceChallenge} />
       <SiteHeader />
 
       {/* HERO */}
@@ -108,6 +111,13 @@ function Landing() {
               >
                 Começar agora <ArrowRight className="size-4" />
               </a>
+              <Link
+                to={CHALLENGE_PATH}
+                search={{ desafio: "60" }}
+                className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-gold/40 bg-gold/15 px-6 py-3 text-sm font-medium text-foreground transition hover:bg-gold/25 sm:w-auto sm:px-7 sm:py-3.5"
+              >
+                Quero 60 dias grátis
+              </Link>
               <Link
                 to={DEMO_BOOKING_PATH}
                 className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-full border border-foreground/15 bg-background/60 px-6 py-3 text-sm font-medium transition hover:bg-background sm:w-auto sm:px-7 sm:py-3.5"
@@ -285,14 +295,14 @@ function Landing() {
                     </ul>
                     <Link
                       to="/cadastro"
-                      search={{ planId: String(p.id) }}
+                      search={{ planId: String(p.id), desafio: undefined, leadId: undefined }}
                       className="mt-7 inline-flex w-full items-center justify-center rounded-full bg-foreground py-3 text-sm font-medium text-background transition hover:opacity-90"
                     >
                       Começar agora
                     </Link>
                     <Link
                       to="/login"
-                      search={{ planId: String(p.id) }}
+                      search={{ planId: String(p.id), desafio: undefined, leadId: undefined }}
                       className="mt-3 block text-center text-xs text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
                     >
                       Já tenho conta

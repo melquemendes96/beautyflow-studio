@@ -2,10 +2,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { DemoShowcasePage } from "@/components/demo/DemoShowcasePage";
 import {
   DEMO_BARBER_SHOWCASE,
-  collectDemoAssetUrls,
+  collectDemoAboveFoldAssetUrls,
 } from "@/lib/demo-showcase-data";
 
-const PRELOAD_LINKS = collectDemoAssetUrls(DEMO_BARBER_SHOWCASE).map((href) => ({
+const PRELOAD_LINKS = collectDemoAboveFoldAssetUrls(DEMO_BARBER_SHOWCASE).map((href) => ({
   rel: "preload" as const,
   href,
   as: "image" as const,

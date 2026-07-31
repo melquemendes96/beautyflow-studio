@@ -15,6 +15,14 @@ import { useAuth } from "@/contexts/AuthProvider";
 import { readStudioNameFromUrl } from "@/lib/oauth-signup-intent";
 import { usePublicAuthRedirect } from "@/lib/use-public-auth-redirect";
 import { trackMarketingEvent } from "@/lib/marketing-analytics";
+import {
+  CHALLENGE_QUERY_VALUE,
+  CHALLENGE_TRIAL_DAYS,
+  isChallengeSearchParam,
+  pickBestPlanId,
+  readChallengeIntent,
+  saveChallengeIntent,
+} from "@/lib/challenge-60";
 
 function CadastroRouteError({ error, reset }: { error: Error; reset: () => void }) {
   if (import.meta.env.DEV) {
@@ -46,6 +54,8 @@ function CadastroRouteError({ error, reset }: { error: Error; reset: () => void 
 export const Route = createFileRoute("/cadastro")({
   validateSearch: (s: Record<string, unknown>) => ({
     planId: typeof s.planId === "string" ? s.planId : undefined,
+    desafio: typeof s.desafio === "string" ? s.desafio : undefined,
+    leadId: typeof s.leadId === "string" ? s.leadId : undefined,
   }),
   head: () => ({
     meta: [
@@ -97,17 +107,19 @@ function formatSignupError(err: unknown): string {
 type PublicPlanRow = { id: string; name: string; price?: number | null; features?: string[] | null };
 
 function Cadastro() {
-  const { planId: planIdFromUrl } = Route.useSearch();
+  const { planId: planIdFromUrl, desafio, leadId } = Route.useSearch();
+  const isChallenge = isChallengeSearchParam(desafio) || Boolean(readChallengeIntent());
+  const challengeIntent = readChallengeIntent();
   const [selectedPlanId, setSelectedPlanId] = useState<string | undefined>(planIdFromUrl);
   const { isPlatformAdmin } = useAuth();
 
-  const effectivePlanId = planIdFromUrl ?? selectedPlanId;
+  const effectivePlanId = planIdFromUrl ?? selectedPlanId ?? challengeIntent?.planId;
 
   useEffect(() => {
     if (planIdFromUrl) setSelectedPlanId(planIdFromUrl);
   }, [planIdFromUrl]);
 
-  usePublicAuthRedirect(effectivePlanId, { skip: isPlatformAdmin });
+  usePublicAuthRedirect(isChallenge ? undefined : effectivePlanId, { skip: isPlatformAdmin });
 
   const [step, setStep] = useState<"account" | "verify_email">("account");
   const [companyName, setCompanyName] = useState("");
@@ -124,7 +136,10 @@ function Cadastro() {
 
   useEffect(() => {
     const fromUrl = readStudioNameFromUrl();
-    if (fromUrl) setCompanyName(fromUrl);
+    const fromChallenge = challengeIntent?.companyName;
+    if (fromChallenge && fromChallenge.length >= 2) setCompanyName(fromChallenge);
+    else if (fromUrl) setCompanyName(fromUrl);
+    if (challengeIntent?.email) setEmail(challengeIntent.email);
   }, []);
 
   const plansQuery = useQuery({
@@ -138,10 +153,29 @@ function Cadastro() {
 
   const displayPlans = activePlans;
 
+  const challengePlanId = useMemo(() => {
+    if (!isChallenge) return effectivePlanId;
+    return effectivePlanId ?? pickBestPlanId(activePlans);
+  }, [isChallenge, effectivePlanId, activePlans]);
+
+  useEffect(() => {
+    if (!isChallenge) return;
+    const plan = challengePlanId ?? pickBestPlanId(activePlans);
+    saveChallengeIntent({
+      desafio: CHALLENGE_QUERY_VALUE,
+      planId: plan,
+      leadId: leadId ?? challengeIntent?.leadId,
+      trialDays: CHALLENGE_TRIAL_DAYS,
+      companyName: companyName.trim() || challengeIntent?.companyName,
+      email: email.trim() || challengeIntent?.email,
+    });
+  }, [isChallenge, challengePlanId, leadId, activePlans, companyName, email]);
+
   const selectedPlan = useMemo(() => {
-    if (!effectivePlanId || effectivePlanId.startsWith("fallback-")) return null;
-    return displayPlans.find((p) => String(p.id) === String(effectivePlanId)) ?? null;
-  }, [displayPlans, effectivePlanId]);
+    const id = isChallenge ? challengePlanId : effectivePlanId;
+    if (!id || id.startsWith("fallback-")) return null;
+    return displayPlans.find((p) => String(p.id) === String(id)) ?? null;
+  }, [displayPlans, effectivePlanId, challengePlanId, isChallenge]);
 
   const createAccountMutation = useMutation({
     mutationFn: async () => {
@@ -151,9 +185,28 @@ function Cadastro() {
       if (!emailOk(e)) throw new Error("Digite um e-mail válido.");
       if (!passwordMeetsPolicy(password)) throw new Error("A senha não atende aos requisitos abaixo.");
       const loginBase = window.location.origin + "/login";
-      const emailRedirectTo = effectivePlanId
-        ? `${loginBase}?planId=${encodeURIComponent(effectivePlanId)}`
-        : loginBase;
+      const planForRedirect = isChallenge ? challengePlanId : effectivePlanId;
+      let emailRedirectTo = loginBase;
+      if (planForRedirect) {
+        emailRedirectTo = `${loginBase}?planId=${encodeURIComponent(planForRedirect)}`;
+        if (isChallenge) {
+          emailRedirectTo += `&desafio=${CHALLENGE_QUERY_VALUE}`;
+          const lid = leadId ?? challengeIntent?.leadId;
+          if (lid) emailRedirectTo += `&leadId=${encodeURIComponent(lid)}`;
+        }
+      } else if (isChallenge) {
+        emailRedirectTo = `${loginBase}?desafio=${CHALLENGE_QUERY_VALUE}`;
+      }
+      if (isChallenge) {
+        saveChallengeIntent({
+          desafio: CHALLENGE_QUERY_VALUE,
+          planId: challengePlanId,
+          leadId: leadId ?? challengeIntent?.leadId,
+          trialDays: CHALLENGE_TRIAL_DAYS,
+          companyName: name,
+          email: e,
+        });
+      }
       const signUp = await authService.signUpWithPassword(e, password, {
         companyName: name,
         emailRedirectTo,
@@ -164,7 +217,13 @@ function Cadastro() {
       setError(null);
       setFieldErrors({});
       setStep("verify_email");
-      trackMarketingEvent("signup_complete", { oncePerSession: true, method: "password" });
+      trackMarketingEvent("signup_complete", {
+        oncePerSession: true,
+        method: isChallenge ? "challenge_60" : "password",
+      });
+      if (isChallenge) {
+        trackMarketingEvent("challenge_signup", { persist: true });
+      }
     },
     onError: (err: unknown) => {
       setError(formatSignupError(err));
@@ -194,7 +253,11 @@ function Cadastro() {
     createAccountMutation.mutate();
   };
 
-  const loginSearch = effectivePlanId ? { planId: effectivePlanId } : {};
+  const loginSearch = {
+    planId: isChallenge ? challengePlanId : effectivePlanId,
+    desafio: isChallenge ? CHALLENGE_QUERY_VALUE : undefined,
+    leadId: isChallenge ? (leadId ?? challengeIntent?.leadId) : undefined,
+  };
   const pending = createAccountMutation.isPending;
 
   return (
@@ -253,6 +316,20 @@ function Cadastro() {
               </p>
 
               <div className="mt-5 rounded-2xl border border-border bg-secondary/40 p-4 text-sm">
+                {isChallenge ? (
+                  <>
+                    <div className="font-medium text-foreground">Desafio 60 dias · sem cartão</div>
+                    <p className="mt-2 text-muted-foreground">
+                      {selectedPlan
+                        ? `${selectedPlan.name} · acesso completo por 60 dias grátis`
+                        : "Melhor plano liberado automaticamente após confirmar o e-mail."}
+                    </p>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Você não precisa escolher plano nem cadastrar pagamento neste fluxo.
+                    </p>
+                  </>
+                ) : (
+                  <>
                 <div className="font-medium text-foreground">
                   {planIdFromUrl || selectedPlan ? "Plano escolhido" : "Escolha um plano (opcional)"}
                 </div>
@@ -308,6 +385,8 @@ function Cadastro() {
                   <p className="mt-2 text-muted-foreground">
                     Você pode criar a conta agora e escolher o plano no painel depois.
                   </p>
+                )}
+                  </>
                 )}
               </div>
 

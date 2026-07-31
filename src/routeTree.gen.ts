@@ -19,6 +19,7 @@ import { Route as MasterRouteImport } from './routes/master'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as ForgotPasswordRouteImport } from './routes/forgot-password'
 import { Route as EntrarRouteImport } from './routes/entrar'
+import { Route as DesafioRouteImport } from './routes/desafio'
 import { Route as DemoRouteImport } from './routes/demo'
 import { Route as DashboardRouteImport } from './routes/dashboard'
 import { Route as ClienteRouteImport } from './routes/cliente'
@@ -113,6 +114,11 @@ const ForgotPasswordRoute = ForgotPasswordRouteImport.update({
 const EntrarRoute = EntrarRouteImport.update({
   id: '/entrar',
   path: '/entrar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DesafioRoute = DesafioRouteImport.update({
+  id: '/desafio',
+  path: '/desafio',
   getParentRoute: () => rootRouteImport,
 } as any)
 const DemoRoute = DemoRouteImport.update({
@@ -349,6 +355,7 @@ export interface FileRoutesByFullPath {
   '/cliente': typeof ClienteRoute
   '/dashboard': typeof DashboardRoute
   '/demo': typeof DemoRouteWithChildren
+  '/desafio': typeof DesafioRoute
   '/entrar': typeof EntrarRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
@@ -404,6 +411,7 @@ export interface FileRoutesByTo {
   '/checkout': typeof CheckoutRoute
   '/cliente': typeof ClienteRoute
   '/dashboard': typeof DashboardRoute
+  '/desafio': typeof DesafioRoute
   '/entrar': typeof EntrarRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
@@ -461,6 +469,7 @@ export interface FileRoutesById {
   '/cliente': typeof ClienteRoute
   '/dashboard': typeof DashboardRoute
   '/demo': typeof DemoRouteWithChildren
+  '/desafio': typeof DesafioRoute
   '/entrar': typeof EntrarRoute
   '/forgot-password': typeof ForgotPasswordRoute
   '/login': typeof LoginRoute
@@ -520,6 +529,7 @@ export interface FileRouteTypes {
     | '/cliente'
     | '/dashboard'
     | '/demo'
+    | '/desafio'
     | '/entrar'
     | '/forgot-password'
     | '/login'
@@ -575,6 +585,7 @@ export interface FileRouteTypes {
     | '/checkout'
     | '/cliente'
     | '/dashboard'
+    | '/desafio'
     | '/entrar'
     | '/forgot-password'
     | '/login'
@@ -631,6 +642,7 @@ export interface FileRouteTypes {
     | '/cliente'
     | '/dashboard'
     | '/demo'
+    | '/desafio'
     | '/entrar'
     | '/forgot-password'
     | '/login'
@@ -689,6 +701,7 @@ export interface RootRouteChildren {
   ClienteRoute: typeof ClienteRoute
   DashboardRoute: typeof DashboardRoute
   DemoRoute: typeof DemoRouteWithChildren
+  DesafioRoute: typeof DesafioRoute
   EntrarRoute: typeof EntrarRoute
   ForgotPasswordRoute: typeof ForgotPasswordRoute
   LoginRoute: typeof LoginRoute
@@ -778,6 +791,13 @@ declare module '@tanstack/react-router' {
       path: '/entrar'
       fullPath: '/entrar'
       preLoaderRoute: typeof EntrarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/desafio': {
+      id: '/desafio'
+      path: '/desafio'
+      fullPath: '/desafio'
+      preLoaderRoute: typeof DesafioRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/demo': {
@@ -1213,6 +1233,7 @@ const rootRouteChildren: RootRouteChildren = {
   ClienteRoute: ClienteRoute,
   DashboardRoute: DashboardRoute,
   DemoRoute: DemoRouteWithChildren,
+  DesafioRoute: DesafioRoute,
   EntrarRoute: EntrarRoute,
   ForgotPasswordRoute: ForgotPasswordRoute,
   LoginRoute: LoginRoute,

@@ -2,6 +2,7 @@ import { Link, Outlet, useLocation, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { Logo } from "@/components/brand/Logo";
 import { useAuth } from "@/contexts/AuthProvider";
+import { emptyLoginSearch } from "@/lib/challenge-60";
 import {
   LayoutDashboard,
   Building2,
@@ -56,7 +57,7 @@ export function MasterShell() {
     if (!session) {
       masterRetryRef.current = 0;
       setMasterAccessOk(false);
-      void navigate({ to: "/login", replace: true });
+      void navigate({ to: "/login", search: emptyLoginSearch, replace: true });
       return;
     }
 
@@ -74,7 +75,7 @@ export function MasterShell() {
     }
 
     masterRetryRef.current = 0;
-    void navigate({ to: "/login", replace: true });
+    void navigate({ to: "/login", search: emptyLoginSearch, replace: true });
   }, [isLoading, isPlatformAdmin, navigate, profileReady, refresh, session]);
 
   if (!profileReady || isLoading || !session || !masterAccessOk) {

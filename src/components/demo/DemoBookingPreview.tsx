@@ -1,5 +1,5 @@
 ﻿import { Link } from "@tanstack/react-router";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   ArrowLeft,
   ArrowRight,
@@ -19,7 +19,6 @@ import {
   DEMO_BEAUTY_SHOWCASE,
   formatDemoPrice,
   getDemoBookingSteps,
-  prefetchDemoAssets,
   type DemoBookingStep,
   type DemoProvider,
   type DemoShowcase,
@@ -59,10 +58,6 @@ export function DemoBookingPreview({
   const [date, setDate] = useState<string | null>(null);
   const [time, setTime] = useState<string | null>(null);
   const [form, setForm] = useState({ nome: "", email: "", whatsapp: "" });
-
-  useEffect(() => {
-    prefetchDemoAssets(demo);
-  }, [demo]);
 
   const selectedServices = useMemo(
     () => getSelectedServices(serviceIds, demo.services),
@@ -562,9 +557,9 @@ function ServiceThumb({
     <img
       src={src}
       alt=""
-      loading="eager"
+      loading="lazy"
       decoding="async"
-      fetchPriority="high"
+      fetchPriority="auto"
       onError={() => setFailed(true)}
       className={`${size} shrink-0 rounded-xl object-cover object-center shadow-[0_1px_6px_rgba(0,0,0,0.08)]`}
     />
@@ -1085,6 +1080,7 @@ function DemoConfirmed({
       <div className={`mt-5 flex flex-col gap-2 ${mobile ? "" : "items-center"}`}>
         <Link
           to="/cadastro"
+          search={{ planId: undefined, desafio: undefined, leadId: undefined }}
           className={`inline-flex items-center justify-center gap-2 rounded-full px-5 font-medium hover:opacity-90 ${
             dark ? "text-black" : "bg-black text-white hover:bg-[#222]"
           } ${mobile ? "min-h-10 text-xs" : "min-h-11 text-sm"}`}

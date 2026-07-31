@@ -17,7 +17,12 @@ export type MarketingEventName =
   | "whatsapp_click"
   | "signup_start"
   | "signup_complete"
-  | "purchase";
+  | "purchase"
+  | "challenge_banner_view"
+  | "challenge_banner_dismiss"
+  | "challenge_lead_submit"
+  | "challenge_signup"
+  | "challenge_activated";
 
 export type MarketingUtm = {
   source?: string;
@@ -164,6 +169,14 @@ export function trackMarketingEvent(
         value: typeof rest.value === "number" ? rest.value : 0,
       });
       break;
+    case "challenge_banner_view":
+    case "challenge_banner_dismiss":
+    case "challenge_lead_submit":
+    case "challenge_signup":
+    case "challenge_activated":
+      pushGtag(name, params);
+      pushMeta("Lead", { content_name: name });
+      break;
   }
 
   const shouldPersist =
@@ -172,7 +185,8 @@ export function trackMarketingEvent(
     name === "whatsapp_click" ||
     name === "signup_start" ||
     name === "signup_complete" ||
-    name === "purchase";
+    name === "purchase" ||
+    name.startsWith("challenge_");
 
   if (shouldPersist && name !== "page_view") {
     void persistFunnelEvent(name, rest);

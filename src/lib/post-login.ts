@@ -7,8 +7,14 @@ import {
   type AuthDestination,
   type NavigateFn,
 } from "@/lib/auth-routing";
+import {
+  clearChallengeIntent,
+  readChallengeIntent,
+} from "@/lib/challenge-60";
+import { trackMarketingEvent } from "@/lib/marketing-analytics";
 import { readOAuthFlowContext } from "@/lib/oauth-signup-intent";
 import { onboardingService } from "@/services/onboardingService";
+import { challengeService } from "@/services/challengeService";
 import { profileService } from "@/services/profileService";
 
 const POST_LOGIN_TIMEOUT_MS = 20_000;
@@ -83,6 +89,8 @@ export async function resolvePostLoginDestination(opts?: {
 export async function ensureUserCompanyBootstrap(opts: {
   companyName?: string | null;
   planId?: string | null;
+  trialDays?: number | null;
+  leadId?: string | null;
   session?: Session | null;
 }): Promise<BootstrapResult> {
   if (bootstrapInFlight) return bootstrapInFlight;
@@ -95,6 +103,19 @@ export async function ensureUserCompanyBootstrap(opts: {
 
     const existingId = profile.companyMemberships[0]?.company_id;
     if (existingId) {
+      // Desafio: se já tem empresa mas ainda sem assinatura, ativa trial do plano
+      if (opts.planId && opts.leadId) {
+        await withAuthTimeout(
+          onboardingService.completeSignupOnboarding({
+            companyName: opts.companyName?.trim() || getPendingStudioName(profile.session) || "Studio",
+            planId: opts.planId,
+            trialDays: opts.trialDays ?? 60,
+          }),
+          BOOTSTRAP_TIMEOUT_MS,
+        ).catch(() => null);
+        await challengeService.linkLead(opts.leadId, existingId);
+        trackMarketingEvent("challenge_activated", { persist: true, company_id: existingId });
+      }
       return { ok: true, companyId: existingId };
     }
 
@@ -113,6 +134,7 @@ export async function ensureUserCompanyBootstrap(opts: {
       onboardingService.completeSignupOnboarding({
         companyName: name,
         planId: opts.planId ?? null,
+        trialDays: opts.trialDays ?? 7,
       }),
       BOOTSTRAP_TIMEOUT_MS,
     );
@@ -141,6 +163,11 @@ export async function ensureUserCompanyBootstrap(opts: {
       return { ok: false, code: "rpc_error", error: "Empresa criada sem identificador. Tente novamente." };
     }
 
+    if (opts.leadId) {
+      await challengeService.linkLead(opts.leadId, companyId);
+      trackMarketingEvent("challenge_activated", { persist: true, company_id: companyId });
+    }
+
     return { ok: true, companyId };
   })();
 
@@ -157,10 +184,21 @@ export async function runPostLoginNavigation(opts: {
   planId?: string;
   companyName?: string | null;
   preferTrial?: boolean;
+  /** Quando true (desafio=60), não manda para checkout após ativar trial. */
+  skipCheckout?: boolean;
+  trialDays?: number | null;
+  leadId?: string | null;
   refreshAuth?: () => Promise<void>;
 }): Promise<{ ok: true } | { ok: false; error: string; code?: string }> {
   try {
     await safeEnsureProfile();
+
+    const challenge = readChallengeIntent();
+    const isChallenge = Boolean(opts.skipCheckout || challenge);
+    const effectivePlanId = opts.planId ?? challenge?.planId;
+    const effectiveTrialDays = opts.trialDays ?? challenge?.trialDays ?? 7;
+    const effectiveLeadId = opts.leadId ?? challenge?.leadId;
+    const effectiveCompanyName = opts.companyName ?? challenge?.companyName;
 
     let profile = await loadPostLoginProfile();
 
@@ -179,11 +217,13 @@ export async function runPostLoginNavigation(opts: {
     }
 
     if (profile.companyMemberships.length === 0) {
-      const pendingName = opts.companyName?.trim() || getPendingStudioName(profile.session);
+      const pendingName = effectiveCompanyName?.trim() || getPendingStudioName(profile.session);
       if (pendingName) {
         const boot = await ensureUserCompanyBootstrap({
           companyName: pendingName,
-          planId: opts.planId ?? null,
+          planId: effectivePlanId ?? null,
+          trialDays: isChallenge ? effectiveTrialDays : 7,
+          leadId: isChallenge ? effectiveLeadId : null,
           session: profile.session,
         });
         if (!boot.ok) {
@@ -207,13 +247,22 @@ export async function runPostLoginNavigation(opts: {
         );
         return { ok: true };
       }
+    } else if (isChallenge && effectiveLeadId) {
+      const companyId = profile.companyMemberships[0]?.company_id;
+      await challengeService.linkLead(effectiveLeadId, companyId);
     }
 
+    // Desafio: trial já ativo → admin. Fluxo normal: planId pode ir ao checkout.
     const dest = await resolvePostLoginDestination({
-      planId: opts.planId,
-      preferTrial: opts.preferTrial,
+      planId: isChallenge ? undefined : opts.planId,
+      preferTrial: isChallenge ? true : opts.preferTrial,
       profile,
     });
+
+    if (isChallenge) {
+      clearChallengeIntent();
+      trackMarketingEvent("challenge_signup", { persist: true });
+    }
 
     await opts.refreshAuth?.();
     await navigateToAuthDestination(opts.navigate, dest, true);

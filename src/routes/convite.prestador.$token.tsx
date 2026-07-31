@@ -154,7 +154,9 @@ function ProviderInvitePage() {
           <h1 className="mt-6 font-display text-xl">Convite indisponível</h1>
           <p className="mt-2 text-sm text-muted-foreground">{previewError ?? "Este link não pode ser usado."}</p>
           <Button className="mt-6" asChild>
-            <Link to="/login">Ir para login</Link>
+            <Link to="/login" search={{ planId: undefined, desafio: undefined, leadId: undefined }}>
+              Ir para login
+            </Link>
           </Button>
         </div>
       </div>

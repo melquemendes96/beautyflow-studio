@@ -15,6 +15,9 @@ export async function navigateAfterAuthenticatedSession(opts: {
   companyName?: string | null;
   refreshAuth?: () => Promise<void>;
   preferTrial?: boolean;
+  skipCheckout?: boolean;
+  trialDays?: number | null;
+  leadId?: string | null;
 }): Promise<AuthOnboardingResult> {
   const res = await runPostLoginNavigation(opts);
   if (res.ok) return { ok: true };

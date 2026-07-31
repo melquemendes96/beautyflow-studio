@@ -19,10 +19,15 @@ export const onboardingService = {
   },
 
   /** Empresa + branding + trial no plano (cadastro / OAuth signup). */
-  async completeSignupOnboarding(params: { companyName: string; planId?: string | null }) {
+  async completeSignupOnboarding(params: {
+    companyName: string;
+    planId?: string | null;
+    trialDays?: number | null;
+  }) {
     const { data, error } = await getSupabase().rpc("complete_signup_onboarding", {
       p_company_name: params.companyName,
       p_plan_id: params.planId?.trim() ? params.planId.trim() : null,
+      p_trial_days: params.trialDays && params.trialDays > 0 ? params.trialDays : 7,
     });
     return { data, error };
   },

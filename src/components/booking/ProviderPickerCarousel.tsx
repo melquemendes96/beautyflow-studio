@@ -119,9 +119,9 @@ export function ProviderPickerCarousel({
                         alt=""
                         width={112}
                         height={112}
-                        loading="eager"
+                        loading={isActive || index < 2 ? "eager" : "lazy"}
                         decoding="async"
-                        fetchPriority={isActive || index < 2 ? "high" : "auto"}
+                        fetchPriority={isActive ? "high" : "auto"}
                         className={cn(
                           "rounded-full object-cover object-top transition-all duration-300",
                           isActive
