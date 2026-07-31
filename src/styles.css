@@ -205,6 +205,141 @@
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
+/* —— Desafio 60 — promo modal / topbar —— */
+.challenge-topbar {
+  background:
+    radial-gradient(120% 180% at 10% 0%, rgba(201, 169, 97, 0.28), transparent 45%),
+    linear-gradient(90deg, #14110e 0%, #1c1814 50%, #12100d 100%);
+}
+.challenge-topbar__shine {
+  background: linear-gradient(
+    105deg,
+    transparent 40%,
+    rgba(232, 213, 163, 0.12) 50%,
+    transparent 60%
+  );
+  animation: challenge-shine 5.5s ease-in-out infinite;
+}
+.challenge-modal-overlay {
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 40%, rgba(40, 32, 22, 0.35), transparent 70%),
+    rgba(8, 7, 6, 0.72);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+.challenge-modal-overlay--in {
+  opacity: 1;
+}
+.challenge-modal {
+  background:
+    radial-gradient(120% 80% at 80% -10%, rgba(201, 169, 97, 0.22), transparent 42%),
+    radial-gradient(90% 70% at 0% 100%, rgba(120, 70, 50, 0.18), transparent 50%),
+    linear-gradient(165deg, #1a1612 0%, #0e0c0a 55%, #12100e 100%);
+  border: 1px solid rgba(232, 213, 163, 0.22);
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.4),
+    0 28px 80px -20px rgba(0, 0, 0, 0.75),
+    0 0 60px -28px rgba(201, 169, 97, 0.45);
+  transform: translateY(18px) scale(0.97);
+  opacity: 0;
+  transition:
+    transform 0.45s cubic-bezier(0.22, 1, 0.36, 1),
+    opacity 0.4s ease;
+}
+.challenge-modal--in {
+  transform: translateY(0) scale(1);
+  opacity: 1;
+}
+.challenge-modal__aurora {
+  background: radial-gradient(circle, rgba(201, 169, 97, 0.35), transparent 68%);
+  animation: challenge-float 8s ease-in-out infinite;
+}
+.challenge-modal__aurora2 {
+  background: radial-gradient(circle, rgba(180, 90, 70, 0.22), transparent 70%);
+  animation: challenge-float 10s ease-in-out infinite reverse;
+}
+.challenge-modal__grain {
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.55'/%3E%3C/svg%3E");
+  background-size: 180px;
+  mix-blend-mode: overlay;
+}
+.challenge-modal__cta {
+  background: linear-gradient(135deg, #f0e2b8 0%, #c9a961 48%, #a8873f 100%);
+  box-shadow:
+    0 10px 28px -10px rgba(201, 169, 97, 0.85),
+    inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+.challenge-modal__cta:hover {
+  filter: brightness(1.06);
+  box-shadow:
+    0 14px 36px -10px rgba(201, 169, 97, 0.95),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+.challenge-modal__live {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.challenge-modal__live::before {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: #9aefb0;
+  box-shadow: 0 0 0 0 rgba(154, 239, 176, 0.7);
+  animation: challenge-pulse 1.6s ease-out infinite;
+}
+.challenge-countdown-lux {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+@keyframes challenge-shine {
+  0%,
+  100% {
+    transform: translateX(-30%);
+    opacity: 0.35;
+  }
+  50% {
+    transform: translateX(30%);
+    opacity: 0.7;
+  }
+}
+@keyframes challenge-float {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(4%, 3%) scale(1.06);
+  }
+}
+@keyframes challenge-pulse {
+  0% {
+    box-shadow: 0 0 0 0 rgba(154, 239, 176, 0.65);
+  }
+  70% {
+    box-shadow: 0 0 0 8px rgba(154, 239, 176, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(154, 239, 176, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .challenge-topbar__shine,
+  .challenge-modal__aurora,
+  .challenge-modal__aurora2,
+  .challenge-modal__live::before {
+    animation: none;
+  }
+  .challenge-modal,
+  .challenge-modal-overlay {
+    transition: none;
+  }
+}
+
 /* Quantum Lovable - watermark removal */
 #lovable-badge {
   display: none !important;
