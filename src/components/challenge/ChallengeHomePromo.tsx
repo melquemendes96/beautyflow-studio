@@ -67,32 +67,31 @@ export function ChallengeHomePromo({ forceOpen = false }: { forceOpen?: boolean 
       {showBar ? (
         <div className="challenge-topbar relative z-50 overflow-hidden border-b border-white/10">
           <div className="challenge-topbar__shine pointer-events-none absolute inset-0" aria-hidden />
-          <div className="container-page relative flex items-center justify-between gap-3 py-2 text-sm text-[#f7f1e6] sm:py-2.5">
+          <div className="container-page relative flex items-center justify-between gap-3 py-2.5 text-sm text-[#f7f1e6]">
             <div className="min-w-0 flex-1">
-              <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
-                <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-[#c9a961]/45 bg-[#c9a961]/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#e8d5a3]">
-                  <Sparkles className="size-3" aria-hidden />
-                  Desafio
-                </span>
-                <span className="font-medium tracking-wide">60 dias grátis</span>
-                <span className="hidden text-[#e8d5a3]/50 sm:inline" aria-hidden>
-                  ·
-                </span>
-                <ChallengeCountdownDisplay
-                  compact
-                  className="hidden tabular-nums tracking-wide text-[#e8d5a3] sm:inline"
-                />
+              <div className="flex flex-col gap-0.5 sm:flex-row sm:flex-wrap sm:items-baseline sm:gap-x-2">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="hidden shrink-0 items-center gap-1 rounded-full border border-[#c9a961]/45 bg-[#c9a961]/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-[0.14em] text-[#e8d5a3] sm:inline-flex">
+                    <Sparkles className="size-3" aria-hidden />
+                    Desafio
+                  </span>
+                  <p className="font-medium tracking-wide">60 dias grátis</p>
+                </div>
+                <p className="tabular-nums text-[#e8d5a3]">
+                  <span className="sm:hidden">Faltam </span>
+                  <span className="hidden sm:inline" aria-hidden>
+                    ·{" "}
+                  </span>
+                  <ChallengeCountdownDisplay compact className="inline" />
+                </p>
               </div>
-              <p className="mt-0.5 text-xs tabular-nums tracking-wide text-[#e8d5a3] sm:hidden">
-                <ChallengeCountdownDisplay compact />
-              </p>
             </div>
             <Link
               to={CHALLENGE_PATH}
               search={{ desafio: "60" }}
               className="shrink-0 rounded-full bg-gradient-to-r from-[#e8d5a3] to-[#c9a961] px-3 py-1.5 text-[11px] font-semibold text-[#1a1612] shadow-[0_0_24px_-6px_rgba(201,169,97,0.65)] transition hover:brightness-105 sm:px-3.5 sm:text-xs"
             >
-              Participar
+              Quero participar
             </Link>
           </div>
         </div>
