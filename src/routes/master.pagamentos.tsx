@@ -50,6 +50,7 @@ function moneyBRL(value: unknown): string {
 function MasterPagamentos() {
   const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
+  const [markingPaymentId, setMarkingPaymentId] = useState<string | null>(null);
   const [form, setForm] = useState({
     companyId: "",
     subscriptionId: "",
@@ -135,14 +136,26 @@ function MasterPagamentos() {
 
       const newEnd = payload?.new_period_end ? new Date(payload.new_period_end).toLocaleDateString("pt-BR") : null;
       toast.success("Pagamento registrado e renovação aplicada", {
-        description: newEnd ? `Nova renovação: ${newEnd}` : "Renovação aplicada com sucesso.",
+        description: newEnd
+          ? `Cobrança marcada como paga. Próxima renovação: ${newEnd}`
+          : "Cobrança marcada como paga e renovação aplicada.",
+      });
+    },
+    onError: (err: any) => {
+      toast.error("Não foi possível registrar o pagamento", {
+        description: err?.message ?? "Tente novamente.",
       });
     },
   });
 
   const markPaidMutation = useMutation({
-    mutationFn: async (paymentId: string) => {
-      const res = await masterService.applyPaymentAndRenewV2({ payment_id: paymentId, months: 1, allow_canceled: false });
+    mutationFn: async (input: { paymentId: string; allowCanceled: boolean }) => {
+      setMarkingPaymentId(input.paymentId);
+      const res = await masterService.applyPaymentAndRenewV2({
+        payment_id: input.paymentId,
+        months: 1,
+        allow_canceled: input.allowCanceled,
+      });
       if (res.error) throw res.error;
       return res.data;
     },
@@ -151,9 +164,19 @@ function MasterPagamentos() {
       await queryClient.invalidateQueries({ queryKey: ["master", "subscriptions"] });
       await queryClient.invalidateQueries({ queryKey: ["master", "notification_feed"] });
       const newEnd = payload?.new_period_end ? new Date(payload.new_period_end).toLocaleDateString("pt-BR") : null;
-      toast.success("Pagamento aplicado", {
-        description: newEnd ? `Nova renovação: ${newEnd}` : "Renovação aplicada com sucesso.",
+      toast.success(payload?.already_paid ? "Pagamento já estava pago" : "Pagamento marcado como pago", {
+        description: newEnd
+          ? `Próxima renovação: ${newEnd}. Uma nova cobrança pendente pode aparecer para o próximo ciclo.`
+          : "Renovação aplicada com sucesso.",
       });
+    },
+    onError: (err: any) => {
+      toast.error("Não foi possível marcar como pago", {
+        description: err?.message ?? "Tente novamente.",
+      });
+    },
+    onSettled: () => {
+      setMarkingPaymentId(null);
     },
   });
 
@@ -173,7 +196,7 @@ function MasterPagamentos() {
               <DialogHeader>
                 <DialogTitle>Registrar pagamento manual</DialogTitle>
                 <DialogDescription>
-                  Crie um pagamento “Pago” para uma empresa (uso interno).
+                  Registra a cobrança como paga, renova a assinatura e gera a próxima fatura pendente do ciclo.
                 </DialogDescription>
               </DialogHeader>
 
@@ -319,7 +342,9 @@ function MasterPagamentos() {
 
       <div className="rounded-2xl border border-border bg-card shadow-soft">
         <div className="border-b border-border px-5 py-4 text-sm text-muted-foreground">
-          {isLoading ? "Carregando…" : `${data?.length ?? 0} pagamento(s)`}
+          {isLoading
+            ? "Carregando…"
+            : `${data?.length ?? 0} pagamento(s). Ao marcar como pago, uma nova cobrança pendente do próximo ciclo pode aparecer no topo.`}
         </div>
 
         {error && (
@@ -366,10 +391,15 @@ function MasterPagamentos() {
                     {p.status !== "paid" ? (
                       <Button
                         size="sm"
-                        onClick={() => markPaidMutation.mutate(p.id)}
+                        onClick={() =>
+                          markPaidMutation.mutate({
+                            paymentId: p.id,
+                            allowCanceled: true,
+                          })
+                        }
                         disabled={markPaidMutation.isPending}
                       >
-                        Marcar como pago
+                        {markingPaymentId === p.id ? "Aplicando…" : "Marcar como pago"}
                       </Button>
                     ) : (
                       <span className="text-xs text-muted-foreground">—</span>

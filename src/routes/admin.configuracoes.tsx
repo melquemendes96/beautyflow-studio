@@ -1,9 +1,20 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { PageTitle } from "@/components/admin/AdminShell";
+import { BusinessHoursPicker } from "@/components/admin/BusinessHoursPicker";
 import { PushNotificationSetup } from "@/components/admin/PushNotificationSetup";
 import { useEffect, useMemo, useState } from "react";
 import { useCurrentCompany } from "@/lib/current-company";
+import {
+  DEFAULT_CLOSING_TIME,
+  DEFAULT_OPENING_TIME,
+  DEFAULT_WORKING_DAYS,
+  formatPublicHoursText,
+  normalizeTimeHm,
+  normalizeWorkingDays,
+  toMinutes,
+} from "@/lib/business-hours";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { brandingService } from "@/services/brandingService";
 import { businessSettingsService } from "@/services/businessSettingsService";
 import { companyService } from "@/services/companyService";
 import { toast } from "sonner";
@@ -14,8 +25,6 @@ import { isValidPublicBookingSlug, normalizePublicBookingSlug } from "@/lib/publ
 export const Route = createFileRoute("/admin/configuracoes")({
   component: Config,
 });
-
-const dias = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 
 function Config() {
   const queryClient = useQueryClient();
@@ -53,9 +62,9 @@ function Config() {
     if (typeof s === "string" && s.length > 0) setSlugInput(s);
   }, [companyQuery.data?.slug]);
 
-  const [workingDays, setWorkingDays] = useState<boolean[]>([true, true, true, true, true, true, false]);
-  const [openingTime, setOpeningTime] = useState("09:00");
-  const [closingTime, setClosingTime] = useState("19:00");
+  const [workingDays, setWorkingDays] = useState<boolean[]>(DEFAULT_WORKING_DAYS.slice());
+  const [openingTime, setOpeningTime] = useState(DEFAULT_OPENING_TIME);
+  const [closingTime, setClosingTime] = useState(DEFAULT_CLOSING_TIME);
   const [slotIntervalMinutes, setSlotIntervalMinutes] = useState("15");
   const [minScheduleNoticeHours, setMinScheduleNoticeHours] = useState("2");
   const [cancellationLimitHours, setCancellationLimitHours] = useState("6");
@@ -65,9 +74,9 @@ function Config() {
   useEffect(() => {
     if (!settingsQuery.data) return;
     const d: any = settingsQuery.data;
-    setWorkingDays(Array.isArray(d.working_days) && d.working_days.length === 7 ? d.working_days : [true, true, true, true, true, true, false]);
-    setOpeningTime(d.opening_time ?? "09:00");
-    setClosingTime(d.closing_time ?? "19:00");
+    setWorkingDays(normalizeWorkingDays(d.working_days));
+    setOpeningTime(normalizeTimeHm(d.opening_time, DEFAULT_OPENING_TIME));
+    setClosingTime(normalizeTimeHm(d.closing_time, DEFAULT_CLOSING_TIME));
     setSlotIntervalMinutes(String(d.slot_interval_minutes ?? 15));
     setMinScheduleNoticeHours(String(d.min_schedule_notice_hours ?? 2));
     setCancellationLimitHours(String(d.cancellation_limit_hours ?? 6));
@@ -112,6 +121,14 @@ function Config() {
           "Informe um slug válido: letras minúsculas, números e hífens (ex.: studio-beleza ou joyce2024).",
         );
       }
+      if (!workingDays.some(Boolean)) {
+        throw new Error("Selecione ao menos um dia de funcionamento.");
+      }
+      const open = normalizeTimeHm(openingTime, DEFAULT_OPENING_TIME);
+      const close = normalizeTimeHm(closingTime, DEFAULT_CLOSING_TIME);
+      if (toMinutes(close) <= toMinutes(open)) {
+        throw new Error("O horário de fechamento deve ser depois da abertura.");
+      }
 
       const currentSlug = companyQuery.data?.slug ?? "";
       const slugChanges = Number(companyQuery.data?.slug_change_count ?? 0);
@@ -136,8 +153,8 @@ function Config() {
 
       const res = await businessSettingsService.upsert(companyId, {
         working_days: workingDays,
-        opening_time: openingTime,
-        closing_time: closingTime,
+        opening_time: open,
+        closing_time: close,
         slot_interval_minutes: Number(slotIntervalMinutes),
         min_schedule_notice_hours: Number(minScheduleNoticeHours),
         cancellation_limit_hours: Number(cancellationLimitHours),
@@ -145,10 +162,17 @@ function Config() {
         allow_waitlist: allowWaitlist,
       });
       if (res.error) throw res.error;
+
+      // Mantém o texto da página pública alinhado ao horário operacional
+      await brandingService.upsert(companyId, {
+        public_hours_text: formatPublicHoursText(workingDays, open, close),
+      });
+
       return res.data;
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["admin", "business_settings", companyId] });
+      await queryClient.invalidateQueries({ queryKey: ["admin", "branding", companyId] });
       await queryClient.invalidateQueries({ queryKey: ["admin", "company", companyId] });
       toast.success("Configurações salvas com sucesso");
     },
@@ -242,40 +266,19 @@ function Config() {
         </Section>
 
         <Section title="Horário de funcionamento">
-          <div className="space-y-2">
-            {dias.map((d, i) => (
-              <div key={d} className="flex items-center justify-between rounded-xl border border-border bg-background p-3 text-sm">
-                <div className="flex items-center gap-3">
-                  <input
-                    type="checkbox"
-                    checked={workingDays[i] ?? false}
-                    onChange={(e) =>
-                      setWorkingDays((prev) => {
-                        const next = prev.slice();
-                        next[i] = e.target.checked;
-                        return next;
-                      })
-                    }
-                    className="size-4 accent-foreground"
-                  />
-                  <span className="font-medium">{d}</span>
-                </div>
-                <div className="flex gap-2 text-xs text-muted-foreground">
-                  <input
-                    value={openingTime}
-                    onChange={(e) => setOpeningTime(e.target.value)}
-                    className="w-16 rounded-md border border-input bg-background px-2 py-1"
-                  />
-                  <span>às</span>
-                  <input
-                    value={closingTime}
-                    onChange={(e) => setClosingTime(e.target.value)}
-                    className="w-16 rounded-md border border-input bg-background px-2 py-1"
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
+          <p className="text-sm text-muted-foreground">
+            Os mesmos dias e horários da Aparência da marca. Controlam a agenda, os bloqueios e o texto na página
+            pública.
+          </p>
+          <BusinessHoursPicker
+            workingDays={workingDays}
+            openingTime={openingTime}
+            closingTime={closingTime}
+            onWorkingDaysChange={setWorkingDays}
+            onOpeningTimeChange={setOpeningTime}
+            onClosingTimeChange={setClosingTime}
+            disabled={saveMutation.isPending}
+          />
         </Section>
 
         <Section title="Regras de agendamento">

@@ -397,11 +397,10 @@ export const masterService = {
   },
 
   async applyPaymentAndRenew(input: { payment_id: string; months?: number }) {
-    const gate = await requireMasterSession();
-    if (!gate.ok) return { data: null, error: gate.error };
-    return getSupabase().rpc("master_apply_payment", {
-      p_payment_id: input.payment_id,
-      p_months: input.months ?? 1,
+    return this.applyPaymentAndRenewV2({
+      payment_id: input.payment_id,
+      months: input.months ?? 1,
+      allow_canceled: false,
     });
   },
 
@@ -412,11 +411,47 @@ export const masterService = {
   }) {
     const gate = await requireMasterSession();
     if (!gate.ok) return { data: null, error: gate.error };
-    return getSupabase().rpc("master_apply_payment", {
+
+    const { data, error } = await getSupabase().rpc("master_apply_payment", {
       p_payment_id: input.payment_id,
       p_months: input.months ?? 1,
       p_allow_canceled: input.allow_canceled ?? false,
     });
+
+    if (error) return { data: null, error };
+
+    const payload =
+      typeof data === "string"
+        ? (JSON.parse(data) as Record<string, unknown>)
+        : ((data ?? null) as Record<string, unknown> | null);
+
+    if (!payload || payload.ok === false) {
+      const code = String(payload?.error ?? "erro_desconhecido");
+      const detail = payload?.detail != null ? String(payload.detail) : "";
+      const labels: Record<string, string> = {
+        forbidden: "Sem permissão de administrador master.",
+        payment_id_obrigatorio: "Pagamento inválido.",
+        meses_invalidos: "Quantidade de meses inválida.",
+        pagamento_nao_encontrado: "Pagamento não encontrado.",
+        pagamento_sem_assinatura: "Pagamento sem assinatura vinculada.",
+        assinatura_nao_encontrada: "Assinatura não encontrada.",
+        assinatura_cancelada:
+          "Assinatura cancelada. Habilite “Permitir renovar assinatura cancelada” e tente de novo.",
+        plano_nao_encontrado: "Plano da assinatura não encontrado.",
+        erro_interno: detail
+          ? `Erro interno ao aplicar pagamento: ${detail}`
+          : "Erro interno ao aplicar pagamento. Verifique se a migration de correção foi aplicada no Supabase.",
+      };
+      return {
+        data: null,
+        error: {
+          message: labels[code] ?? (detail || code),
+          code,
+        },
+      };
+    }
+
+    return { data: payload, error: null };
   },
 
   async createPendingInvoice(input: { subscription_id: string; due_date?: string | null }) {

@@ -30,7 +30,6 @@ import {
   adminMobileDialogHeaderClass,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { AdminAgendaDaySlotSkeleton, AdminAgendaWeekGridSkeleton } from "@/components/admin/AdminPageStates";
 import { ProviderAgendaAvatar, providerAgendaLabel } from "@/components/admin/ProviderAgendaAvatar";
 import {
@@ -50,6 +49,16 @@ import {
   blockScopeLabel,
   type ScheduleBlockRow,
 } from "@/lib/admin-agenda-blocks";
+import {
+  DEFAULT_CLOSING_TIME,
+  DEFAULT_OPENING_TIME,
+  DEFAULT_WORKING_DAYS,
+  buildAgendaHourSlots,
+  formatPublicHoursText,
+  isWorkingDate,
+  normalizeTimeHm,
+  normalizeWorkingDays,
+} from "@/lib/business-hours";
 import { businessSettingsService } from "@/services/businessSettingsService";
 import { teamService } from "@/services/teamService";
 import type { ScheduleBlockType } from "@/services/scheduleBlockService";
@@ -127,7 +136,7 @@ function Agenda() {
   }, [isProvider, providerId, providerFromSearch]);
 
   const dateYmd = useMemo(() => toYmd(day), [day]);
-  const subtitle = useMemo(
+  const dateLabel = useMemo(
     () =>
       day.toLocaleDateString("pt-BR", {
         weekday: "long",
@@ -247,7 +256,7 @@ function Agenda() {
 
   const businessSettingsQuery = useQuery({
     queryKey: ["admin", "business_settings", companyId],
-    enabled: hasCompany && view === "dia",
+    enabled: hasCompany,
     queryFn: async () => {
       const res = await businessSettingsService.getByCompany(companyId!);
       if (res.error) throw res.error;
@@ -256,12 +265,39 @@ function Agenda() {
     staleTime: 60_000,
   });
 
+  const workingDays = useMemo(
+    () =>
+      normalizeWorkingDays(
+        (businessSettingsQuery.data as { working_days?: unknown } | null)?.working_days ??
+          DEFAULT_WORKING_DAYS,
+      ),
+    [businessSettingsQuery.data],
+  );
+
   const businessHours = useMemo(
     () => ({
-      opening_time: (businessSettingsQuery.data as { opening_time?: string } | null)?.opening_time,
-      closing_time: (businessSettingsQuery.data as { closing_time?: string } | null)?.closing_time,
+      opening_time: normalizeTimeHm(
+        (businessSettingsQuery.data as { opening_time?: string } | null)?.opening_time,
+        DEFAULT_OPENING_TIME,
+      ),
+      closing_time: normalizeTimeHm(
+        (businessSettingsQuery.data as { closing_time?: string } | null)?.closing_time,
+        DEFAULT_CLOSING_TIME,
+      ),
     }),
     [businessSettingsQuery.data],
+  );
+
+  const hoursSummary = useMemo(
+    () => formatPublicHoursText(workingDays, businessHours.opening_time!, businessHours.closing_time!),
+    [workingDays, businessHours.opening_time, businessHours.closing_time],
+  );
+
+  const dayIsOpen = useMemo(() => isWorkingDate(day, workingDays), [day, workingDays]);
+
+  const subtitle = useMemo(
+    () => (hoursSummary ? `${dateLabel} · ${hoursSummary}` : dateLabel),
+    [dateLabel, hoursSummary],
   );
 
   const weekStart = useMemo(() => startOfWeek(day), [day]);
@@ -282,14 +318,14 @@ function Agenda() {
   });
 
   const weekTimeSlots = useMemo(() => {
-    const base = ["09:00", "10:00", "11:00", "14:00", "15:00", "16:00", "17:00"];
+    const base = buildAgendaHourSlots(businessHours.opening_time!, businessHours.closing_time!);
     const times = new Set(base);
     for (const a of weekAppointmentsQuery.data ?? []) {
       const t = formatAppointmentTimeHm(a.appointment_time);
       if (t) times.add(t);
     }
     return Array.from(times).sort();
-  }, [weekAppointmentsQuery.data]);
+  }, [weekAppointmentsQuery.data, businessHours.opening_time, businessHours.closing_time]);
 
   const createAppointmentMutation = useMutation({
     mutationFn: async () => {
@@ -445,14 +481,24 @@ function Agenda() {
   }, [weekAppointmentsQuery.data, providerFilterId]);
 
   const dayTimeSlots = useMemo(() => {
-    const times = new Set<string>();
-    for (let h = 8; h <= 18; h++) times.add(`${String(h).padStart(2, "0")}:00`);
+    if (!dayIsOpen) {
+      // Ainda mostra horários de agendamentos existentes em dia fechado
+      const times = new Set<string>();
+      for (const a of filteredDayAppointments) {
+        const t = formatAppointmentTimeHm(a.appointment_time);
+        if (t) times.add(t);
+      }
+      return Array.from(times).sort();
+    }
+    const times = new Set(
+      buildAgendaHourSlots(businessHours.opening_time!, businessHours.closing_time!),
+    );
     for (const a of filteredDayAppointments) {
       const t = formatAppointmentTimeHm(a.appointment_time);
       if (t) times.add(t);
     }
     return Array.from(times).sort();
-  }, [filteredDayAppointments]);
+  }, [filteredDayAppointments, businessHours.opening_time, businessHours.closing_time, dayIsOpen]);
 
   const dayEventsByTime = useMemo(() => {
     const map = new Map<string, any[]>();
@@ -597,7 +643,17 @@ function Agenda() {
 
                     <label className="grid gap-1.5">
                       <span className="text-xs font-medium text-muted-foreground">Horário</span>
-                      <Input value={form.time} onChange={(e) => setForm((s) => ({ ...s, time: e.target.value }))} />
+                      <select
+                        className="h-10 rounded-md border border-input bg-background px-3 text-sm"
+                        value={form.time}
+                        onChange={(e) => setForm((s) => ({ ...s, time: e.target.value }))}
+                      >
+                        {buildAgendaHourSlots(businessHours.opening_time!, businessHours.closing_time!).map((t) => (
+                          <option key={t} value={t}>
+                            {t}
+                          </option>
+                        ))}
+                      </select>
                     </label>
                   </div>
                 </div>
@@ -624,11 +680,21 @@ function Agenda() {
             onSelect={(d) => d && setDay(d)}
             locale={ptBR}
             className="rounded-xl"
+            modifiers={{ closed: (d) => !isWorkingDate(d, workingDays) }}
+            modifiersClassNames={{ closed: "opacity-40" }}
           />
+          <p className="mt-2 px-2 pb-1 text-[11px] text-muted-foreground">
+            Dias mais claros estão fechados conforme o horário da marca.
+          </p>
         </div>
         <div className="flex flex-wrap gap-2 text-xs">
           <p className="w-full text-[11px] text-muted-foreground">
             Bloqueios para: <span className="font-medium text-foreground">{blockScopeHint}</span>
+            {dayIsOpen ? null : (
+              <span className="mt-1 block text-warning">
+                Este dia está marcado como fechado. Ajuste os dias em Aparência da marca ou Configurações.
+              </span>
+            )}
           </p>
           {(
             [
@@ -646,7 +712,7 @@ function Agenda() {
                   active ? "bg-foreground text-background" : "bg-secondary hover:bg-accent"
                 }`}
                 onClick={() => toggleBulkBlockMutation.mutate(type)}
-                disabled={toggleBulkBlockMutation.isPending}
+                disabled={toggleBulkBlockMutation.isPending || !dayIsOpen}
               >
                 <Lock className="size-3" />
                 {active ? `${label} (ativo)` : label}
@@ -663,7 +729,11 @@ function Agenda() {
           ) : dayAppointmentsQuery.isLoading || dayBlocksQuery.isLoading ? (
             Array.from({ length: 11 }).map((_, i) => <AdminAgendaDaySlotSkeleton key={`day-sk-${i}`} />)
           ) : dayTimeSlots.length === 0 ? (
-            <p className="px-3 py-6 text-center text-sm text-muted-foreground">Nenhum horário para exibir.</p>
+            <p className="px-3 py-6 text-center text-sm text-muted-foreground">
+              {dayIsOpen
+                ? "Nenhum horário para exibir."
+                : "Salão fechado neste dia. Escolha outro dia no calendário ou ajuste o horário em Aparência da marca."}
+            </p>
           ) : (
             dayTimeSlots.map((hora) => {
               const eventos = dayEventsByTime.get(hora) ?? [];
@@ -838,14 +908,27 @@ function Agenda() {
               {Array.from({ length: 7 }).map((_, idx) => {
                 const d = addDays(weekStart, idx);
                 const label = d.toLocaleDateString("pt-BR", { weekday: "short", day: "2-digit" });
+                const openDay = isWorkingDate(d, workingDays);
                 return (
-                  <div key={idx} className="border-b border-l border-border p-3 text-center font-medium">
+                  <div
+                    key={idx}
+                    className={`border-b border-l border-border p-3 text-center font-medium ${
+                      openDay ? "" : "bg-muted/40 text-muted-foreground"
+                    }`}
+                  >
                     {label}
+                    {!openDay ? <div className="mt-0.5 text-[10px] font-normal">Fechado</div> : null}
                   </div>
                 );
               })}
               {weekTimeSlots.map((h) => (
-                <FragmentRow key={h} h={h} weekStart={weekStart} weekAppointments={filteredWeekAppointments} />
+                <FragmentRow
+                  key={h}
+                  h={h}
+                  weekStart={weekStart}
+                  weekAppointments={filteredWeekAppointments}
+                  workingDays={workingDays}
+                />
               ))}
             </div>
           )}
@@ -872,10 +955,12 @@ function FragmentRow({
   h,
   weekStart,
   weekAppointments,
+  workingDays,
 }: {
   h: string;
   weekStart: Date;
   weekAppointments: any[];
+  workingDays: boolean[];
 }) {
   const byDay = useMemo(() => {
     const map = new Map<string, any>();
@@ -894,8 +979,12 @@ function FragmentRow({
         const d = addDays(weekStart, c);
         const key = toYmd(d);
         const appt = byDay.get(key);
+        const openDay = isWorkingDate(d, workingDays);
         return (
-          <div key={c} className="border-b border-l border-border p-2">
+          <div
+            key={c}
+            className={`border-b border-l border-border p-2 ${openDay ? "" : "bg-muted/30"}`}
+          >
             {appt && (
               <div className="rounded-md border border-border bg-secondary/70 p-1">
                 <div className="flex items-center gap-1">

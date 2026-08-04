@@ -1,11 +1,22 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { PageTitle } from "@/components/admin/AdminShell";
+import { BusinessHoursPicker } from "@/components/admin/BusinessHoursPicker";
 import { studioInitials } from "@/lib/branding-utils";
+import {
+  DEFAULT_CLOSING_TIME,
+  DEFAULT_OPENING_TIME,
+  DEFAULT_WORKING_DAYS,
+  formatPublicHoursText,
+  normalizeTimeHm,
+  normalizeWorkingDays,
+  toMinutes,
+} from "@/lib/business-hours";
 import { Instagram, MapPin, Upload, X } from "lucide-react";
 import { useCurrentCompany } from "@/lib/current-company";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { brandingService } from "@/services/brandingService";
+import { businessSettingsService } from "@/services/businessSettingsService";
 import { companyService } from "@/services/companyService";
 import { PublicBookingLinkCard } from "@/components/admin/PublicBookingLinkCard";
 import { toast } from "sonner";
@@ -54,6 +65,16 @@ function Branding() {
     },
   });
 
+  const businessSettingsQuery = useQuery({
+    queryKey: ["admin", "business_settings", companyId],
+    enabled: hasCompany,
+    queryFn: async () => {
+      const res = await businessSettingsService.getByCompany(companyId!);
+      if (res.error) throw res.error;
+      return res.data ?? null;
+    },
+  });
+
   const companyQuery = useQuery({
     queryKey: ["admin", "company", companyId],
     enabled: hasCompany && Boolean(companyId),
@@ -68,7 +89,6 @@ function Branding() {
     nome: "",
     slogan: "",
     boasVindas: "",
-    horario: "",
     cor: "#1a1a1a",
     cor2: "#c9a960",
     instagram: "",
@@ -81,38 +101,51 @@ function Branding() {
     logo_image_pos_x: 50,
     logo_image_pos_y: 50,
   });
+  const [workingDays, setWorkingDays] = useState<boolean[]>(DEFAULT_WORKING_DAYS.slice());
+  const [openingTime, setOpeningTime] = useState(DEFAULT_OPENING_TIME);
+  const [closingTime, setClosingTime] = useState(DEFAULT_CLOSING_TIME);
+  const [hoursHydrated, setHoursHydrated] = useState(false);
+  const [brandHydrated, setBrandHydrated] = useState(false);
 
-  // sincroniza quando carregar (sem sobrescrever edição local)
+  const hoursPreview = useMemo(
+    () => formatPublicHoursText(workingDays, openingTime, closingTime),
+    [workingDays, openingTime, closingTime],
+  );
+
   useEffect(() => {
-    if (!brandingQuery.data) return;
-    const d = brandingQuery.data as Record<string, unknown>;
-    setB((prev) => {
-      const framing = {
-        banner_image_pos_x: clampPercent(d.banner_image_pos_x, 50),
-        banner_image_pos_y: clampPercent(d.banner_image_pos_y, 50),
-        logo_image_pos_x: clampPercent(d.logo_image_pos_x, 50),
-        logo_image_pos_y: clampPercent(d.logo_image_pos_y, 50),
-      };
-      // se já foi preenchido pelo usuário, não sobreescreve texto; enquadramento vem do servidor
-      if (prev.nome || prev.slogan || prev.boasVindas || prev.horario) {
-        return { ...prev, ...framing };
-      }
-      return {
+    if (brandHydrated || brandingQuery.isLoading) return;
+    const d = brandingQuery.data as Record<string, unknown> | null;
+    if (d) {
+      setB({
         nome: String(d.brand_name ?? ""),
         slogan: String(d.slogan ?? ""),
         boasVindas: String(d.welcome_text ?? ""),
         cor: String(d.primary_color ?? "#1a1a1a"),
         cor2: String(d.secondary_color ?? "#c9a960"),
-        horario: String(d.public_hours_text ?? ""),
         instagram: String(d.instagram_url ?? ""),
         whatsapp: String(d.whatsapp ?? ""),
         endereco: String(d.address ?? ""),
         logo_url: String(d.logo_url ?? ""),
         banner_url: String(d.banner_url ?? ""),
-        ...framing,
-      };
-    });
-  }, [brandingQuery.data]);
+        banner_image_pos_x: clampPercent(d.banner_image_pos_x, 50),
+        banner_image_pos_y: clampPercent(d.banner_image_pos_y, 50),
+        logo_image_pos_x: clampPercent(d.logo_image_pos_x, 50),
+        logo_image_pos_y: clampPercent(d.logo_image_pos_y, 50),
+      });
+    }
+    setBrandHydrated(true);
+  }, [brandingQuery.data, brandingQuery.isLoading, brandHydrated]);
+
+  useEffect(() => {
+    if (hoursHydrated || businessSettingsQuery.isLoading) return;
+    const d = businessSettingsQuery.data as Record<string, unknown> | null;
+    if (d) {
+      setWorkingDays(normalizeWorkingDays(d.working_days));
+      setOpeningTime(normalizeTimeHm(d.opening_time, DEFAULT_OPENING_TIME));
+      setClosingTime(normalizeTimeHm(d.closing_time, DEFAULT_CLOSING_TIME));
+    }
+    setHoursHydrated(true);
+  }, [businessSettingsQuery.data, businessSettingsQuery.isLoading, hoursHydrated]);
 
   const publicSlug = useMemo(
     () => (companyQuery.data?.slug ? normalizePublicBookingSlug(String(companyQuery.data.slug)) : ""),
@@ -155,6 +188,23 @@ function Branding() {
   const saveMutation = useMutation({
     mutationFn: async () => {
       if (!companyId) throw new Error("Sem empresa");
+      if (!workingDays.some(Boolean)) {
+        throw new Error("Selecione ao menos um dia de funcionamento.");
+      }
+      const open = normalizeTimeHm(openingTime, DEFAULT_OPENING_TIME);
+      const close = normalizeTimeHm(closingTime, DEFAULT_CLOSING_TIME);
+      if (toMinutes(close) <= toMinutes(open)) {
+        throw new Error("O horário de fechamento deve ser depois da abertura.");
+      }
+      const hoursText = formatPublicHoursText(workingDays, open, close);
+
+      const hoursRes = await businessSettingsService.upsert(companyId, {
+        working_days: workingDays,
+        opening_time: open,
+        closing_time: close,
+      });
+      if (hoursRes.error) throw hoursRes.error;
+
       const res = await brandingService.upsert(companyId, {
         brand_name: b.nome.trim() || null,
         slogan: b.slogan.trim() || null,
@@ -164,7 +214,7 @@ function Branding() {
         instagram_url: b.instagram.trim() || null,
         whatsapp: b.whatsapp.trim() || null,
         address: b.endereco.trim() || null,
-        public_hours_text: b.horario.trim() || null,
+        public_hours_text: hoursText,
         logo_url: b.logo_url.trim() || null,
         banner_url: b.banner_url.trim() || null,
         banner_image_pos_x: b.banner_image_pos_x,
@@ -181,9 +231,10 @@ function Branding() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["admin", "branding", companyId] });
+      await queryClient.invalidateQueries({ queryKey: ["admin", "business_settings", companyId] });
       await queryClient.invalidateQueries({ queryKey: ["admin", "company", companyId] });
       await invalidatePublicPage();
-      toast.success("Marca salva com sucesso");
+      toast.success("Marca e horário salvos com sucesso");
     },
     onError: (err: unknown) => {
       const msg = err instanceof Error ? err.message : "Não foi possível salvar a marca.";
@@ -195,13 +246,13 @@ function Branding() {
     <div>
       <PageTitle title="Aparência da marca" subtitle="Veja como sua página de agendamento ficará para suas clientes." />
 
-      {brandingQuery.isError && (
+      {(brandingQuery.isError || businessSettingsQuery.isError) && (
         <div className="mb-6 rounded-2xl border border-destructive/30 bg-destructive/10 px-4 py-3 text-sm text-destructive">
           Não foi possível carregar os dados da marca. Tente atualizar a página.
         </div>
       )}
 
-      {brandingQuery.isLoading ? (
+      {brandingQuery.isLoading || businessSettingsQuery.isLoading ? (
         <div className="grid gap-6 lg:grid-cols-2">
           <AdminBrandingFormSkeleton />
           <div className="lg:sticky lg:top-24">
@@ -280,12 +331,24 @@ function Branding() {
             </div>
 
             <Field label="Texto de boas-vindas" value={b.boasVindas} onChange={(v) => setB({ ...b, boasVindas: v })} multiline />
-            <Field
-              label="Horário de funcionamento (página pública)"
-              value={b.horario}
-              onChange={(v) => setB({ ...b, horario: v })}
-              placeholder="Ex.: Seg–Sáb · 09h às 19h"
-            />
+
+            <div className="rounded-2xl border border-border bg-secondary/20 p-4">
+              <p className="mb-3 text-sm font-medium text-foreground">Horário de funcionamento</p>
+              <p className="mb-3 text-xs text-muted-foreground">
+                Selecione os dias e horários. Isso aparece na página pública e define a grade da agenda (bloqueios de
+                manhã, tarde ou dia inteiro continuam iguais).
+              </p>
+              <BusinessHoursPicker
+                workingDays={workingDays}
+                openingTime={openingTime}
+                closingTime={closingTime}
+                onWorkingDaysChange={setWorkingDays}
+                onOpeningTimeChange={setOpeningTime}
+                onClosingTimeChange={setClosingTime}
+                disabled={saveMutation.isPending}
+              />
+            </div>
+
             <Field label="Instagram" value={b.instagram} onChange={(v) => setB({ ...b, instagram: v })} />
             <Field label="WhatsApp" value={b.whatsapp} onChange={(v) => setB({ ...b, whatsapp: v })} />
             <Field label="Endereço" value={b.endereco} onChange={(v) => setB({ ...b, endereco: v })} />
@@ -334,7 +397,7 @@ function Branding() {
                 <p className="text-sm text-muted-foreground">{b.slogan}</p>
                 <p className="mt-3 text-sm">{b.boasVindas}</p>
                 <div className="mt-4 flex flex-col gap-1 text-xs text-muted-foreground">
-                  {b.horario ? <span>{b.horario}</span> : null}
+                  {hoursPreview ? <span>{hoursPreview}</span> : null}
                   {b.instagram ? (
                     <span className="inline-flex items-center gap-1">
                       <Instagram className="size-3" /> {b.instagram}
