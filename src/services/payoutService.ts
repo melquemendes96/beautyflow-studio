@@ -116,7 +116,7 @@ export const payoutService = {
       }),
     );
     if (!res.ok) return res;
-    return { ok: true as const, payouts: res.payouts ?? [] };
+    return { ok: true as const, payouts: Array.isArray(res.payouts) ? res.payouts : [] };
   },
 
   markPaid(companyId: string, payoutId: string, paymentMethod: PaymentMethod = "pix") {

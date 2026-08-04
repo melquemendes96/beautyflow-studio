@@ -204,9 +204,17 @@ export async function guardCompanyPlanFeatureAccess(pathname: string): Promise<v
 
   const allowed = await hasFeatureAccess(companyId, hit.feature);
   if (!allowed) {
+    // Prestador não gerencia plano — volta ao painel.
+    if (isProvider) {
+      throw redirect({ to: "/admin" });
+    }
     throw redirect({
-      to: "/billing/plans",
-      search: { billing: "upgrade", need: featureToPortugueseLabel(hit.feature) },
+      to: "/admin/plano",
+      search: {
+        billing: "upgrade",
+        checkout: undefined,
+        need: featureToPortugueseLabel(hit.feature),
+      },
     });
   }
 }

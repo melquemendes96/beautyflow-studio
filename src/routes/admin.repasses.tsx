@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link, useRouter } from "@tanstack/react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState } from "react";
 import { PageTitle } from "@/components/admin/AdminShell";
@@ -18,8 +18,38 @@ import {
 } from "@/components/ui/select";
 import { HandCoins, CheckCircle2, XCircle, AlertCircle } from "lucide-react";
 
+function RepassesError({ error, reset }: { error: Error; reset: () => void }) {
+  console.error("[admin/repasses]", error);
+  const router = useRouter();
+  return (
+    <div className="rounded-2xl border border-border bg-card p-8 text-center shadow-soft">
+      <h1 className="font-display text-xl">Não foi possível abrir Repasses</h1>
+      <p className="mt-2 text-sm text-muted-foreground">
+        Tente novamente. Se o erro continuar, confirme se a feature de comissões está ativa no plano
+        e se as migrations de repasses foram aplicadas no Supabase.
+      </p>
+      <div className="mt-6 flex flex-wrap justify-center gap-2">
+        <Button
+          type="button"
+          className="rounded-full"
+          onClick={() => {
+            void router.invalidate();
+            reset();
+          }}
+        >
+          Tentar novamente
+        </Button>
+        <Button type="button" variant="outline" className="rounded-full" asChild>
+          <Link to="/admin">Voltar ao painel</Link>
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 export const Route = createFileRoute("/admin/repasses")({
   component: Repasses,
+  errorComponent: RepassesError,
 });
 
 function toYmd(date: Date) {
@@ -51,13 +81,18 @@ function Repasses() {
   });
 
   const providers = useMemo(
-    () => (teamQuery.data ?? []).filter((p) => p.active && !p.is_owner),
+    () =>
+      (teamQuery.data ?? []).filter(
+        (p) => p.active && !p.is_owner && typeof p.id === "string" && p.id.length > 0,
+      ),
     [teamQuery.data],
   );
 
   const selectedProviderId = isProvider
     ? providerId ?? ""
-    : providerIdAdmin || providers[0]?.id || "";
+    : providerIdAdmin && providers.some((p) => p.id === providerIdAdmin)
+      ? providerIdAdmin
+      : providers[0]?.id || "";
 
   const balanceQuery = useQuery({
     queryKey: ["admin", "payout-balance", companyId, selectedProviderId, periodStart, periodEnd],
@@ -79,7 +114,7 @@ function Repasses() {
         isProvider ? selectedProviderId : null,
       );
       if (!res.ok) throw new Error(res.message ?? res.error);
-      return res.payouts;
+      return Array.isArray(res.payouts) ? res.payouts : [];
     },
     retry: false,
   });
@@ -163,11 +198,13 @@ function Repasses() {
         <p className="mb-6 rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground">
           Seu perfil de prestador ainda não está vinculado. Entre em contato com o administrador do salão.
         </p>
+      ) : isOwnerAdmin && teamQuery.isLoading ? (
+        <p className="mb-6 text-sm text-muted-foreground">Carregando prestadores…</p>
       ) : isOwnerAdmin && teamQuery.isError ? (
         <p className="rounded-2xl border border-border bg-card p-6 text-sm text-destructive">
           Não foi possível carregar a equipe.
         </p>
-      ) : isOwnerAdmin && providers.length === 0 && !teamQuery.isLoading ? (
+      ) : isOwnerAdmin && providers.length === 0 ? (
         <p className="mb-6 rounded-2xl border border-border bg-card p-6 text-sm text-muted-foreground">
           Cadastre prestadores em Equipe (exceto o perfil owner) para gerar repasses.
         </p>
@@ -176,7 +213,10 @@ function Repasses() {
           {isOwnerAdmin ? (
             <label className="grid gap-1.5 text-sm">
               <span className="text-xs text-muted-foreground">Prestador</span>
-              <Select value={selectedProviderId || undefined} onValueChange={setProviderIdAdmin}>
+              <Select
+                value={selectedProviderId || undefined}
+                onValueChange={setProviderIdAdmin}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Selecione" />
                 </SelectTrigger>
@@ -347,7 +387,7 @@ function PayoutRow({
         >
           {statusLabel}
           {payout.payment_method && payout.status === "paid"
-            ? ` · ${PAYMENT_METHODS.find((m) => m.value === payout.payment_method)?.label ?? payout.payment_method}`
+            ? ` · ${(PAYMENT_METHODS ?? []).find((m) => m.value === payout.payment_method)?.label ?? payout.payment_method}`
             : ""}
         </span>
         {!readOnly && payout.status === "pending" ? (
