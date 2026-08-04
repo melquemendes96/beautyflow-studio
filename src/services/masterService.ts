@@ -408,14 +408,75 @@ export const masterService = {
     payment_id: string;
     months?: number;
     allow_canceled?: boolean;
+    create_next_invoice?: boolean;
   }) {
     const gate = await requireMasterSession();
     if (!gate.ok) return { data: null, error: gate.error };
 
-    const { data, error } = await getSupabase().rpc("master_apply_payment", {
+    const parsePayload = (data: unknown) => {
+      const payload =
+        typeof data === "string"
+          ? (JSON.parse(data) as Record<string, unknown>)
+          : ((data ?? null) as Record<string, unknown> | null);
+
+      if (!payload || payload.ok === false) {
+        const code = String(payload?.error ?? "erro_desconhecido");
+        const detail = payload?.detail != null ? String(payload.detail) : "";
+        const labels: Record<string, string> = {
+          forbidden: "Sem permissão de administrador master.",
+          payment_id_obrigatorio: "Pagamento inválido.",
+          meses_invalidos: "Quantidade de meses inválida.",
+          pagamento_nao_encontrado: "Pagamento não encontrado.",
+          pagamento_sem_assinatura: "Pagamento sem assinatura vinculada.",
+          assinatura_nao_encontrada: "Assinatura não encontrada.",
+          assinatura_cancelada:
+            "Assinatura cancelada. Habilite “Permitir renovar assinatura cancelada” e tente de novo.",
+          plano_nao_encontrado: "Plano da assinatura não encontrado.",
+          erro_interno: detail
+            ? `Erro interno ao aplicar pagamento: ${detail}`
+            : "Erro interno ao aplicar pagamento. Verifique se a migration foi aplicada no Supabase.",
+        };
+        return {
+          data: null as null,
+          error: {
+            message: labels[code] ?? (detail || code),
+            code,
+          },
+        };
+      }
+
+      return { data: payload, error: null };
+    };
+
+    const createNext = input.create_next_invoice ?? false;
+    const args4 = {
       p_payment_id: input.payment_id,
       p_months: input.months ?? 1,
       p_allow_canceled: input.allow_canceled ?? false,
+      p_create_next_invoice: createNext,
+    };
+
+    let { data, error } = await getSupabase().rpc("master_apply_payment", args4);
+
+    // Fallback se a migration 4-args ainda não estiver no projeto
+    if (error && (String(error.message ?? "").includes("Could not find") || String(error.code ?? "") === "PGRST202")) {
+      ({ data, error } = await getSupabase().rpc("master_apply_payment", {
+        p_payment_id: input.payment_id,
+        p_months: input.months ?? 1,
+        p_allow_canceled: input.allow_canceled ?? false,
+      }));
+    }
+
+    if (error) return { data: null, error };
+    return parsePayload(data);
+  },
+
+  async deletePendingPayment(paymentId: string) {
+    const gate = await requireMasterSession();
+    if (!gate.ok) return { data: null, error: gate.error };
+
+    const { data, error } = await getSupabase().rpc("master_delete_pending_payment", {
+      p_payment_id: paymentId,
     });
 
     if (error) return { data: null, error };
@@ -427,27 +488,15 @@ export const masterService = {
 
     if (!payload || payload.ok === false) {
       const code = String(payload?.error ?? "erro_desconhecido");
-      const detail = payload?.detail != null ? String(payload.detail) : "";
       const labels: Record<string, string> = {
         forbidden: "Sem permissão de administrador master.",
-        payment_id_obrigatorio: "Pagamento inválido.",
-        meses_invalidos: "Quantidade de meses inválida.",
         pagamento_nao_encontrado: "Pagamento não encontrado.",
-        pagamento_sem_assinatura: "Pagamento sem assinatura vinculada.",
-        assinatura_nao_encontrada: "Assinatura não encontrada.",
-        assinatura_cancelada:
-          "Assinatura cancelada. Habilite “Permitir renovar assinatura cancelada” e tente de novo.",
-        plano_nao_encontrado: "Plano da assinatura não encontrado.",
-        erro_interno: detail
-          ? `Erro interno ao aplicar pagamento: ${detail}`
-          : "Erro interno ao aplicar pagamento. Verifique se a migration de correção foi aplicada no Supabase.",
+        nao_pode_excluir_pago: "Não é possível excluir um pagamento já pago.",
+        erro_interno: "Erro ao excluir cobrança.",
       };
       return {
         data: null,
-        error: {
-          message: labels[code] ?? (detail || code),
-          code,
-        },
+        error: { message: labels[code] ?? code, code },
       };
     }
 
