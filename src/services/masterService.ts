@@ -97,6 +97,73 @@ async function syncTenantSubscriptionFromMasterPlan(companyId: string, planId: s
 /**
  * Painel master — RPCs SECURITY DEFINER + fallback em tabela (RLS platform_admin).
  */
+export type MarketingFunnelSummary = {
+  ok?: boolean;
+  error?: string;
+  days?: number;
+  since?: string;
+  summary?: {
+    demo_views: number;
+    whatsapp_clicks: number;
+    signup_starts: number;
+    signup_completes: number;
+    companies_created: number;
+    purchases_client: number;
+    payments_confirmed: number;
+    revenue_confirmed: number;
+    challenge_banner_views?: number;
+    challenge_banner_dismisses?: number;
+    challenge_leads?: number;
+    challenge_signups?: number;
+    challenge_activated?: number;
+    total_events?: number;
+  };
+  daily?: Array<{
+    day: string;
+    demos: number;
+    whatsapp: number;
+    signups: number;
+    payments: number;
+    revenue: number;
+    challenge_leads: number;
+    events: number;
+  }>;
+  by_utm_source?: Array<{
+    utm_source: string;
+    events: number;
+    whatsapp_clicks: number;
+    signups: number;
+    payments: number;
+    revenue: number;
+  }>;
+  by_utm_campaign?: Array<{
+    utm_campaign: string;
+    utm_source: string;
+    events: number;
+    whatsapp_clicks: number;
+    signups: number;
+    payments: number;
+    revenue: number;
+  }>;
+  by_event?: Array<{
+    event_name: string;
+    events: number;
+    revenue: number;
+  }>;
+  recent?: Array<{
+    id: string;
+    event_name: string;
+    path: string | null;
+    company_id: string | null;
+    amount: number | null;
+    utm_source: string | null;
+    utm_medium: string | null;
+    utm_campaign: string | null;
+    utm_content?: string | null;
+    created_at: string;
+  }>;
+};
+
 export const masterService = {
   async listCompanies() {
     const gate = await requireMasterSession();
@@ -616,41 +683,7 @@ export const masterService = {
     const res = await getSupabase().rpc("master_marketing_funnel_summary", { p_days: days });
     return {
       ...res,
-      data: res.data as {
-        ok?: boolean;
-        error?: string;
-        days?: number;
-        since?: string;
-        summary?: {
-          demo_views: number;
-          whatsapp_clicks: number;
-          signup_starts: number;
-          signup_completes: number;
-          companies_created: number;
-          purchases_client: number;
-          payments_confirmed: number;
-          revenue_confirmed: number;
-        };
-        by_utm_source?: Array<{
-          utm_source: string;
-          events: number;
-          whatsapp_clicks: number;
-          signups: number;
-          payments: number;
-          revenue: number;
-        }>;
-        recent?: Array<{
-          id: string;
-          event_name: string;
-          path: string | null;
-          company_id: string | null;
-          amount: number | null;
-          utm_source: string | null;
-          utm_medium: string | null;
-          utm_campaign: string | null;
-          created_at: string;
-        }>;
-      } | null,
+      data: res.data as MarketingFunnelSummary | null,
     };
   },
 };
