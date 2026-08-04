@@ -517,8 +517,52 @@ export const masterService = {
     if (!gate.ok) return { data: null, error: gate.error };
     return getSupabase()
       .from("support_tickets")
-      .select("*")
+      .select("*, companies(name, slug)")
       .order("created_at", { ascending: false });
+  },
+
+  async createSupportTicket(input: {
+    company_id?: string | null;
+    subject: string;
+    message: string;
+    priority?: "low" | "normal" | "high" | "urgent";
+    status?: "open" | "in_progress" | "resolved" | "closed";
+  }) {
+    const gate = await requireMasterSession();
+    if (!gate.ok) return { data: null, error: gate.error };
+    return getSupabase()
+      .from("support_tickets")
+      .insert({
+        company_id: input.company_id ?? null,
+        subject: input.subject.trim(),
+        message: input.message.trim(),
+        priority: input.priority ?? "normal",
+        status: input.status ?? "open",
+      })
+      .select("*, companies(name, slug)")
+      .single();
+  },
+
+  async updateSupportTicket(
+    ticketId: string,
+    patch: {
+      status?: "open" | "in_progress" | "resolved" | "closed";
+      priority?: "low" | "normal" | "high" | "urgent";
+      subject?: string;
+      message?: string;
+      resolution_notes?: string | null;
+      resolved_at?: string | null;
+      company_id?: string | null;
+    },
+  ) {
+    const gate = await requireMasterSession();
+    if (!gate.ok) return { data: null, error: gate.error };
+    return getSupabase()
+      .from("support_tickets")
+      .update(patch)
+      .eq("id", ticketId)
+      .select("*, companies(name, slug)")
+      .single();
   },
 
   async listCoupons() {
