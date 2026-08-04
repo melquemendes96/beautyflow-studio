@@ -97,6 +97,23 @@ async function syncTenantSubscriptionFromMasterPlan(companyId: string, planId: s
 /**
  * Painel master — RPCs SECURITY DEFINER + fallback em tabela (RLS platform_admin).
  */
+export type MasterCompanyRow = {
+  id: string;
+  name: string;
+  slug: string;
+  email?: string | null;
+  phone?: string | null;
+  plan_id?: string | null;
+  status?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+  onboarding_completed?: boolean | null;
+  plan_name?: string | null;
+  plan_price?: number | string | null;
+  subscription_status?: string | null;
+  subscription_period_end?: string | null;
+};
+
 export type MarketingFunnelSummary = {
   ok?: boolean;
   error?: string;
@@ -170,30 +187,29 @@ export const masterService = {
     if (!gate.ok) return { data: null, error: gate.error };
     const supabase = getSupabase();
     const rpc = await supabase.rpc("master_list_companies");
-    if (!rpc.error) return rpc;
-    return supabase.from("companies").select("*").order("created_at", { ascending: false });
+    if (!rpc.error) {
+      return {
+        ...rpc,
+        data: (rpc.data ?? []) as MasterCompanyRow[],
+      };
+    }
+    const table = await supabase
+      .from("companies")
+      .select("*")
+      .order("created_at", { ascending: false });
+    return {
+      ...table,
+      data: (table.data ?? null) as MasterCompanyRow[] | null,
+    };
   },
 
-  async listPlans() {
-    const gate = await requireMasterSession();
-    if (!gate.ok) return { data: null, error: gate.error };
-    const supabase = getSupabase();
-
-    const rpc = await supabase.rpc("master_list_plans");
-    if (!rpc.error && rpc.data) {
-      return { ...rpc, data: sanitizePlanList(rpc.data as { features?: string[] | null }[]) };
-    }
-
-    // Fallback: RLS com EXISTS em platform_admins (após migration 20260517030000)
-    const table = await supabase.from("plans").select("*").order("price", { ascending: true });
-    if (!table.error && table.data) {
-      return { ...table, data: sanitizePlanList(table.data) };
-    }
-
-    return rpc;
-  },
-
-  async createCompany(input: { name: string; slug: string; email?: string; phone?: string; plan_id?: string | null }) {
+  async createCompany(input: {
+    name: string;
+    slug: string;
+    email?: string;
+    phone?: string;
+    plan_id?: string | null;
+  }) {
     const gate = await requireMasterSession();
     if (!gate.ok) return { data: null, error: gate.error };
     const res = await getSupabase()
@@ -218,7 +234,17 @@ export const masterService = {
     return res;
   },
 
-  async updateCompany(companyId: string, patch: { status?: string; plan_id?: string | null }) {
+  async updateCompany(
+    companyId: string,
+    patch: {
+      status?: string;
+      plan_id?: string | null;
+      name?: string;
+      slug?: string;
+      email?: string | null;
+      phone?: string | null;
+    },
+  ) {
     const gate = await requireMasterSession();
     if (!gate.ok) return { data: null, error: gate.error };
     const res = await getSupabase().from("companies").update(patch).eq("id", companyId).select("*").single();
@@ -228,6 +254,24 @@ export const masterService = {
       if (sync.error) return { ...res, error: sync.error };
     }
     return res;
+  },
+
+  async listPlans() {
+    const gate = await requireMasterSession();
+    if (!gate.ok) return { data: null, error: gate.error };
+    const supabase = getSupabase();
+
+    const rpc = await supabase.rpc("master_list_plans");
+    if (!rpc.error && rpc.data) {
+      return { ...rpc, data: sanitizePlanList(rpc.data as { features?: string[] | null }[]) };
+    }
+
+    const table = await supabase.from("plans").select("*").order("price", { ascending: true });
+    if (!table.error && table.data) {
+      return { ...table, data: sanitizePlanList(table.data) };
+    }
+
+    return rpc;
   },
 
   async createPlan(input: { name: string; price: number; features: string[]; active: boolean }) {
