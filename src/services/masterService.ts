@@ -597,6 +597,19 @@ export const masterService = {
     };
   },
 
+  async getDashboardRange(startDate: string, endDate: string) {
+    const gate = await requireMasterSession();
+    if (!gate.ok) return { data: null, error: gate.error };
+    const res = await getSupabase().rpc("platform_dashboard_range", {
+      p_start_date: startDate,
+      p_end_date: endDate,
+    });
+    return {
+      ...res,
+      data: res.data as DashboardRangeData | null,
+    };
+  },
+
   async getMarketingFunnelSummary(days = 30) {
     const gate = await requireMasterSession();
     if (!gate.ok) return { data: null, error: gate.error };
