@@ -29,6 +29,18 @@ export const publicBookingService = {
     return { ...res, data: (res.data ?? []) as PublicBookingProvider[] };
   },
 
+  async listProvidersMulti(params: { slug: string; serviceIds: string[] }) {
+    if (params.serviceIds.length === 1) {
+      return this.listProviders({ slug: params.slug, serviceId: params.serviceIds[0]! });
+    }
+    const res = await getSupabase().rpc("list_public_providers_multi", {
+      p_slug: normalizePublicBookingSlug(params.slug),
+      p_service_ids: params.serviceIds,
+    });
+    if (res.error) return res;
+    return { ...res, data: (res.data ?? []) as PublicBookingProvider[] };
+  },
+
   getAvailableSlots(params: {
     slug: string;
     serviceId: string;
@@ -38,6 +50,28 @@ export const publicBookingService = {
     return getSupabase().rpc("get_available_slots", {
       p_slug: normalizePublicBookingSlug(params.slug),
       p_service_id: params.serviceId,
+      p_date: params.date,
+      p_provider_id: params.providerId ?? null,
+    });
+  },
+
+  getAvailableSlotsMulti(params: {
+    slug: string;
+    serviceIds: string[];
+    date: string;
+    providerId?: string | null;
+  }) {
+    if (params.serviceIds.length === 1) {
+      return this.getAvailableSlots({
+        slug: params.slug,
+        serviceId: params.serviceIds[0]!,
+        date: params.date,
+        providerId: params.providerId,
+      });
+    }
+    return getSupabase().rpc("get_available_slots_multi", {
+      p_slug: normalizePublicBookingSlug(params.slug),
+      p_service_ids: params.serviceIds,
       p_date: params.date,
       p_provider_id: params.providerId ?? null,
     });
@@ -69,6 +103,49 @@ export const publicBookingService = {
       p_whatsapp_notifications: params.whatsappNotifications ?? false,
       p_provider_id: params.providerId ?? null,
       p_client_package_id: params.clientPackageId ?? null,
+    });
+    if (res.error) return res;
+    const parsed = parsePublicBookingRpcResult(res.data);
+    return { ...res, data: parsed as PublicBookingRpcResult };
+  },
+
+  async createBookingMulti(params: {
+    slug: string;
+    serviceIds: string[];
+    appointmentDate: string;
+    appointmentTime: string;
+    clientName: string;
+    clientWhatsapp: string;
+    clientEmail?: string;
+    notes?: string | null;
+    whatsappNotifications?: boolean;
+    providerId?: string | null;
+    clientPackageId?: string | null;
+  }) {
+    if (params.serviceIds.length === 1 && params.clientPackageId) {
+      return this.createBooking({
+        ...params,
+        serviceId: params.serviceIds[0]!,
+      });
+    }
+    if (params.serviceIds.length === 1) {
+      return this.createBooking({
+        ...params,
+        serviceId: params.serviceIds[0]!,
+      });
+    }
+    const timeHm = params.appointmentTime.trim().slice(0, 5);
+    const res = await getSupabase().rpc("create_public_booking_multi", {
+      p_slug: normalizePublicBookingSlug(params.slug),
+      p_service_ids: params.serviceIds,
+      p_appointment_date: params.appointmentDate,
+      p_appointment_time: timeHm,
+      p_client_name: params.clientName,
+      p_client_email: params.clientEmail?.trim() ?? "",
+      p_client_whatsapp: params.clientWhatsapp,
+      p_notes: params.notes ?? null,
+      p_whatsapp_notifications: params.whatsappNotifications ?? false,
+      p_provider_id: params.providerId ?? null,
     });
     if (res.error) return res;
     const parsed = parsePublicBookingRpcResult(res.data);

@@ -21,9 +21,17 @@ import { publicBookingService, type PublicBookingProvider } from "@/services/pub
 import { packageService, type PackageLookupResult } from "@/services/packageService";
 import {
   buildPublicBookingSteps,
+  formatDurationLabel,
+  formatMoneyBRL,
+  getSelectedServices,
+  getServiceCategories,
+  getServicesTotalDurationMinutes,
+  getServicesTotalPrice,
   isDateAllowedForPackage,
   toYmdLocal,
+  toggleServiceSelection,
   type PublicBookingStep,
+  type PublicServiceLike,
 } from "@/lib/public-booking-flow";
 import { clientPortalService } from "@/services/clientPortalService";
 import { BrandedImage } from "@/components/booking/BrandedImage";
@@ -55,7 +63,8 @@ function Agendar() {
   }, [slug, reagendarAppointmentId]);
   const isRescheduleMode = Boolean(rescheduleIntent);
   const [step, setStep] = useState<Step>("servico");
-  const [servico, setServico] = useState<string | null>(null);
+  const [selectedServiceIds, setSelectedServiceIds] = useState<string[]>([]);
+  const [serviceCategory, setServiceCategory] = useState<string | null>(null);
   const [providerId, setProviderId] = useState<string | null>(null);
   const [clientPackageId, setClientPackageId] = useState<string | null>(null);
   const [packageLookup, setPackageLookup] = useState<PackageLookupResult | null>(null);
@@ -70,7 +79,7 @@ function Agendar() {
 
   useEffect(() => {
     if (!rescheduleIntent) return;
-    setServico(rescheduleIntent.serviceId);
+    setSelectedServiceIds([rescheduleIntent.serviceId]);
     setForm((f) => ({
       ...f,
       nome: rescheduleIntent.clientName ?? f.nome,
@@ -121,16 +130,26 @@ function Agendar() {
   const teamEnabled = Boolean((pageQuery.data as { team_enabled?: boolean } | null)?.team_enabled);
   const packagesEnabled = Boolean((pageQuery.data as { packages_enabled?: boolean } | null)?.packages_enabled);
   const servicos = pageQuery.data?.services ?? [];
-  const servicoSel = servicos.find((s) => s.id === servico);
+  const selectedServices = getSelectedServices(selectedServiceIds, servicos as PublicServiceLike[]);
+  const primaryServiceId = selectedServiceIds[0] ?? null;
+  const servicoSel = selectedServices[0];
   const isPackageService =
-    packagesEnabled && (servicoSel as { service_kind?: string } | undefined)?.service_kind === "package";
+    packagesEnabled &&
+    selectedServices.length === 1 &&
+    (servicoSel as { service_kind?: string } | undefined)?.service_kind === "package";
+  const selectedDurationMinutes = getServicesTotalDurationMinutes(selectedServices);
+  const selectedTotalPrice = getServicesTotalPrice(selectedServices);
+  const serviceCategories = getServiceCategories(servicos as PublicServiceLike[]);
+  const visibleServices = serviceCategory
+    ? servicos.filter((service) => service.category === serviceCategory)
+    : servicos;
 
   const providersQuery = useQuery({
-    queryKey: publicBookingKeys.providers(slug, servico ?? ""),
-    enabled: slugValid && Boolean(servico) && teamEnabled,
+    queryKey: publicBookingKeys.providers(slug, selectedServiceIds.join(",")),
+    enabled: slugValid && selectedServiceIds.length > 0 && teamEnabled,
     staleTime: PUBLIC_BOOKING_STALE_MS,
     queryFn: async () => {
-      const res = await publicBookingService.listProviders({ slug, serviceId: servico! });
+      const res = await publicBookingService.listProvidersMulti({ slug, serviceIds: selectedServiceIds });
       if (res.error) throw res.error;
       return (res.data ?? []) as PublicBookingProvider[];
     },
@@ -150,9 +169,9 @@ function Agendar() {
   );
 
   useEffect(() => {
-    if (!servico || !teamEnabled) return;
+    if (!primaryServiceId || !teamEnabled) return;
     if (providers.length === 1) setProviderId(providers[0].id);
-  }, [servico, teamEnabled, providers]);
+  }, [primaryServiceId, teamEnabled, providers]);
 
   useEffect(() => {
     setProviderId(null);
@@ -164,7 +183,7 @@ function Agendar() {
     setBookingPendingPayment(false);
     setData(null);
     setHora(null);
-  }, [servico]);
+  }, [selectedServiceIds]);
 
   useEffect(() => {
     if (!isPackageService || !packageWhatsapp.trim()) return;
@@ -186,16 +205,16 @@ function Agendar() {
   }, [packageLookup, servicoSel]);
 
   const slotsQuery = useQuery({
-    queryKey: publicBookingKeys.slots(slug, servico ?? "", data ?? "", providerId),
+    queryKey: publicBookingKeys.slots(slug, selectedServiceIds.join(","), data ?? "", providerId),
     enabled:
       slugValid &&
-      Boolean(servico && data) &&
+      Boolean(selectedServiceIds.length && data) &&
       (!teamEnabled || !needsProviderStep || Boolean(providerId)),
     staleTime: PUBLIC_SLOTS_STALE_MS,
     queryFn: async () => {
-      const res = await publicBookingService.getAvailableSlots({
+      const res = await publicBookingService.getAvailableSlotsMulti({
         slug,
-        serviceId: servico!,
+        serviceIds: selectedServiceIds,
         date: data!,
         providerId,
       });
@@ -206,7 +225,7 @@ function Agendar() {
 
   const createMutation = useMutation({
     mutationFn: async () => {
-      if (!servico || !data || !hora) throw new Error("Dados incompletos");
+      if (!primaryServiceId || !data || !hora) throw new Error("Dados incompletos");
 
       if (rescheduleIntent) {
         const res = await clientPortalService.rescheduleAppointment({
@@ -220,9 +239,8 @@ function Agendar() {
         return { mode: "reschedule" as const, data: res.data as Record<string, unknown> };
       }
 
-      const res = await publicBookingService.createBooking({
+      const bookingParams = {
         slug,
-        serviceId: servico,
         appointmentDate: data,
         appointmentTime: hora,
         clientName: form.nome,
@@ -234,7 +252,11 @@ function Agendar() {
           Boolean((isPackageService ? packageWhatsapp : form.whatsapp).trim()),
         providerId,
         clientPackageId: isPackageService && clientPackageId ? clientPackageId : null,
-      });
+      };
+      const res =
+        isPackageService || selectedServiceIds.length === 1
+          ? await publicBookingService.createBooking({ ...bookingParams, serviceId: primaryServiceId })
+          : await publicBookingService.createBookingMulti({ ...bookingParams, serviceIds: selectedServiceIds });
       if (res.error) throw res.error;
       return { mode: "create" as const, data: res.data };
     },
@@ -333,11 +355,12 @@ function Agendar() {
       <Confirmado
         slug={slug}
         studioName={studioName}
-        servico={servicoSel?.name || ""}
+        servico={selectedServices.map((service) => service.name).join(", ")}
         data={data!}
         hora={hora!}
         primaryColor={primary}
-        durationMinutes={servicoSel?.duration_minutes}
+        durationMinutes={selectedDurationMinutes}
+        totalPrice={selectedTotalPrice}
         studioPhone={company?.phone ?? undefined}
         studioEmail={company?.email ?? undefined}
         location={location}
@@ -407,6 +430,7 @@ function Agendar() {
         company={company}
         branding={branding as Parameters<typeof PublicStudioHero>[0]["branding"]}
         slug={slug}
+        onBookClick={() => document.getElementById("booking-services")?.scrollIntoView({ behavior: "smooth" })}
       />
 
       <div className="mx-auto w-full max-w-[1400px] px-4 pb-16 md:px-6">
@@ -442,54 +466,89 @@ function Agendar() {
           })}
         </div>
 
-        <div className="mt-5 animate-in fade-in slide-in-from-bottom-2 rounded-[28px] border border-border/50 bg-card p-6 shadow-[0_8px_40px_-14px_rgba(0,0,0,0.12)] duration-300 md:mt-6 md:p-8 lg:p-9">
+        <div id="booking-services" className="mt-5 scroll-mt-4 animate-in fade-in slide-in-from-bottom-2 rounded-[28px] border border-border/50 bg-card p-6 shadow-[0_8px_40px_-14px_rgba(0,0,0,0.12)] duration-300 md:mt-6 md:p-8 lg:p-9">
           {step === "servico" && (
             <>
-              <h2 className="font-display text-xl font-bold md:text-2xl">Escolha o serviço</h2>
+              <h2 className="font-display text-xl font-bold md:text-2xl">Escolha os serviços</h2>
               {servicos.length === 0 ? (
                 <p className="mt-4 text-sm text-muted-foreground">Nenhum serviço disponível.</p>
               ) : (
-                <div className="mt-5 grid gap-3 md:grid-cols-2">
-                  {servicos.map((s) => (
+                <>
+                  {serviceCategories.length > 0 ? (
+                    <div className="-mx-1 mt-5 flex gap-2 overflow-x-auto px-1 pb-2">
+                      <button
+                        type="button"
+                        onClick={() => setServiceCategory(null)}
+                        className={`shrink-0 rounded-full border px-4 py-2 text-sm transition ${
+                          serviceCategory === null ? "border-transparent text-white" : "border-border bg-background"
+                        }`}
+                        style={serviceCategory === null ? btnStyle : undefined}
+                      >
+                        Todos
+                      </button>
+                      {serviceCategories.map((category) => (
+                        <button
+                          key={category}
+                          type="button"
+                          onClick={() => setServiceCategory(category)}
+                          className={`shrink-0 rounded-full border px-4 py-2 text-sm transition ${
+                            serviceCategory === category ? "border-transparent text-white" : "border-border bg-background"
+                          }`}
+                          style={serviceCategory === category ? btnStyle : undefined}
+                        >
+                          {category}
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                  <div className="-mx-2 mt-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-2 pb-3">
+                  {visibleServices.map((s) => {
+                    const selected = selectedServiceIds.includes(s.id);
+                    return (
                     <button
                       key={s.id}
                       type="button"
-                      onClick={() => setServico(s.id)}
-                      className={`flex min-h-[5rem] items-center gap-4 rounded-2xl border p-4 text-left transition ${
-                        servico === s.id ? "bg-secondary/60 shadow-soft" : "border-border hover:border-foreground/30"
+                      onClick={() =>
+                        setSelectedServiceIds((current) =>
+                          toggleServiceSelection(current, s as PublicServiceLike, servicos as PublicServiceLike[]),
+                        )
+                      }
+                      className={`relative w-44 shrink-0 snap-start overflow-hidden rounded-2xl border bg-background text-left shadow-sm transition ${
+                        selected ? "shadow-soft" : "border-border hover:border-foreground/30"
                       }`}
-                      style={servico === s.id ? { borderColor: primary } : undefined}
+                      style={selected ? { borderColor: primary, borderWidth: 2 } : undefined}
                     >
                       {s.image_url ? (
                         <BrandedImage
                           src={s.image_url}
                           alt=""
-                          className="size-16 rounded-xl object-cover"
+                          className="h-56 w-44 object-cover"
                           fallback={
-                            <ServiceInitials name={s.name} primary={primary} secondary={normalizeHexColor(typeof branding?.secondary_color === "string" ? branding.secondary_color : null, "#c9a960")} />
+                            <ServiceInitials name={s.name} primary={primary} secondary={normalizeHexColor(typeof branding?.secondary_color === "string" ? branding.secondary_color : null, "#c9a960")} className="h-56 w-44 rounded-none" />
                           }
                         />
                       ) : (
-                        <div
-                          className="grid size-16 shrink-0 place-items-center rounded-xl text-lg font-semibold text-background"
-                          style={{ background: `linear-gradient(135deg, ${primary}, ${normalizeHexColor(typeof branding?.secondary_color === "string" ? branding.secondary_color : null, "#c9a960")})` }}
-                        >
-                          {s.name.slice(0, 1).toUpperCase()}
-                        </div>
+                        <ServiceInitials name={s.name} primary={primary} secondary={normalizeHexColor(typeof branding?.secondary_color === "string" ? branding.secondary_color : null, "#c9a960")} className="h-56 w-44 rounded-none" />
                       )}
-                      <div className="flex-1">
+                      <div className="p-3">
                         <div className="font-medium">{s.name}</div>
-                        <div className="text-xs text-muted-foreground">
-                          {s.duration_minutes ?? 0} min
+                        <div className="mt-1 text-xs text-muted-foreground">
+                          {formatDurationLabel(Number(s.duration_minutes ?? 0))}
                           {(s as { service_kind?: string }).service_kind === "package"
                             ? ` · Pacote ${(s as { package_sessions?: number }).package_sessions ?? ""} sessões`
-                            : ` · R$ ${Number(s.price ?? 0).toFixed(2).replace(".", ",")}`}
+                            : ` · ${formatMoneyBRL(Number(s.price ?? 0))}`}
                         </div>
                       </div>
-                      {servico === s.id && <Check className="size-5 text-success" />}
+                      {selected ? (
+                        <span className="absolute right-2 top-2 grid size-7 place-items-center rounded-full text-white shadow-sm" style={btnStyle}>
+                          <Check className="size-4" />
+                        </span>
+                      ) : null}
                     </button>
-                  ))}
-                </div>
+                    );
+                  })}
+                  </div>
+                </>
               )}
             </>
           )}
@@ -696,8 +755,8 @@ function Agendar() {
               </div>
               <div className="mt-6 rounded-2xl bg-secondary/60 p-4 text-sm">
                 <div className="flex justify-between">
-                  <span className="text-muted-foreground">Serviço</span>
-                  <span>{servicoSel?.name}</span>
+                  <span className="text-muted-foreground">Serviços</span>
+                  <span className="max-w-[65%] text-right">{selectedServices.map((service) => service.name).join(", ")}</span>
                 </div>
                 <div className="mt-1 flex justify-between">
                   <span className="text-muted-foreground">Data</span>
@@ -715,13 +774,14 @@ function Agendar() {
                         (packageFirstPurchase
                           ? `1/${(servicoSel as { package_sessions?: number })?.package_sessions ?? "?"}` 
                           : "Sessão")
-                      : `R$ ${Number(servicoSel?.price ?? 0).toFixed(2).replace(".", ",")}`}
+                      : formatMoneyBRL(selectedTotalPrice)}
                   </span>
                 </div>
               </div>
             </>
           )}
 
+          {step !== "servico" ? (
           <div className="mt-8 flex flex-col-reverse gap-4 sm:flex-row sm:items-center sm:justify-between">
             <button
               type="button"
@@ -736,7 +796,6 @@ function Agendar() {
             <button
               type="button"
               disabled={
-                (step === "servico" && !servico) ||
                 (step === "profissional" && !providerId) ||
                 (step === "whatsapp_pacote" && !packageWhatsapp.trim()) ||
                 (step === "data" && (!data || !hora)) ||
@@ -744,12 +803,12 @@ function Agendar() {
                   (!form.nome.trim() || (!isPackageService && !form.whatsapp.trim())))
               }
               onClick={async () => {
-                if (step === "whatsapp_pacote" && servico && !packageFirstPurchase) {
+                if (step === "whatsapp_pacote" && primaryServiceId && !packageFirstPurchase) {
                   setPackageLookupError(null);
                   const res = await packageService.lookupPackage({
                     slug,
                     whatsapp: packageWhatsapp,
-                    serviceId: servico,
+                    serviceId: primaryServiceId,
                   });
                   if (res.error) {
                     toast.error("Erro ao buscar pacote.");
@@ -807,7 +866,33 @@ function Agendar() {
               <ArrowRight className="size-4" />
             </button>
           </div>
+          ) : null}
         </div>
+
+        {step === "servico" ? (
+          <div className="sticky bottom-0 z-20 -mx-4 border-t border-border/70 bg-[#f7f4ef]/95 px-4 py-3 backdrop-blur md:-mx-6 md:px-6">
+            <div className="mx-auto flex w-full max-w-[1400px] items-center justify-between gap-4">
+              <div className="min-w-0 text-sm">
+                <div className="font-medium">{selectedServiceIds.length} selecionado{selectedServiceIds.length === 1 ? "" : "s"}</div>
+                <div className="text-muted-foreground">
+                  {formatDurationLabel(selectedDurationMinutes)} · {formatMoneyBRL(selectedTotalPrice)}
+                </div>
+              </div>
+              <button
+                type="button"
+                disabled={selectedServiceIds.length === 0}
+                onClick={() => {
+                  const i = steps.indexOf(step);
+                  if (i < steps.length - 1) setStep(steps[i + 1]);
+                }}
+                className="inline-flex min-h-12 shrink-0 items-center justify-center gap-2 rounded-full px-6 py-3 text-sm font-medium shadow-[0_4px_20px_-6px_rgba(0,0,0,0.25)] transition hover:opacity-90 disabled:opacity-30"
+                style={btnStyle}
+              >
+                Continuar <ArrowRight className="size-4" />
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         <div className="mt-8 text-center">
           <Link
@@ -858,6 +943,7 @@ function Confirmado({
   hora,
   primaryColor,
   durationMinutes,
+  totalPrice,
   studioPhone,
   studioEmail,
   location,
@@ -872,6 +958,7 @@ function Confirmado({
   hora: string;
   primaryColor: string;
   durationMinutes?: number;
+  totalPrice: number;
   studioPhone?: string;
   studioEmail?: string;
   location?: string;
@@ -888,6 +975,8 @@ function Confirmado({
       studioPhone ? `WhatsApp/telefone: ${studioPhone}` : null,
       studioEmail ? `E-mail: ${studioEmail}` : null,
       `Serviço: ${servico}`,
+      `Duração: ${formatDurationLabel(durationMinutes ?? 0)}`,
+      `Total: ${formatMoneyBRL(totalPrice)}`,
     ].filter((line): line is string => Boolean(line));
 
     const ics = buildAppointmentIcs({
@@ -928,7 +1017,15 @@ function Confirmado({
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Serviço</span>
-            <span>{servico}</span>
+            <span className="max-w-[65%] text-right">{servico}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Duração</span>
+            <span>{formatDurationLabel(durationMinutes ?? 0)}</span>
+          </div>
+          <div className="flex justify-between">
+            <span className="text-muted-foreground">Total</span>
+            <span>{formatMoneyBRL(totalPrice)}</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted-foreground">Data</span>
@@ -984,10 +1081,20 @@ function PublicErrorCard({ title, message }: { title: string; message: string })
   );
 }
 
-function ServiceInitials({ name, primary, secondary }: { name: string; primary: string; secondary: string }) {
+function ServiceInitials({
+  name,
+  primary,
+  secondary,
+  className = "size-16 rounded-xl",
+}: {
+  name: string;
+  primary: string;
+  secondary: string;
+  className?: string;
+}) {
   return (
     <div
-      className="grid size-16 shrink-0 place-items-center rounded-xl text-lg font-semibold text-background"
+      className={`grid shrink-0 place-items-center text-lg font-semibold text-background ${className}`}
       style={{ background: `linear-gradient(135deg, ${primary}, ${secondary})` }}
     >
       {studioInitials(name)}
