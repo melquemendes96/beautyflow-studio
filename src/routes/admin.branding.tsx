@@ -577,7 +577,7 @@ function BrandAssetUpload({
       ) : null}
       <p className="mt-1 text-[11px] text-muted-foreground">
         {kind === "banner"
-          ? "JPG, PNG ou WebP · até 12 MB · ideal Full HD (1920×1080) ou 4K (3840×2160)"
+          ? "JPG, PNG ou WebP · até 12 MB · proporção ideal 1024×596 (~16:9.3) · Full HD 1920×1115 ou 4K 3840×2235"
           : "JPG, PNG, WebP ou GIF · até 5 MB"}
       </p>
     </div>

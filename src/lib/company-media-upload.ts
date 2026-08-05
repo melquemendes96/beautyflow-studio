@@ -44,7 +44,8 @@ export async function uploadCompanyImage(
     kind === "logo"
       ? await compressImageFile(file, { maxWidth: 512, maxHeight: 512, quality: 0.88 })
       : kind === "banner"
-        ? await compressImageFile(file, { maxWidth: 3840, maxHeight: 2160, quality: 0.92 })
+        ? // Referência 1024×596 (~1.72:1) → até 4K na mesma proporção (3840×2235)
+          await compressImageFile(file, { maxWidth: 3840, maxHeight: 2235, quality: 0.92 })
         : await compressImageFile(file, { maxWidth: 1200, maxHeight: 1200, quality: 0.85 });
 
   const ext = compressed.type === "image/webp" ? "webp" : safeExt(compressed.name);

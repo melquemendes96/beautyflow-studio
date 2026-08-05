@@ -1,3 +1,9 @@
+/** Proporção de referência das capas públicas (arte Mary Fashion 1024×596). */
+export const PUBLIC_BANNER_ASPECT_W = 1024;
+export const PUBLIC_BANNER_ASPECT_H = 596;
+/** ~1.718 — use em aspect-ratio / recomendações de upload. */
+export const PUBLIC_BANNER_ASPECT_RATIO = PUBLIC_BANNER_ASPECT_W / PUBLIC_BANNER_ASPECT_H;
+
 /** Dados de marca da empresa (tabela branding_settings + fallback companies). */
 export type CompanyBranding = {
   brand_name?: string | null;
