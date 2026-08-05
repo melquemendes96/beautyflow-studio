@@ -6,6 +6,13 @@ export const COMPANY_MEDIA_BUCKET = "company-media";
 const ALLOWED_EXT = new Set(["jpg", "jpeg", "png", "webp", "gif"]);
 const MAX_RETRIES = 2;
 
+/** `crypto.randomUUID` não existe em WebViews antigas / contexto não seguro. */
+function randomId(): string {
+  const c = globalThis.crypto as Crypto | undefined;
+  if (c && typeof c.randomUUID === "function") return c.randomUUID();
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}`;
+}
+
 function safeExt(filename: string): string {
   const raw = filename.includes(".") ? filename.split(".").pop()!.toLowerCase() : "jpg";
   return ALLOWED_EXT.has(raw) ? raw : "jpg";
@@ -51,9 +58,9 @@ export async function uploadCompanyImage(
   const ext = compressed.type === "image/webp" ? "webp" : safeExt(compressed.name);
   const objectPath =
     kind === "service"
-      ? `${companyId}/services/${opts?.serviceId ?? crypto.randomUUID()}.${ext}`
+      ? `${companyId}/services/${opts?.serviceId ?? randomId()}.${ext}`
       : kind === "provider"
-        ? `${companyId}/providers/${opts?.providerId ?? crypto.randomUUID()}.${ext}`
+        ? `${companyId}/providers/${opts?.providerId ?? randomId()}.${ext}`
         : `${companyId}/${kind}.${ext}`;
 
   let lastError: Error | null = null;

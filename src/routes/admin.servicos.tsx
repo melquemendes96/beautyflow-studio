@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { PageTitle } from "@/components/admin/AdminShell";
 import { Plus, Pencil, Power, Scissors, Trash2, Upload } from "lucide-react";
 import { AdminEmptyState, AdminServiceCardSkeleton } from "@/components/admin/AdminPageStates";
+import { parseBrDecimal, parseBrInteger } from "@/lib/br-number-input";
 import { useCurrentCompany } from "@/lib/current-company";
 import { hasFeatureAccess } from "@/lib/plan-access";
 import { serviceService } from "@/services/serviceService";
@@ -29,6 +30,31 @@ import {
 export const Route = createFileRoute("/admin/servicos")({
   component: Servicos,
 });
+
+/** Traduz falhas de validação, RLS e schema em algo acionável para o salão. */
+function describeServiceSaveError(error: unknown): string {
+  const e = (error ?? {}) as { message?: string; code?: string; details?: string; hint?: string };
+  const message = String(e.message ?? "").trim();
+  const code = String(e.code ?? "");
+
+  if (code === "42501" || /row-level security/i.test(message)) {
+    return "Sem permissão para salvar serviços. Verifique se sua assinatura está ativa e se você é dono/administrador da empresa.";
+  }
+  if (code === "PGRST204" || /column .* does not exist/i.test(message)) {
+    return "O banco está desatualizado (coluna ausente em services). Aplique as migrations pendentes no Supabase.";
+  }
+  if (/duration_minutes/i.test(message)) {
+    return "Duração inválida: informe os minutos em número inteiro maior que zero.";
+  }
+  if (/price/i.test(message) && /check|constraint/i.test(message)) {
+    return "Preço inválido: use apenas números (ex.: 60 ou 60,00) e valor maior ou igual a zero.";
+  }
+  if (/Failed to fetch|NetworkError|network/i.test(message)) {
+    return "Falha de conexão ao salvar. Verifique a internet e tente novamente.";
+  }
+
+  return message || "Não foi possível salvar. Verifique os campos e tente novamente.";
+}
 
 function Servicos() {
   const queryClient = useQueryClient();
@@ -81,46 +107,79 @@ function Servicos() {
 
   const saveMutation = useMutation({
     mutationFn: async () => {
-      if (!companyId) throw new Error("Sem empresa");
+      if (!companyId) {
+        throw new Error("Nenhuma empresa selecionada. Recarregue a página e entre novamente.");
+      }
+
+      const isPackage = packagesEnabled && form.service_kind === "package";
+
+      // Validação antes do upload: evita enviar imagem para o Storage e falhar depois.
+      const name = form.name.trim();
+      if (!name) throw new Error("Informe o nome do serviço.");
+
+      const price = parseBrDecimal(form.price);
+      if (price == null) throw new Error("Informe o preço (ex.: 60 ou 60,00).");
+      if (price < 0) throw new Error("O preço não pode ser negativo.");
+
+      const durationMinutes = parseBrInteger(form.duration_minutes);
+      if (durationMinutes == null || durationMinutes <= 0) {
+        throw new Error("Informe a duração em minutos (maior que zero).");
+      }
+
+      const bufferMinutes = parseBrInteger(form.buffer_minutes) ?? 0;
+      if (bufferMinutes < 0) throw new Error("O buffer não pode ser negativo.");
+
+      let packageSessions: number | null = null;
+      let packageMaxPerWeek: number | null = null;
+      let packageValidDays: number | null = null;
+      if (isPackage) {
+        packageSessions = parseBrInteger(form.package_sessions);
+        if (packageSessions == null || packageSessions < 1) {
+          throw new Error("Informe quantas sessões o pacote tem (mínimo 1).");
+        }
+        packageMaxPerWeek = parseBrInteger(form.package_max_per_week);
+        if (packageMaxPerWeek == null || packageMaxPerWeek < 1) {
+          throw new Error("Informe o máximo de sessões por semana (mínimo 1).");
+        }
+        if (form.package_valid_days.trim()) {
+          packageValidDays = parseBrInteger(form.package_valid_days);
+          if (packageValidDays == null || packageValidDays < 1) {
+            throw new Error("A validade do pacote deve ser um número de dias maior que zero.");
+          }
+        }
+        if (form.package_allowed_dow.length === 0) {
+          throw new Error("Selecione pelo menos um dia permitido para o pacote.");
+        }
+      }
 
       let image_url: string | null = form.image_url.trim() || null;
       if (imageFile) {
         const { publicUrl, error } = await uploadCompanyImage(companyId, "service", imageFile, {
           serviceId: editing?.id,
         });
-        if (error) throw error;
-        image_url = publicUrl ?? null;
+        if (error || !publicUrl) {
+          throw new Error(
+            `Não foi possível enviar a imagem${error?.message ? ` (${error.message})` : ""}. Remova a imagem e salve o serviço, ou tente novamente.`,
+          );
+        }
+        image_url = publicUrl;
       }
 
       const payload = {
-        name: form.name.trim(),
+        name,
         description: form.description.trim() || null,
         category: form.category.trim() || null,
-        price: Number(form.price),
-        duration_minutes: Number(form.duration_minutes),
-        buffer_minutes: Number(form.buffer_minutes),
+        price,
+        duration_minutes: durationMinutes,
+        buffer_minutes: bufferMinutes,
         image_url,
         active: Boolean(form.active),
-        service_kind: packagesEnabled ? form.service_kind : "single",
-        package_sessions:
-          packagesEnabled && form.service_kind === "package"
-            ? Number(form.package_sessions)
-            : null,
-        package_allowed_dow:
-          packagesEnabled && form.service_kind === "package" ? form.package_allowed_dow : null,
-        package_max_per_week:
-          packagesEnabled && form.service_kind === "package"
-            ? Number(form.package_max_per_week)
-            : null,
-        package_valid_days:
-          packagesEnabled && form.service_kind === "package" && form.package_valid_days.trim()
-            ? Number(form.package_valid_days)
-            : null,
+        service_kind: isPackage ? ("package" as const) : ("single" as const),
+        package_sessions: isPackage ? packageSessions : null,
+        package_allowed_dow: isPackage ? form.package_allowed_dow : null,
+        package_max_per_week: isPackage ? packageMaxPerWeek : null,
+        package_valid_days: isPackage ? packageValidDays : null,
       };
-      if (!payload.name) throw new Error("Nome obrigatório");
-      if (!Number.isFinite(payload.price)) throw new Error("Preço inválido");
-      if (!Number.isFinite(payload.duration_minutes)) throw new Error("Duração inválida");
-      if (!Number.isFinite(payload.buffer_minutes)) throw new Error("Buffer inválido");
 
       if (editing?.id) {
         const res = await serviceService.update(companyId, editing.id, payload);
@@ -157,6 +216,9 @@ function Servicos() {
       await queryClient.invalidateQueries({ queryKey: ["admin", "services", companyId] });
       toast.success("Serviço salvo com sucesso");
     },
+    onError: (error) => {
+      toast.error(describeServiceSaveError(error));
+    },
   });
 
   const toggleMutation = useMutation({
@@ -168,6 +230,9 @@ function Servicos() {
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["admin", "services", companyId] });
+    },
+    onError: (error) => {
+      toast.error(describeServiceSaveError(error));
     },
   });
 
@@ -457,7 +522,7 @@ function Servicos() {
 
               {saveMutation.error && (
                 <div className="mt-3 rounded-xl border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-                  Não foi possível salvar. Verifique os campos e tente novamente.
+                  {describeServiceSaveError(saveMutation.error)}
                 </div>
               )}
 
