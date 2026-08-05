@@ -21,6 +21,8 @@ export async function compressImageFile(
     bitmap.close();
     return file;
   }
+  ctx.imageSmoothingEnabled = true;
+  ctx.imageSmoothingQuality = "high";
   ctx.drawImage(bitmap, 0, 0, w, h);
   bitmap.close();
 

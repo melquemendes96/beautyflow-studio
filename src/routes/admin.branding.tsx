@@ -504,8 +504,13 @@ function BrandAssetUpload({
       toast.error("Envie apenas imagem (JPEG, PNG, WebP ou GIF).");
       return;
     }
-    if (file.size > 5 * 1024 * 1024) {
-      toast.error("Arquivo muito grande (máx. 5 MB).");
+    const maxBytes = kind === "banner" ? 12 * 1024 * 1024 : 5 * 1024 * 1024;
+    if (file.size > maxBytes) {
+      toast.error(
+        kind === "banner"
+          ? "Arquivo muito grande (máx. 12 MB para capa)."
+          : "Arquivo muito grande (máx. 5 MB).",
+      );
       return;
     }
     setBusy(true);
@@ -570,7 +575,11 @@ function BrandAssetUpload({
           />
         </div>
       ) : null}
-      <p className="mt-1 text-[11px] text-muted-foreground">JPG, PNG, WebP ou GIF · até 5 MB</p>
+      <p className="mt-1 text-[11px] text-muted-foreground">
+        {kind === "banner"
+          ? "JPG, PNG ou WebP · até 12 MB · ideal Full HD (1920×1080) ou 4K (3840×2160)"
+          : "JPG, PNG, WebP ou GIF · até 5 MB"}
+      </p>
     </div>
   );
 }

@@ -6,10 +6,21 @@ type BrandedImageProps = {
   className?: string;
   style?: React.CSSProperties;
   fallback?: React.ReactNode;
+  /** Hero / above-the-fold: carrega cedo e com prioridade alta. */
+  priority?: boolean;
+  sizes?: string;
 };
 
 /** Imagem com fallback quando URL quebrada ou Storage indisponível. */
-export function BrandedImage({ src, alt, className, style, fallback }: BrandedImageProps) {
+export function BrandedImage({
+  src,
+  alt,
+  className,
+  style,
+  fallback,
+  priority = false,
+  sizes,
+}: BrandedImageProps) {
   const [failed, setFailed] = useState(false);
 
   if (!src.trim() || failed) {
@@ -22,8 +33,10 @@ export function BrandedImage({ src, alt, className, style, fallback }: BrandedIm
       alt={alt}
       className={className}
       style={style}
-      loading="lazy"
-      decoding="async"
+      sizes={sizes}
+      loading={priority ? "eager" : "lazy"}
+      decoding={priority ? "sync" : "async"}
+      fetchPriority={priority ? "high" : "auto"}
       onError={() => setFailed(true)}
     />
   );

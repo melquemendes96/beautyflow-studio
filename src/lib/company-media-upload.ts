@@ -39,11 +39,12 @@ export async function uploadCompanyImage(
 ): Promise<{ publicUrl: string | null; error: Error | null }> {
   const supabase = getSupabase();
 
+  // Banner: até 4K (3840×2160) com qualidade alta — capa full-bleed em desktop/retina.
   const compressed =
     kind === "logo"
       ? await compressImageFile(file, { maxWidth: 512, maxHeight: 512, quality: 0.88 })
       : kind === "banner"
-        ? await compressImageFile(file, { maxWidth: 1920, maxHeight: 1080, quality: 0.85 })
+        ? await compressImageFile(file, { maxWidth: 3840, maxHeight: 2160, quality: 0.92 })
         : await compressImageFile(file, { maxWidth: 1200, maxHeight: 1200, quality: 0.85 });
 
   const ext = compressed.type === "image/webp" ? "webp" : safeExt(compressed.name);

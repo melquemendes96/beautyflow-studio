@@ -57,8 +57,8 @@ export function PublicStudioHero({ company, branding, slug, onBookClick }: Publi
 
   return (
     <header className="public-booking-hero relative w-full animate-in fade-in duration-500">
-      {/* Full-bleed hero — marca dominante */}
-      <div className="relative isolate min-h-[52vh] w-full overflow-hidden sm:min-h-[56vh] md:min-h-[60vh]">
+      {/* Full-bleed hero — capa responsiva (mobile → ultrawide) */}
+      <div className="relative isolate h-[min(72svh,720px)] min-h-[52svh] w-full overflow-hidden sm:h-[min(68svh,820px)] sm:min-h-[56svh] md:h-[min(62svh,920px)] md:min-h-[60svh] lg:h-[min(58svh,980px)]">
         <div
           className="absolute inset-0"
           style={{
@@ -67,19 +67,23 @@ export function PublicStudioHero({ company, branding, slug, onBookClick }: Publi
           aria-hidden
         />
         {hasBanner ? (
-          <BrandedImage
-            src={branding!.banner_url!}
-            alt=""
-            className="absolute inset-0 size-full object-cover"
-            style={{ objectPosition: `${bannerPosX}% ${bannerPosY}%` }}
-          />
+          <div className="absolute inset-0 overflow-hidden" aria-hidden>
+            <BrandedImage
+              src={branding!.banner_url!}
+              alt=""
+              priority
+              sizes="100vw"
+              className="absolute left-1/2 top-1/2 h-full min-h-full w-full min-w-full max-w-none -translate-x-1/2 -translate-y-1/2 object-cover [image-rendering:auto]"
+              style={{ objectPosition: `${bannerPosX}% ${bannerPosY}%` }}
+            />
+          </div>
         ) : null}
         <div
           className="pointer-events-none absolute inset-0 bg-gradient-to-b from-black/45 via-black/35 to-black/70"
           aria-hidden
         />
 
-        <div className="relative z-10 mx-auto flex min-h-[52vh] w-full max-w-3xl flex-col items-center justify-center px-5 py-12 text-center sm:min-h-[56vh] md:min-h-[60vh] md:py-16">
+        <div className="relative z-10 mx-auto flex h-full min-h-[52svh] w-full max-w-3xl flex-col items-center justify-center px-5 py-12 text-center sm:min-h-[56svh] md:min-h-[60svh] md:py-16">
           <div className="mb-5 grid size-28 place-items-center overflow-hidden rounded-[1.75rem] border border-white/25 bg-white/95 p-2 shadow-[0_12px_40px_-12px_rgba(0,0,0,0.45)] sm:size-36 md:size-40 md:rounded-[2rem] md:p-3">
             {hasLogo && branding?.logo_url ? (
               <BrandedImage
