@@ -43,6 +43,8 @@ const CANONICAL_BY_NORMALIZED_KEY: Record<string, string> = {
   "lembretes automaticos": "Lembretes automáticos",
   "dashboard avancado": "Dashboard avançado",
   "suporte prioritario": "Suporte prioritário",
+  anamnese: "Anamnese",
+  anamnesis: "Anamnese",
 };
 
 /** Remove acentos e "??" para comparar com o mapa canônico. */

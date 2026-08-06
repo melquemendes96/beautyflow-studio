@@ -177,7 +177,8 @@ function MasterPlanos() {
               <DialogHeader>
                 <DialogTitle>{editingId ? "Editar plano" : "Criar plano"}</DialogTitle>
                 <DialogDescription>
-                  Nome, preço e recursos do catálogo. A lista na home usa os recursos com toggle ON.
+                  Nome, preço e recursos ON/OFF (Agenda, Anamnese, WhatsApp, Equipe…). A home lista os recursos
+                  ativos.
                 </DialogDescription>
               </DialogHeader>
 

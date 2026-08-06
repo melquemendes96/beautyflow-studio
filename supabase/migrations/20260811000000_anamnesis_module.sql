@@ -6,6 +6,99 @@ BEGIN;
 CREATE EXTENSION IF NOT EXISTS pgcrypto WITH SCHEMA extensions;
 
 -- ---------------------------------------------------------------------------
+-- Helpers de acesso (criados só se faltarem — ex.: 20260616 não aplicada no projeto)
+-- ---------------------------------------------------------------------------
+DO $bootstrap$
+BEGIN
+  IF to_regprocedure('public.company_subscription_allows_panel_access(uuid)') IS NULL THEN
+    IF to_regprocedure('public.company_eligible_for_public_booking(uuid)') IS NOT NULL THEN
+      EXECUTE $fn$
+        CREATE FUNCTION public.company_subscription_allows_panel_access(p_company_id uuid)
+        RETURNS boolean
+        LANGUAGE sql
+        STABLE
+        SECURITY DEFINER
+        SET search_path = public
+        AS $body$
+          SELECT public.company_eligible_for_public_booking(p_company_id);
+        $body$;
+      $fn$;
+    ELSE
+      EXECUTE $fn$
+        CREATE FUNCTION public.company_subscription_allows_panel_access(p_company_id uuid)
+        RETURNS boolean
+        LANGUAGE sql
+        STABLE
+        SECURITY DEFINER
+        SET search_path = public
+        AS $body$
+          SELECT p_company_id IS NOT NULL;
+        $body$;
+      $fn$;
+    END IF;
+    EXECUTE 'REVOKE ALL ON FUNCTION public.company_subscription_allows_panel_access(uuid) FROM PUBLIC';
+    EXECUTE 'GRANT EXECUTE ON FUNCTION public.company_subscription_allows_panel_access(uuid) TO authenticated';
+  END IF;
+
+  IF to_regprocedure('public.user_can_access_company_panel(uuid)') IS NULL THEN
+    EXECUTE $fn$
+      CREATE FUNCTION public.user_can_access_company_panel(p_company_id uuid)
+      RETURNS boolean
+      LANGUAGE sql
+      STABLE
+      SECURITY DEFINER
+      SET search_path = public
+      SET row_security = off
+      AS $body$
+        SELECT
+          public.is_platform_admin()
+          OR (
+            p_company_id IN (SELECT public.current_user_company_ids())
+            AND public.company_subscription_allows_panel_access(p_company_id)
+          );
+      $body$;
+    $fn$;
+    EXECUTE 'REVOKE ALL ON FUNCTION public.user_can_access_company_panel(uuid) FROM PUBLIC';
+    EXECUTE 'GRANT EXECUTE ON FUNCTION public.user_can_access_company_panel(uuid) TO authenticated';
+  END IF;
+
+  IF to_regprocedure('public.user_can_read_client(uuid, uuid)') IS NULL THEN
+    EXECUTE $fn$
+      CREATE FUNCTION public.user_can_read_client(p_company_id uuid, p_client_id uuid)
+      RETURNS boolean
+      LANGUAGE sql
+      STABLE
+      SECURITY DEFINER
+      SET search_path = public
+      SET row_security = off
+      AS $body$
+        SELECT public.user_can_access_company_panel(p_company_id);
+      $body$;
+    $fn$;
+    EXECUTE 'REVOKE ALL ON FUNCTION public.user_can_read_client(uuid, uuid) FROM PUBLIC';
+    EXECUTE 'GRANT EXECUTE ON FUNCTION public.user_can_read_client(uuid, uuid) TO authenticated';
+  END IF;
+
+  IF to_regprocedure('public.user_can_update_client(uuid, uuid)') IS NULL THEN
+    EXECUTE $fn$
+      CREATE FUNCTION public.user_can_update_client(p_company_id uuid, p_client_id uuid)
+      RETURNS boolean
+      LANGUAGE sql
+      STABLE
+      SECURITY DEFINER
+      SET search_path = public
+      SET row_security = off
+      AS $body$
+        SELECT public.user_can_access_company_panel(p_company_id);
+      $body$;
+    $fn$;
+    EXECUTE 'REVOKE ALL ON FUNCTION public.user_can_update_client(uuid, uuid) FROM PUBLIC';
+    EXECUTE 'GRANT EXECUTE ON FUNCTION public.user_can_update_client(uuid, uuid) TO authenticated';
+  END IF;
+END;
+$bootstrap$;
+
+-- ---------------------------------------------------------------------------
 -- Feature flag
 -- ---------------------------------------------------------------------------
 INSERT INTO public.features_catalog (key, name, description, category)
