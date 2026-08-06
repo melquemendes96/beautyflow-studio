@@ -34,6 +34,7 @@ import {
   type PublicServiceLike,
 } from "@/lib/public-booking-flow";
 import { clientPortalService } from "@/services/clientPortalService";
+import { anamnesisService } from "@/services/anamnesisService";
 import { BrandedImage } from "@/components/booking/BrandedImage";
 import { ProviderPickerCarousel } from "@/components/booking/ProviderPickerCarousel";
 import { PublicStudioHero, getBrandingButtonStyle } from "@/components/booking/PublicStudioHero";
@@ -72,6 +73,7 @@ function Agendar() {
   const [packageLookupError, setPackageLookupError] = useState<string | null>(null);
   const [packageFirstPurchase, setPackageFirstPurchase] = useState(false);
   const [bookingPendingPayment, setBookingPendingPayment] = useState(false);
+  const [anamnesisHref, setAnamnesisHref] = useState<string | null>(null);
   const [data, setData] = useState<string | null>(null);
   const [hora, setHora] = useState<string | null>(null);
   const [form, setForm] = useState({ nome: "", whatsapp: "", notes: "" });
@@ -325,6 +327,19 @@ function Agendar() {
         });
       }
       setBookingPendingPayment(Boolean(d.pending_payment));
+      setAnamnesisHref(null);
+      if (result.mode === "create" && d.appointment_id) {
+        const wa = isPackageService ? packageWhatsapp : form.whatsapp;
+        try {
+          const prep = await anamnesisService.prepareAfterBooking(slug, d.appointment_id, wa);
+          const pd = prep.data as { ok?: boolean; required?: boolean; access_token?: string };
+          if (pd?.ok && pd.required && pd.access_token) {
+            setAnamnesisHref(`/anamnese/${encodeURIComponent(slug)}?t=${pd.access_token}`);
+          }
+        } catch {
+          /* anamnese opcional — não falha o booking */
+        }
+      }
       setStep("confirmado");
     },
     onError: () => {
@@ -367,6 +382,7 @@ function Agendar() {
         clientWhatsapp={isPackageService ? packageWhatsapp : form.whatsapp}
         wasReschedule={isRescheduleMode}
         pendingPackagePayment={bookingPendingPayment}
+        anamnesisHref={anamnesisHref}
       />
     );
   }
@@ -950,6 +966,7 @@ function Confirmado({
   clientWhatsapp,
   wasReschedule,
   pendingPackagePayment,
+  anamnesisHref,
 }: {
   slug: string;
   studioName: string;
@@ -965,6 +982,7 @@ function Confirmado({
   clientWhatsapp?: string;
   wasReschedule?: boolean;
   pendingPackagePayment?: boolean;
+  anamnesisHref?: string | null;
 }) {
   const btnStyle = getBrandingButtonStyle(primaryColor);
   const publicPageHref = `/agendar/${encodeURIComponent(slug)}`;
@@ -1036,6 +1054,22 @@ function Confirmado({
             <span>{hora}</span>
           </div>
         </div>
+
+        {anamnesisHref ? (
+          <div className="mt-5 rounded-2xl border border-amber-300/60 bg-amber-50 px-4 py-4 text-left text-sm">
+            <p className="font-medium text-amber-950">Anamnese necessária</p>
+            <p className="mt-1 text-amber-900/80">
+              Seu serviço pede ficha de saúde. Preencha com segurança (link exclusivo, válido por 72h).
+            </p>
+            <a
+              href={anamnesisHref}
+              className="mt-3 inline-flex min-h-10 items-center justify-center rounded-full px-5 text-sm font-medium text-white"
+              style={btnStyle}
+            >
+              Preencher anamnese
+            </a>
+          </div>
+        ) : null}
 
         <button
           type="button"

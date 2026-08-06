@@ -13,6 +13,7 @@ const PUBLIC_PATH_PREFIXES = [
   "/reset-password",
   "/auth/callback",
   "/cliente",
+  "/anamnese",
 ] as const;
 
 const PUBLIC_BOOKING_PREFIX = "/agendar/";

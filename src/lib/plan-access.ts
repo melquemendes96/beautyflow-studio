@@ -20,6 +20,7 @@ export const FEATURE_KEYS = [
   "packages",
   "commissions",
   "inventory",
+  "anamnesis",
 ] as const;
 
 export type FeatureKey = (typeof FEATURE_KEYS)[number];
@@ -54,7 +55,7 @@ export function legacyPlanNameAllowsFeature(
   if (feature === "team" || feature === "packages" || feature === "commissions" || feature === "inventory") {
     return isElite;
   }
-  if (feature === "branding" || feature === "waitlist" || feature === "reports") {
+  if (feature === "branding" || feature === "waitlist" || feature === "reports" || feature === "anamnesis") {
     return isPro || isElite;
   }
   return true;
@@ -103,6 +104,7 @@ export function featureToPortugueseLabel(feature: FeatureKey | PlanGatedFeature)
     packages: "pacotes",
     commissions: "comissões",
     inventory: "produtos e estoque",
+    anamnesis: "anamnese",
   };
   return labels[feature] ?? feature;
 }

@@ -33,6 +33,7 @@ export const serviceService = {
       active?: boolean;
       category?: string | null;
       service_kind?: "single" | "package";
+      require_anamnesis?: boolean;
       package_sessions?: number | null;
       package_allowed_dow?: number[] | null;
       package_max_per_week?: number | null;
@@ -52,6 +53,7 @@ export const serviceService = {
         active: input.active ?? true,
         category: input.category ?? null,
         service_kind: input.service_kind ?? "single",
+        require_anamnesis: input.require_anamnesis ?? false,
         package_sessions: input.package_sessions ?? null,
         package_allowed_dow: input.package_allowed_dow ?? null,
         package_max_per_week: input.package_max_per_week ?? null,
@@ -74,6 +76,7 @@ export const serviceService = {
       active: boolean;
       category: string | null;
       service_kind: "single" | "package";
+      require_anamnesis: boolean;
       package_sessions: number | null;
       package_allowed_dow: number[] | null;
       package_max_per_week: number | null;

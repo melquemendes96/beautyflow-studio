@@ -47,6 +47,7 @@ import { Route as BillingPlansRouteImport } from './routes/billing.plans'
 import { Route as BillingCheckoutRouteImport } from './routes/billing.checkout'
 import { Route as BillingCancelRouteImport } from './routes/billing.cancel'
 import { Route as AuthCallbackRouteImport } from './routes/auth.callback'
+import { Route as AnamneseSlugRouteImport } from './routes/anamnese.$slug'
 import { Route as AgendarSlugRouteImport } from './routes/agendar.$slug'
 import { Route as AdminWhatsappRouteImport } from './routes/admin.whatsapp'
 import { Route as AdminServicosRouteImport } from './routes/admin.servicos'
@@ -256,6 +257,11 @@ const AuthCallbackRoute = AuthCallbackRouteImport.update({
   path: '/auth/callback',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AnamneseSlugRoute = AnamneseSlugRouteImport.update({
+  id: '/anamnese/$slug',
+  path: '/anamnese/$slug',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AgendarSlugRoute = AgendarSlugRouteImport.update({
   id: '/agendar/$slug',
   path: '/agendar/$slug',
@@ -382,6 +388,7 @@ export interface FileRoutesByFullPath {
   '/admin/servicos': typeof AdminServicosRoute
   '/admin/whatsapp': typeof AdminWhatsappRoute
   '/agendar/$slug': typeof AgendarSlugRoute
+  '/anamnese/$slug': typeof AnamneseSlugRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/billing/cancel': typeof BillingCancelRoute
   '/billing/checkout': typeof BillingCheckoutRoute
@@ -437,6 +444,7 @@ export interface FileRoutesByTo {
   '/admin/servicos': typeof AdminServicosRoute
   '/admin/whatsapp': typeof AdminWhatsappRoute
   '/agendar/$slug': typeof AgendarSlugRoute
+  '/anamnese/$slug': typeof AnamneseSlugRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/billing/cancel': typeof BillingCancelRoute
   '/billing/checkout': typeof BillingCheckoutRoute
@@ -496,6 +504,7 @@ export interface FileRoutesById {
   '/admin/servicos': typeof AdminServicosRoute
   '/admin/whatsapp': typeof AdminWhatsappRoute
   '/agendar/$slug': typeof AgendarSlugRoute
+  '/anamnese/$slug': typeof AnamneseSlugRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/billing/cancel': typeof BillingCancelRoute
   '/billing/checkout': typeof BillingCheckoutRoute
@@ -556,6 +565,7 @@ export interface FileRouteTypes {
     | '/admin/servicos'
     | '/admin/whatsapp'
     | '/agendar/$slug'
+    | '/anamnese/$slug'
     | '/auth/callback'
     | '/billing/cancel'
     | '/billing/checkout'
@@ -611,6 +621,7 @@ export interface FileRouteTypes {
     | '/admin/servicos'
     | '/admin/whatsapp'
     | '/agendar/$slug'
+    | '/anamnese/$slug'
     | '/auth/callback'
     | '/billing/cancel'
     | '/billing/checkout'
@@ -669,6 +680,7 @@ export interface FileRouteTypes {
     | '/admin/servicos'
     | '/admin/whatsapp'
     | '/agendar/$slug'
+    | '/anamnese/$slug'
     | '/auth/callback'
     | '/billing/cancel'
     | '/billing/checkout'
@@ -713,6 +725,7 @@ export interface RootRouteChildren {
   RegisterRoute: typeof RegisterRoute
   ResetPasswordRoute: typeof ResetPasswordRoute
   AgendarSlugRoute: typeof AgendarSlugRoute
+  AnamneseSlugRoute: typeof AnamneseSlugRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   BillingCancelRoute: typeof BillingCancelRoute
   BillingCheckoutRoute: typeof BillingCheckoutRoute
@@ -989,6 +1002,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthCallbackRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/anamnese/$slug': {
+      id: '/anamnese/$slug'
+      path: '/anamnese/$slug'
+      fullPath: '/anamnese/$slug'
+      preLoaderRoute: typeof AnamneseSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/agendar/$slug': {
       id: '/agendar/$slug'
       path: '/agendar/$slug'
@@ -1245,6 +1265,7 @@ const rootRouteChildren: RootRouteChildren = {
   RegisterRoute: RegisterRoute,
   ResetPasswordRoute: ResetPasswordRoute,
   AgendarSlugRoute: AgendarSlugRoute,
+  AnamneseSlugRoute: AnamneseSlugRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   BillingCancelRoute: BillingCancelRoute,
   BillingCheckoutRoute: BillingCheckoutRoute,

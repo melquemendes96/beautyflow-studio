@@ -10,6 +10,7 @@ import { clientService } from "@/services/clientService";
 import { serviceService } from "@/services/serviceService";
 import { packageService } from "@/services/packageService";
 import { ClientPackagesOverviewPanel } from "@/components/admin/ClientPackagesOverviewPanel";
+import { ClientAnamnesisPanel } from "@/components/admin/ClientAnamnesisPanel";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -46,6 +47,13 @@ function Clientes() {
     queryFn: () => hasFeatureAccess(companyId!, "packages"),
   });
   const packagesEnabled = Boolean(packagesQuery.data);
+
+  const anamnesisQuery = useQuery({
+    queryKey: ["admin", "feature", "anamnesis", companyId],
+    enabled: hasCompany && Boolean(companyId),
+    queryFn: () => hasFeatureAccess(companyId!, "anamnesis"),
+  });
+  const anamnesisEnabled = Boolean(anamnesisQuery.data);
 
   const packageServicesQuery = useQuery({
     queryKey: ["admin", "services", "packages", companyId],
@@ -201,6 +209,14 @@ function Clientes() {
                   </label>
                 </div>
 
+                {editing && anamnesisEnabled ? (
+                  <ClientAnamnesisPanel
+                    companyId={companyId!}
+                    clientId={editing.id}
+                    enabled={anamnesisEnabled}
+                  />
+                ) : null}
+
                 {editing && packagesEnabled ? (
                   <>
                     <ClientPackagesOverviewPanel
@@ -281,12 +297,13 @@ function Clientes() {
             <tr>
               <th className="px-4 py-3 text-left">Cliente</th>
               <th className="px-4 py-3 text-left hidden md:table-cell">Contato</th>
+              <th className="px-4 py-3 text-center hidden sm:table-cell">Anamnese</th>
               <th className="px-4 py-3 text-center">Cadastro</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
             {clientsQuery.isLoading &&
-              Array.from({ length: 6 }).map((_, i) => <AdminTableRowSkeleton key={`sk-${i}`} cols={3} />)}
+              Array.from({ length: 6 }).map((_, i) => <AdminTableRowSkeleton key={`sk-${i}`} cols={4} />)}
             {!clientsQuery.isLoading &&
               (filtered ?? []).map((c: any) => (
                 <tr
@@ -313,6 +330,23 @@ function Clientes() {
                     <div>{c.email ?? "—"}</div>
                     <div className="text-xs">{c.whatsapp ?? "—"}</div>
                   </td>
+                  <td className="px-4 py-3 text-center hidden sm:table-cell">
+                    {c.anamnesis_status === "valid" ? (
+                      <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] uppercase text-emerald-800">
+                        OK
+                      </span>
+                    ) : c.anamnesis_status === "expired" ? (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] uppercase text-amber-800">
+                        Vencida
+                      </span>
+                    ) : anamnesisEnabled ? (
+                      <span className="rounded-full bg-secondary px-2 py-0.5 text-[10px] uppercase text-muted-foreground">
+                        —
+                      </span>
+                    ) : (
+                      "—"
+                    )}
+                  </td>
                   <td className="px-4 py-3 text-center text-muted-foreground">
                     {c.created_at ? new Date(c.created_at).toLocaleDateString("pt-BR") : "—"}
                   </td>
@@ -320,7 +354,7 @@ function Clientes() {
               ))}
             {!clientsQuery.isLoading && filtered.length === 0 && (
               <tr>
-                <td className="p-0" colSpan={3}>
+                <td className="p-0" colSpan={4}>
                   <div className="p-4">
                     <AdminEmptyState
                       icon={Users}

@@ -72,6 +72,7 @@ function Servicos() {
     buffer_minutes: "0",
     image_url: "",
     active: true,
+    require_anamnesis: false,
     service_kind: "single" as "single" | "package",
     package_sessions: "4",
     package_allowed_dow: [2, 3, 4, 5, 6] as number[],
@@ -85,6 +86,13 @@ function Servicos() {
     queryFn: () => hasFeatureAccess(companyId!, "packages"),
   });
   const packagesEnabled = Boolean(packagesQuery.data);
+
+  const anamnesisQuery = useQuery({
+    queryKey: ["admin", "feature", "anamnesis", companyId],
+    enabled: hasCompany && Boolean(companyId),
+    queryFn: () => hasFeatureAccess(companyId!, "anamnesis"),
+  });
+  const anamnesisEnabled = Boolean(anamnesisQuery.data);
 
   const inventoryQuery = useQuery({
     queryKey: ["admin", "feature", "inventory", companyId],
@@ -174,6 +182,7 @@ function Servicos() {
         buffer_minutes: bufferMinutes,
         image_url,
         active: Boolean(form.active),
+        require_anamnesis: anamnesisEnabled ? Boolean(form.require_anamnesis) : false,
         service_kind: isPackage ? ("package" as const) : ("single" as const),
         package_sessions: isPackage ? packageSessions : null,
         package_allowed_dow: isPackage ? form.package_allowed_dow : null,
@@ -207,6 +216,7 @@ function Servicos() {
         buffer_minutes: "0",
         image_url: "",
         active: true,
+        require_anamnesis: false,
         service_kind: "single",
         package_sessions: "4",
         package_allowed_dow: [2, 3, 4, 5, 6],
@@ -252,6 +262,7 @@ function Servicos() {
       buffer_minutes: "0",
       image_url: "",
       active: true,
+      require_anamnesis: false,
       service_kind: "single",
       package_sessions: "4",
       package_allowed_dow: [2, 3, 4, 5, 6],
@@ -277,6 +288,7 @@ function Servicos() {
       buffer_minutes: s.buffer_minutes != null ? String(s.buffer_minutes) : "0",
       image_url: s.image_url ?? "",
       active: Boolean(s.active),
+      require_anamnesis: Boolean(s.require_anamnesis),
       service_kind: s.service_kind === "package" ? "package" : "single",
       package_sessions: s.package_sessions != null ? String(s.package_sessions) : "4",
       package_allowed_dow: Array.isArray(s.package_allowed_dow)
@@ -371,6 +383,22 @@ function Servicos() {
                     </select>
                   </label>
                 </div>
+                {anamnesisEnabled ? (
+                  <label className="flex items-start gap-2 rounded-xl border border-border bg-secondary/30 px-3 py-3 text-sm">
+                    <input
+                      type="checkbox"
+                      className="mt-1"
+                      checked={form.require_anamnesis}
+                      onChange={(e) => setForm((s) => ({ ...s, require_anamnesis: e.target.checked }))}
+                    />
+                    <span>
+                      <span className="font-medium">Exige anamnese</span>
+                      <span className="mt-0.5 block text-xs text-muted-foreground">
+                        Cliente recebe link seguro após agendar. Não bloqueia o horário — só sinaliza pendência.
+                      </span>
+                    </span>
+                  </label>
+                ) : null}
                 {packagesEnabled ? (
                   <div className="rounded-xl border border-border bg-secondary/30 p-4">
                     <label className="grid gap-1.5 text-sm">
@@ -570,6 +598,11 @@ function Servicos() {
               {s.service_kind === "package" ? (
                 <span className="mt-1 inline-block rounded-full bg-purple-soft/20 px-2 py-0.5 text-[10px] uppercase tracking-wide text-purple-soft">
                   Pacote · {s.package_sessions ?? "?"} sessões
+                </span>
+              ) : null}
+              {s.require_anamnesis ? (
+                <span className="mt-1 ml-1 inline-block rounded-full bg-amber-100 px-2 py-0.5 text-[10px] uppercase tracking-wide text-amber-800">
+                  Anamnese
                 </span>
               ) : null}
               <p className="mt-1 text-sm text-muted-foreground">{s.description ?? "—"}</p>
